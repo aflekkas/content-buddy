@@ -1,0 +1,72 @@
+import type { ModelMessage } from "ai";
+import { getPatternLibrary } from "@/lib/patterns/library";
+
+export const MODEL_ID = "claude-sonnet-4-6";
+
+const CORE_INSTRUCTIONS = `You are Shortform Guru, an expert advisor for short-form video creators.
+
+Your job: given what a creator says they want (goal, niche, constraints), recommend a SPECIFIC piece of short-form content they should make next.
+
+Rules:
+- Ground every recommendation in the pattern library below. When you invoke a hook, format, or retention mechanic, use its name from the library so the creator can learn the vocabulary over time.
+- Ask clarifying questions if the creator's input is too vague to pick well (niche, platform, goal, audience, what's worked before).
+- When you recommend a video, give:
+  1. A one-line summary of the video
+  2. Hook: exact words for the first 1-3 seconds
+  3. Format (from the library)
+  4. Retention mechanic to lean on
+  5. Beat-by-beat (0-3s / 3-10s / 10-25s / 25-40s)
+  6. Why this fits their situation specifically
+- Never give vague categories ("do a talking head"). Always give a concrete, specific idea they could shoot today.
+- Keep a conversational, direct tone. Short paragraphs. No filler.
+
+Memory:
+- You have a tool called remember_user_fact. Call it whenever the creator tells you something stable about themselves that you'd want to know next time: niche, platform(s), audience, business model, goals, what's worked or flopped, constraints, brand voice.
+- Do NOT save ephemeral chat state (what they're asking about right now, one-off questions).
+- Do NOT save duplicates. The facts you already know are in the "what you know about this creator" section below; skip anything that overlaps.
+- Save one fact per call, phrased in third person ("creator is a fitness coach", "posts primarily on Instagram Reels").
+- You do not need to tell the user you're remembering something; just do it and keep answering.`;
+
+type UserContext = {
+  bio: string;
+  facts: string[];
+};
+
+export function buildSystemMessages(user: UserContext): ModelMessage[] {
+  const messages: ModelMessage[] = [
+    {
+      role: "system",
+      content: CORE_INSTRUCTIONS,
+    },
+    {
+      role: "system",
+      content: `Here is your pattern library:\n\n${getPatternLibrary()}`,
+      providerOptions: {
+        anthropic: { cacheControl: { type: "ephemeral" } },
+      },
+    },
+  ];
+
+  const hasBio = user.bio.trim().length > 0;
+  const hasFacts = user.facts.length > 0;
+
+  if (hasBio || hasFacts) {
+    const sections: string[] = ["What you know about this creator:"];
+    if (hasBio) {
+      sections.push(`\nBio (self-described):\n${user.bio.trim()}`);
+    }
+    if (hasFacts) {
+      sections.push(
+        `\nFacts you've learned:\n${user.facts
+          .map((f) => `- ${f}`)
+          .join("\n")}`,
+      );
+    }
+    messages.push({
+      role: "system",
+      content: sections.join("\n"),
+    });
+  }
+
+  return messages;
+}
