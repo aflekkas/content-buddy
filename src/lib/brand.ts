@@ -16,13 +16,6 @@ export type MascotFrame = keyof typeof MASCOT;
 
 // Frame sequences for different moods. Each entry is [frameKey, holdMs].
 export const MASCOT_SEQUENCES = {
-  // Subtle idle: open eyes, brief blink every few seconds.
-  idle: [
-    ["idle", 3000],
-    ["blinkMid", 70],
-    ["blinkClosed", 110],
-    ["blinkMid", 70],
-  ] as const,
   // Thinking: eyes dart between up-left and up-right.
   thinking: [
     ["thinkingLeft", 700],

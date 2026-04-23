@@ -27,7 +27,7 @@ export function LogoMark({ className, size = 32, animate }: LogoProps) {
       return;
     }
     const seq = MASCOT_SEQUENCES[animate];
-    if (!seq || seq.length === 0) return;
+    if (!seq) return;
 
     let i = 0;
     let cancelled = false;

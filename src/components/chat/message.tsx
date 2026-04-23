@@ -74,9 +74,7 @@ export function Message({ message, isStreaming }: Props) {
         isUser ? "justify-end" : "justify-start",
       )}
     >
-      {!isUser && (
-        <LogoMark size={40} animate="idle" className="mt-0.5" />
-      )}
+      {!isUser && <LogoMark size={40} className="mt-0.5" />}
       <div className="flex max-w-[80%] flex-col gap-1.5">
         {remembers.map((r, i) => (
           <RememberChip key={i} state={r} />
