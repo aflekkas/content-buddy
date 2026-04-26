@@ -1,8 +1,5 @@
 import { redirect } from "next/navigation";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
 import { createClient } from "@/lib/supabase/server";
-import { listChats } from "@/lib/db/queries";
 
 export default async function DashboardLayout({
   children,
@@ -18,20 +15,5 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const chats = await listChats(user.id);
-
-  return (
-    <SidebarProvider>
-      <AppSidebar
-        chats={chats}
-        user={{
-          id: user.id,
-          email: user.email ?? "",
-        }}
-      />
-      <SidebarInset className="flex min-h-0 flex-col overflow-hidden">
-        {children}
-      </SidebarInset>
-    </SidebarProvider>
-  );
+  return <div className="h-svh overflow-hidden flex flex-col">{children}</div>;
 }

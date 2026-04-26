@@ -92,7 +92,7 @@ function PromptInput({
         <div
           onClick={handleClick}
           className={cn(
-            "border-input bg-background cursor-text rounded-3xl border p-2 shadow-xs",
+            "border-input bg-background cursor-text rounded-3xl border p-2 shadow-xs transition-shadow hover:ring-2 hover:ring-primary/30 focus-within:ring-2 focus-within:ring-primary/50",
             disabled && "cursor-not-allowed opacity-60",
             className
           )}
@@ -169,7 +169,7 @@ function PromptInputTextarea({
       onChange={handleChange}
       onKeyDown={handleKeyDown}
       className={cn(
-        "text-primary min-h-[44px] w-full resize-none border-none bg-transparent shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
+        "text-foreground min-h-[44px] w-full resize-none border-none bg-transparent shadow-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
         className
       )}
       rows={1}
@@ -214,9 +214,8 @@ function PromptInputAction({
       <TooltipTrigger
         disabled={disabled}
         onClick={(event) => event.stopPropagation()}
-      >
-        {children}
-      </TooltipTrigger>
+        render={children as React.ReactElement}
+      />
       <TooltipContent side={side} className={className}>
         {tooltip}
       </TooltipContent>

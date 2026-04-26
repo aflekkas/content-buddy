@@ -15,10 +15,12 @@ import {
   addChatUsage,
   addUserFact,
   appendMessage,
+  createVideo,
   getChat,
   getUserProfile,
   listUserFacts,
   setChatTitle,
+  updateVideo,
 } from "@/lib/db/queries";
 
 export const maxDuration = 60;
@@ -74,6 +76,12 @@ export async function POST(req: Request) {
       }),
       ...modelMessages,
     ],
+    providerOptions: {
+      anthropic: {
+        thinking: { type: "adaptive", display: "summarized" },
+        sendReasoning: true,
+      },
+    },
     stopWhen: stepCountIs(5),
     tools: {
       remember_user_fact: tool({
@@ -96,6 +104,50 @@ export async function POST(req: Request) {
           await addUserFact(userId, fact.trim());
           knownFacts.add(normalized);
           return { saved: true };
+        },
+      }),
+      create_video: tool({
+        description:
+          "Create a saved video idea when the conversation lands on a concrete concept, hook, or draft script.",
+        inputSchema: z.object({
+          title: z.string().min(3).max(120),
+          hook: z.string().max(500).optional(),
+          script: z.string().max(4000).optional(),
+        }),
+        execute: async ({ title, hook, script }) => {
+          const video = await createVideo(userId, {
+            chatId,
+            title: title.trim(),
+            hook: hook?.trim(),
+            script: script?.trim(),
+          });
+
+          return {
+            id: video.id,
+            title: video.title,
+            status: video.status,
+          };
+        },
+      }),
+      update_video: tool({
+        description:
+          "Update an existing saved video with refined title, hook, script, or status.",
+        inputSchema: z.object({
+          id: z.string().uuid(),
+          title: z.string().min(3).max(120).optional(),
+          hook: z.string().max(500).optional(),
+          script: z.string().max(4000).optional(),
+          status: z.enum(["idea", "ready", "filmed"]).optional(),
+        }),
+        execute: async ({ id, ...patch }) => {
+          const video = await updateVideo(userId, id, {
+            title: patch.title?.trim(),
+            hook: patch.hook?.trim(),
+            script: patch.script?.trim(),
+            status: patch.status,
+          });
+
+          return video ?? { error: "not_found" as const };
         },
       }),
     },

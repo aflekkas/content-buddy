@@ -28,7 +28,6 @@ export default async function ChatPage({
     <Chat
       chatId={id}
       initialMessages={initialMessages}
-      initialTitle={chat.title}
       initialUsage={{
         inputTokens: chat.input_tokens,
         outputTokens: chat.output_tokens,

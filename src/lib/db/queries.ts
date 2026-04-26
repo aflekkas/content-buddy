@@ -1,5 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
-import type { ChatRow, MessageRow, UserFactRow, UserProfileRow } from "./types";
+import type {
+  ChatRow,
+  MessageRow,
+  UserFactRow,
+  UserProfileRow,
+  VideoRow,
+  VideoStatus,
+} from "./types";
 
 export async function listChats(userId: string): Promise<ChatRow[]> {
   const supabase = await createClient();
@@ -133,6 +140,35 @@ export async function setChatTitle(
   if (error) throw error;
 }
 
+export async function renameChat(
+  chatId: string,
+  userId: string,
+  title: string,
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("chats")
+    .update({ title })
+    .eq("id", chatId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+export async function deleteChat(
+  chatId: string,
+  userId: string,
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("chats")
+    .delete()
+    .eq("id", chatId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
 export async function getUserProfile(
   userId: string,
 ): Promise<UserProfileRow | null> {
@@ -198,6 +234,101 @@ export async function deleteUserFact(
     .from("user_facts")
     .delete()
     .eq("id", factId)
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+export async function listVideos(userId: string): Promise<VideoRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("videos")
+    .select("*")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createVideo(
+  userId: string,
+  input: {
+    chatId?: string;
+    title: string;
+    hook?: string;
+    script?: string;
+  },
+): Promise<VideoRow> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("videos")
+    .insert({
+      user_id: userId,
+      chat_id: input.chatId,
+      title: input.title,
+      hook: input.hook ?? "",
+      script: input.script ?? "",
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateVideo(
+  userId: string,
+  videoId: string,
+  patch: {
+    title?: string;
+    hook?: string;
+    script?: string;
+    status?: VideoStatus;
+  },
+): Promise<VideoRow | null> {
+  const now = new Date().toISOString();
+  const updates: {
+    title?: string;
+    hook?: string;
+    script?: string;
+    status?: VideoStatus;
+    updated_at: string;
+    filmed_at?: string | null;
+  } = {
+    updated_at: now,
+  };
+
+  if (patch.title !== undefined) updates.title = patch.title;
+  if (patch.hook !== undefined) updates.hook = patch.hook;
+  if (patch.script !== undefined) updates.script = patch.script;
+  if (patch.status !== undefined) {
+    updates.status = patch.status;
+    updates.filmed_at = patch.status === "filmed" ? now : null;
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("videos")
+    .update(updates)
+    .eq("id", videoId)
+    .eq("user_id", userId)
+    .select()
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteVideo(
+  userId: string,
+  videoId: string,
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("videos")
+    .delete()
+    .eq("id", videoId)
     .eq("user_id", userId);
 
   if (error) throw error;

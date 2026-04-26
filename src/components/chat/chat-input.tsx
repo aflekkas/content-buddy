@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { ArrowUp, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,31 +48,29 @@ export function ChatInput({
         className="px-2 py-1.5"
       />
       <PromptInputActions className="justify-end">
-        {isStreaming ? (
-          <PromptInputAction tooltip="Stop generating">
-            <Button
-              type="button"
-              size="icon"
-              variant="default"
-              className="rounded-full"
-              onClick={onStop}
-            >
-              <Square className="fill-current" />
-            </Button>
-          </PromptInputAction>
-        ) : (
-          <PromptInputAction tooltip="Send">
-            <Button
-              type="button"
-              size="icon"
-              onClick={send}
-              disabled={!value.trim()}
-              className="rounded-full"
-            >
-              <ArrowUp />
-            </Button>
-          </PromptInputAction>
-        )}
+        <PromptInputAction tooltip={isStreaming ? "Stop generating" : "Send"}>
+          <Button
+            type="button"
+            size="icon"
+            variant="default"
+            className="rounded-full"
+            onClick={isStreaming ? onStop : send}
+            disabled={!isStreaming && !value.trim()}
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={isStreaming ? "stop" : "send"}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                transition={{ duration: 0.12, ease: "easeOut" }}
+                className="inline-flex"
+              >
+                {isStreaming ? <Square className="fill-current" /> : <ArrowUp />}
+              </motion.span>
+            </AnimatePresence>
+          </Button>
+        </PromptInputAction>
       </PromptInputActions>
     </PromptInput>
   );

@@ -1,6 +1,6 @@
 # Short-Form Video Pattern Library
 
-This is the knowledge base Shortform Guru draws from when recommending video ideas.
+This is the knowledge base Content Buddy draws from when recommending video ideas.
 Patterns are organized into four sections: Hook Archetypes, Video Formats, Retention Mechanics, and Niche Playbooks.
 
 ---

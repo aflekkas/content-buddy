@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,8 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Logo } from "@/components/logo";
+import { FadeIn } from "@/components/ui/motion";
+import { EASE_OUT } from "@/lib/motion";
 
 type Mode = "signin" | "signup";
 
@@ -54,18 +57,30 @@ export function AuthForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm">
-      <CardHeader className="items-center text-center">
-        <Logo size={32} className="mb-2" />
-        <CardTitle className="text-xl">
-          {mode === "signup" ? "Create your account" : "Welcome back"}
-        </CardTitle>
-        <CardDescription>
-          {mode === "signup"
-            ? "Sign up to start getting video recommendations."
-            : "Sign in to continue."}
-        </CardDescription>
-      </CardHeader>
+    <FadeIn y={8} className="w-full max-w-sm">
+      <Card className="w-full">
+        <CardHeader className="items-center text-center">
+          <Logo size={32} className="mb-2" />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={mode}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.18, ease: EASE_OUT }}
+              className="flex flex-col items-center gap-1.5"
+            >
+              <CardTitle className="text-xl">
+                {mode === "signup" ? "Create your account" : "Welcome back"}
+              </CardTitle>
+              <CardDescription>
+                {mode === "signup"
+                  ? "Sign up to start getting video recommendations."
+                  : "Sign in to continue."}
+              </CardDescription>
+            </motion.div>
+          </AnimatePresence>
+        </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
@@ -132,6 +147,7 @@ export function AuthForm() {
           )}
         </div>
       </CardContent>
-    </Card>
+      </Card>
+    </FadeIn>
   );
 }
