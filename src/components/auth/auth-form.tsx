@@ -76,130 +76,130 @@ export function AuthForm() {
             </span>
           </div>
 
-          {/* Animated title + description */}
+          {/* Animated form block — entire form blurs-fades on mode change */}
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={mode}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.18, ease: EASE_OUT }}
-              className="mb-6 flex flex-col items-center gap-1.5 text-center"
+              initial={{ opacity: 0, filter: "blur(8px)", y: 4 }}
+              animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
+              exit={{ opacity: 0, filter: "blur(8px)", y: -4 }}
+              transition={{ duration: 0.28, ease: EASE_OUT }}
             >
-              <h1 className="text-xl font-semibold tracking-tight">
-                {mode === "signup" ? "Create your account" : "Welcome back"}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {mode === "signup"
-                  ? "Two fields and you're filming."
-                  : "Sign in to keep building."}
-              </p>
+              <div className="mb-6 flex flex-col items-center gap-1.5 text-center">
+                <h1 className="text-xl font-semibold tracking-tight">
+                  {mode === "signup" ? "Create your account" : "Welcome back"}
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  {mode === "signup"
+                    ? "Two fields and you're filming."
+                    : "Sign in to keep building."}
+                </p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <FieldGroup>
+                  <Field>
+                    <FieldLabel htmlFor="email">Email</FieldLabel>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      autoFocus
+                      autoComplete="email"
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="password">Password</FieldLabel>
+                    <div className="relative">
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        minLength={8}
+                        autoComplete={
+                          mode === "signup" ? "new-password" : "current-password"
+                        }
+                        className="pr-9"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        type="button"
+                        tabIndex={-1}
+                        onClick={() => setShowPassword((s) => !s)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                        className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="size-3.5" />
+                        ) : (
+                          <Eye className="size-3.5" />
+                        )}
+                      </Button>
+                    </div>
+                    {mode === "signup" && (
+                      <FieldDescription>8 character minimum.</FieldDescription>
+                    )}
+                  </Field>
+                </FieldGroup>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={loading || !email || !password}
+                  className="w-full"
+                >
+                  {loading ? (
+                    <CircularLoader size="sm" />
+                  ) : (
+                    <>
+                      {mode === "signup" ? "Create account" : "Sign in"}
+                      <ArrowRight className="size-4" />
+                    </>
+                  )}
+                </Button>
+
+                <FieldSeparator />
+
+                <FieldDescription className="text-center">
+                  {mode === "signin" ? (
+                    <>
+                      No account?{" "}
+                      <Button
+                        variant="link"
+                        size="sm"
+                        type="button"
+                        onClick={() => setMode("signup")}
+                        className="h-auto px-1 py-0 font-medium"
+                      >
+                        Sign up
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      Already have an account?{" "}
+                      <Button
+                        variant="link"
+                        size="sm"
+                        type="button"
+                        onClick={() => setMode("signin")}
+                        className="h-auto px-1 py-0 font-medium"
+                      >
+                        Sign in
+                      </Button>
+                    </>
+                  )}
+                </FieldDescription>
+              </form>
             </motion.div>
           </AnimatePresence>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoFocus
-                  autoComplete="email"
-                />
-              </Field>
-
-              <Field>
-                <FieldLabel htmlFor="password">Password</FieldLabel>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={8}
-                    autoComplete={
-                      mode === "signup" ? "new-password" : "current-password"
-                    }
-                    className="pr-9"
-                  />
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => setShowPassword((s) => !s)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-3.5" />
-                    ) : (
-                      <Eye className="size-3.5" />
-                    )}
-                  </Button>
-                </div>
-                {mode === "signup" && (
-                  <FieldDescription>8 character minimum.</FieldDescription>
-                )}
-              </Field>
-            </FieldGroup>
-
-            <Button
-              type="submit"
-              size="lg"
-              disabled={loading || !email || !password}
-              className="w-full"
-            >
-              {loading ? (
-                <CircularLoader size="sm" />
-              ) : (
-                <>
-                  {mode === "signup" ? "Create account" : "Sign in"}
-                  <ArrowRight className="size-4" />
-                </>
-              )}
-            </Button>
-
-            <FieldSeparator />
-
-            <FieldDescription className="text-center">
-              {mode === "signin" ? (
-                <>
-                  No account?{" "}
-                  <Button
-                    variant="link"
-                    size="sm"
-                    type="button"
-                    onClick={() => setMode("signup")}
-                    className="h-auto px-1 py-0 font-medium"
-                  >
-                    Sign up
-                  </Button>
-                </>
-              ) : (
-                <>
-                  Already have an account?{" "}
-                  <Button
-                    variant="link"
-                    size="sm"
-                    type="button"
-                    onClick={() => setMode("signin")}
-                    className="h-auto px-1 py-0 font-medium"
-                  >
-                    Sign in
-                  </Button>
-                </>
-              )}
-            </FieldDescription>
-          </form>
         </div>
       </div>
 
