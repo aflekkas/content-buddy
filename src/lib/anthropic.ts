@@ -19,7 +19,7 @@ const GOAL_LABEL: Record<PrimaryGoal, string> = {
   experiment: "experiment without a fixed goal",
 };
 
-const CORE_INSTRUCTIONS = `You are Content Buddy, an expert advisor for short-form video creators.
+const CORE_INSTRUCTIONS = `You are Shortform Studio, an expert advisor for short-form video creators.
 
 Your job: given what a creator says they want (goal, niche, constraints), recommend a SPECIFIC piece of short-form content they should make next.
 

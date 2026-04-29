@@ -41,7 +41,7 @@ const PayloadSchema = z.object({
   api_key: z.string().min(20),
 });
 
-const SEED_SYSTEM = `You are Content Buddy, an expert advisor for short-form video creators.
+const SEED_SYSTEM = `You are Shortform Studio, an expert advisor for short-form video creators.
 The user just finished onboarding. Generate their first artifact: three distinct hook ideas, then one full 30-second script ready to film.
 
 Output STRICT markdown in this shape (no preamble, no closing remarks):

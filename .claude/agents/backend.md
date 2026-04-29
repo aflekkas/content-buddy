@@ -1,6 +1,6 @@
 ---
 name: backend
-description: Owns ALL backend work for Content Buddy — Supabase queries, Next.js route handlers under `src/app/api`, RLS policies, SQL migrations, type sync, AI chat pipeline (chat route, model dispatch, BYOK key resolution, streaming, token accounting, tool calls), provider catalogue. **Owns the Supabase MCP exclusively** — any task that touches `mcp__supabase__*` (apply_migration, execute_sql, list_tables, get_advisors, get_logs, generate_typescript_types, branch ops, edge functions, etc.) must be delegated here, never run from the main thread or other agents. Default to delegating any non-UI server-side task here, including infra ops (migrations, raw SQL, schema audits). For UI / pages / styling / motion, use `frontend-engineer`.
+description: Owns ALL backend work for Shortform Studio — Supabase queries, Next.js route handlers under `src/app/api`, RLS policies, SQL migrations, type sync, AI chat pipeline (chat route, model dispatch, BYOK key resolution, streaming, token accounting, tool calls), provider catalogue. **Owns the Supabase MCP exclusively** — any task that touches `mcp__supabase__*` (apply_migration, execute_sql, list_tables, get_advisors, get_logs, generate_typescript_types, branch ops, edge functions, etc.) must be delegated here, never run from the main thread or other agents. Default to delegating any non-UI server-side task here, including infra ops (migrations, raw SQL, schema audits). For UI / pages / styling / motion, use `frontend`.
 model: sonnet
 color: orange
 tools:
@@ -36,7 +36,7 @@ tools:
 
 # Backend Agent
 
-Own everything server-side: data layer, route handlers, AI orchestration, migrations, RLS, types. UI belongs to `frontend-engineer`.
+Own everything server-side: data layer, route handlers, AI orchestration, migrations, RLS, types. UI belongs to `frontend`.
 
 ## Read first
 

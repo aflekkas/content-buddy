@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-const REPO_URL = "https://github.com/aflekkas/content-buddy";
+const REPO_URL = "https://github.com/aflekkas/shortform-studio";
 
 export function OpenSourceSection() {
   return (

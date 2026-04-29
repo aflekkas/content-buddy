@@ -73,7 +73,7 @@ export function EncryptionSection() {
               </span>
             </h2>
             <p className="mt-3 max-w-md text-muted-foreground">
-              Content Buddy runs on whichever provider key you bring. You pay
+              Shortform Studio runs on whichever provider key you bring. You pay
               them directly, on your own terms, and the key itself never leaves
               the parts of the system that strictly need it.
             </p>

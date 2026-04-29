@@ -25,7 +25,7 @@ export function FinalCta({ isAuthed = false }: { isAuthed?: boolean }) {
           </StaggerItem>
           <StaggerItem>
             <p className="mx-auto mt-4 max-w-xl text-balance text-muted-foreground">
-              Open Content Buddy, paste in a key from any supported provider, and
+              Open Shortform Studio, paste in a key from any supported provider, and
               start a chat. Your videos line up behind it.
             </p>
           </StaggerItem>

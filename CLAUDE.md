@@ -18,7 +18,7 @@ Default mode: any time a feature, fix, or non-trivial change reaches a working s
 
 Project agents live in `.claude/agents/`. Prefer delegating focused work to them over doing it yourself, especially anything that fits an agent's description. Spawning is cheap; protecting the main context is valuable.
 
-- **`frontend-engineer`** — owns ALL UI / page / component / styling / motion / design work in `src/app/**`, `src/components/**`, and `src/app/globals.css`. Default to delegating any frontend task here, even small ones. Brand and stack rules are baked into the agent. **Also owns the `shadcn` and `magicui` MCP servers exclusively** — any `mcp__shadcn__*` or `mcp__magicui__*` call must be made from this agent.
+- **`frontend`** — owns ALL UI / page / component / styling / motion / design work in `src/app/**`, `src/components/**`, and `src/app/globals.css`. Default to delegating any frontend task here, even small ones. Brand and stack rules are baked into the agent. **Also owns the `shadcn` and `magicui` MCP servers exclusively** — any `mcp__shadcn__*` or `mcp__magicui__*` call must be made from this agent.
 - **`backend`** — owns ALL server-side work: Supabase queries, route handlers under `src/app/api`, RLS policies, SQL migrations, type sync, AI chat pipeline (chat route, model dispatch, BYOK key resolution, streaming, token accounting, tool calls), provider catalogue. **Also owns the `supabase` MCP server exclusively** — any `mcp__supabase__*` call (apply_migration, execute_sql, list_tables, get_advisors, get_logs, branches, edge functions, etc.) must be made from this agent.
 - **Run agents in the background** (`run_in_background: true`) for any task expected to take more than a few seconds. Continue with other work and process the result when it returns. Do not sit and wait.
 - Spawn multiple agents in parallel when the tasks are independent (e.g. frontend redesign + backend route refactor at the same time).
@@ -31,8 +31,8 @@ MCP servers map 1:1 to subagents. The main thread does **not** call MCP tools di
 | MCP server | Owner agent | Tool prefix |
 |------------|-------------|-------------|
 | `supabase` | `backend` | `mcp__supabase__*` |
-| `shadcn` | `frontend-engineer` | `mcp__shadcn__*` |
-| `magicui` | `frontend-engineer` | `mcp__magicui__*` |
+| `shadcn` | `frontend` | `mcp__shadcn__*` |
+| `magicui` | `frontend` | `mcp__magicui__*` |
 
 If a task needs Supabase MCP and shadcn MCP, spawn both agents in parallel rather than reaching for the tools from the main thread.
 
@@ -69,7 +69,7 @@ If a change affects the database schema, add or update a migration in `supabase/
 
 # Product Model: Bring Your Own Key
 
-Content Buddy is a **bring-your-own-key** product. Each user supplies their own provider API key (Anthropic, OpenAI, Google Gemini, xAI Grok, or Llama via Groq) and picks an active model in `/settings`; the app uses that key to drive their chats. Keep this in mind across the surface area:
+Shortform Studio is a **bring-your-own-key** product. Each user supplies their own provider API key (Anthropic, OpenAI, Google Gemini, xAI Grok, or Llama via Groq) and picks an active model in `/settings`; the app uses that key to drive their chats. Keep this in mind across the surface area:
 
 - Surface BYOK in the UI subtly (e.g. a small footer note, a line on the landing CTA, an onboarding hint), it should be clear, not the headline of the brand.
 - Server-side AI orchestration must use the **caller's** key, not a shared platform key. Never check a global provider env var like `ANTHROPIC_API_KEY` in production paths; pull the user's key from `user_provider_keys` via `getDecryptedProviderKey(userId, provider)` from `src/lib/db/queries.ts`.
