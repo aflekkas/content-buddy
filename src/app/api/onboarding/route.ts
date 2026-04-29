@@ -1,22 +1,29 @@
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import {
-  buildCreatorProfileBlock,
-  MODEL_ID,
-} from "@/lib/anthropic";
+import { buildCreatorProfileBlock } from "@/lib/anthropic";
 import {
   addChatUsage,
   appendMessage,
   createChat,
+  getDecryptedProviderKey,
   hasCompletedOnboarding,
   markOnboarded,
   setChatTitle,
+  setActiveModel,
+  setProviderKey,
   upsertUserProfile,
 } from "@/lib/db/queries";
+import { getModel } from "@/lib/model-dispatch";
+import { validateProviderKey } from "@/lib/provider-validate";
 import { NICHE_IDS, ONBOARDING_PLATFORM_IDS } from "@/lib/niches";
+import {
+  PROVIDERS,
+  PROVIDER_IDS,
+  defaultModel,
+  type ProviderId,
+} from "@/lib/providers";
 
 export const maxDuration = 60;
 
@@ -30,7 +37,8 @@ const PayloadSchema = z.object({
   channel_pitch: z.string().min(3).max(500),
   audience_stage: z.enum(["starting", "growing", "established", "large"]),
   primary_goal: z.enum(["grow", "monetize", "brand", "traffic", "experiment"]),
-  anthropic_key: z.string().min(20).startsWith("sk-ant-"),
+  provider: z.enum(PROVIDER_IDS as [ProviderId, ...ProviderId[]]),
+  api_key: z.string().min(20),
 });
 
 const SEED_SYSTEM = `You are Content Buddy, an expert advisor for short-form video creators.
@@ -89,6 +97,15 @@ export async function POST(req: Request) {
   }
 
   const data = parsed.data;
+
+  // Runtime prefix check — catches key/provider mismatch before hitting the API.
+  if (!data.api_key.startsWith(PROVIDERS[data.provider].keyPrefix)) {
+    return NextResponse.json(
+      { error: "invalid_key_format", provider: data.provider },
+      { status: 400 },
+    );
+  }
+
   const profileFields = {
     platforms: data.platforms,
     niche_primary: data.niche_primary,
@@ -100,9 +117,31 @@ export async function POST(req: Request) {
 
   await upsertUserProfile(user.id, profileFields);
 
-  // TODO(byok): persist data.anthropic_key once the BYOK settings store is wired.
-  // For now the key is used in-flight only for this generation, then dropped.
-  const provider = createAnthropic({ apiKey: data.anthropic_key });
+  // Validate the key against the provider's API before persisting it.
+  const validation = await validateProviderKey(data.provider, data.api_key);
+  if (!validation.ok && validation.reason === "auth") {
+    return NextResponse.json(
+      {
+        error: "invalid_key",
+        provider: data.provider,
+        message: `That key didn't work. Double-check it on the ${PROVIDERS[data.provider].label} console and try again.`,
+      },
+      { status: 402 },
+    );
+  }
+  // Network/timeout: continue — we can't disprove the key is valid.
+
+  // Persist the key so subsequent chat requests can use it.
+  await setProviderKey(user.id, data.provider, data.api_key);
+
+  // Read it back through the standard decryption path (mirrors chat route).
+  const apiKey = await getDecryptedProviderKey(user.id, data.provider);
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "missing_key", provider: data.provider },
+      { status: 402 },
+    );
+  }
 
   const profileBlock = buildCreatorProfileBlock({
     platforms: profileFields.platforms,
@@ -117,7 +156,7 @@ export async function POST(req: Request) {
   let usage: Awaited<ReturnType<typeof generateText>>["usage"] | null = null;
   try {
     const result = await generateText({
-      model: provider(MODEL_ID),
+      model: getModel(data.provider, defaultModel(data.provider), apiKey),
       messages: [
         { role: "system", content: SEED_SYSTEM },
         { role: "user", content: profileBlock },
@@ -125,18 +164,13 @@ export async function POST(req: Request) {
     });
     artifact = result.text.trim();
     usage = result.usage;
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error";
-    const looksLikeAuth =
-      /401|invalid_api_key|authentication|api[-_ ]?key/i.test(message);
+  } catch {
     return NextResponse.json(
       {
-        error: looksLikeAuth ? "invalid_key" : "generation_failed",
-        message: looksLikeAuth
-          ? "That key didn't work. Double-check it on the Anthropic console and try again."
-          : "Couldn't generate your starter script. Try again in a moment.",
+        error: "generation_failed",
+        message: "Couldn't generate your starter script. Try again in a moment.",
       },
-      { status: looksLikeAuth ? 400 : 502 },
+      { status: 502 },
     );
   }
 
@@ -165,6 +199,7 @@ export async function POST(req: Request) {
     });
   }
 
+  await setActiveModel(user.id, data.provider, defaultModel(data.provider));
   await markOnboarded(user.id);
 
   return NextResponse.json({ chatId: chat.id });
