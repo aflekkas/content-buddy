@@ -2,6 +2,10 @@
 
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
+# Shared Contributor Docs
+
+`AGENTS.md` is the concise contributor guide for this repo. Keep repo-wide workflow, structure, security, and tooling guidance aligned between the two files. Claude-specific automation details can live here without being copied into `AGENTS.md`.
+
 # Shipping Workflow (auto-commit + push)
 
 Default mode: any time a feature, fix, or non-trivial change reaches a working state, **commit and push to `origin` without being asked**. The user does not want to babysit `git`.
@@ -13,28 +17,6 @@ Default mode: any time a feature, fix, or non-trivial change reaches a working s
 - If the push fails (hook, conflict, auth), surface the error and stop — do not bypass with `--no-verify` or `--force`.
 - WIP / experimental / half-broken state: do **not** auto-push. Commit locally if useful, but hold the push until it works.
 - Branch protection: respect the current branch. Don't switch branches to push.
-
-# Subagents (use them aggressively)
-
-Project agents live in `.claude/agents/`. Prefer delegating focused work to them over doing it yourself, especially anything that fits an agent's description. Spawning is cheap; protecting the main context is valuable.
-
-- **`frontend`** — owns ALL UI / page / component / styling / motion / design work in `src/app/**`, `src/components/**`, and `src/app/globals.css`. Default to delegating any frontend task here, even small ones. Brand and stack rules are baked into the agent. **Also owns the `shadcn` and `magicui` MCP servers exclusively** — any `mcp__shadcn__*` or `mcp__magicui__*` call must be made from this agent.
-- **`backend`** — owns ALL server-side work: Supabase queries, route handlers under `src/app/api`, RLS policies, SQL migrations, type sync, AI chat pipeline (chat route, model dispatch, BYOK key resolution, streaming, token accounting, tool calls), provider catalogue. **Also owns the `supabase` MCP server exclusively** — any `mcp__supabase__*` call (apply_migration, execute_sql, list_tables, get_advisors, get_logs, branches, edge functions, etc.) must be made from this agent.
-- **Run agents in the background** (`run_in_background: true`) for any task expected to take more than a few seconds. Continue with other work and process the result when it returns. Do not sit and wait.
-- Spawn multiple agents in parallel when the tasks are independent (e.g. frontend redesign + backend route refactor at the same time).
-- New project-specific agents go in `.claude/agents/<name>.md` with YAML frontmatter (`name`, `description`, optional `model`).
-
-## MCP server ownership
-
-MCP servers map 1:1 to subagents. The main thread does **not** call MCP tools directly — it delegates.
-
-| MCP server | Owner agent | Tool prefix |
-|------------|-------------|-------------|
-| `supabase` | `backend` | `mcp__supabase__*` |
-| `shadcn` | `frontend` | `mcp__shadcn__*` |
-| `magicui` | `frontend` | `mcp__magicui__*` |
-
-If a task needs Supabase MCP and shadcn MCP, spawn both agents in parallel rather than reaching for the tools from the main thread.
 
 # Tooling
 
