@@ -613,12 +613,10 @@ function NicheStep({
               <SelectableCard
                 active={active}
                 onClick={() => select(n.id)}
-                className="items-center p-4 text-center"
+                className="flex-col items-center justify-center gap-2 p-4 text-center"
               >
-                <span className="mx-auto text-2xl leading-none">
-                  {n.emoji}
-                </span>
-                <span className="mt-2 text-sm font-medium tracking-tight">
+                <span className="text-2xl leading-none">{n.emoji}</span>
+                <span className="text-sm font-medium tracking-tight">
                   {n.label}
                 </span>
                 {isPrimary && (
