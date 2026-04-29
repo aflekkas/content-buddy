@@ -25,6 +25,17 @@ export function LandingFooter({ isAuthed = false }: { isAuthed?: boolean }) {
           >
             {isAuthed ? "Dashboard" : "Sign in"}
           </Link>
+          <span>
+            Built by{" "}
+            <a
+              href="https://twitter.com/_aflekkas"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-foreground/80 transition-colors hover:text-foreground"
+            >
+              @_aflekkas
+            </a>
+          </span>
         </div>
       </div>
     </footer>
