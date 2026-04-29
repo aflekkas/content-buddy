@@ -1,11 +1,13 @@
 "use client";
 
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { AnimatePresence, motion } from "motion/react";
-import { Brain, Check, ChevronDown, Film } from "lucide-react";
+import { ArrowRight, Brain, Check, ChevronDown, Film, KeyRound } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Message } from "@/components/ui/message";
 import { Markdown } from "@/components/ui/markdown";
@@ -13,13 +15,16 @@ import { Loader } from "@/components/ui/loader";
 import { FadeIn, Stagger, StaggerItem, StreamText } from "@/components/ui/motion";
 import { ChatInput } from "./chat-input";
 import { EASE_OUT } from "@/lib/motion";
-import { estimateCostUsd, formatUsd, type TokenUsage } from "@/lib/pricing";
+import { type TokenUsage } from "@/lib/pricing";
+import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { cn } from "@/lib/utils";
 
 type Props = {
   chatId: string;
   initialMessages: UIMessage[];
   initialUsage: TokenUsage;
+  hasActiveKey: boolean;
+  activeProviderId: ProviderId;
 };
 
 type MessageWithUsage = UIMessage & {
@@ -109,11 +114,14 @@ export function Chat({
   chatId,
   initialMessages,
   initialUsage,
+  hasActiveKey,
+  activeProviderId,
 }: Props) {
   const router = useRouter();
   const previousStatus = useRef<string | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
+  const [missingKey, setMissingKey] = useState(!hasActiveKey);
   const baseMessageIds = useMemo(
     () => new Set(initialMessages.map((m) => m.id)),
     [initialMessages],
@@ -127,7 +135,19 @@ export function Chat({
       prepareSendMessagesRequest: ({ id, messages }) => ({
         body: { id, messages },
       }),
+      fetch: async (input, init) => {
+        const res = await fetch(input, init);
+        if (res.status === 402) {
+          setMissingKey(true);
+        } else if (res.ok) {
+          setMissingKey(false);
+        }
+        return res;
+      },
     }),
+    onError: () => {
+      // surfaced via banner; nothing else to do
+    },
   });
 
   const isStreaming = status === "submitted" || status === "streaming";
@@ -176,7 +196,6 @@ export function Chat({
     return total;
   }, [messages, initialUsage, baseMessageIds]);
 
-  const totalCost = estimateCostUsd(totalUsage);
   const totalTokens =
     totalUsage.inputTokens +
     totalUsage.outputTokens +
@@ -265,9 +284,22 @@ export function Chat({
 
       <div className="shrink-0">
         <div className="w-full px-4 pb-4">
+          {missingKey && (
+            <Link
+              href="/settings"
+              className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+            >
+              <span className="flex items-center gap-2">
+                <KeyRound className="size-3.5" />
+                Add your {PROVIDERS[activeProviderId].label} API key in
+                settings to start chatting.
+              </span>
+              <ArrowRight className="size-3.5" />
+            </Link>
+          )}
           <ChatInput
             onSubmit={handleSubmit}
-            disabled={isStreaming}
+            disabled={isStreaming || missingKey}
             isStreaming={isStreaming}
             onStop={() => stop()}
             autoFocus
@@ -275,10 +307,9 @@ export function Chat({
           {totalTokens > 0 && (
             <div
               className="mt-1.5 text-center text-[10px] tracking-wide text-muted-foreground/70"
-              title={`${totalUsage.inputTokens.toLocaleString()} input + ${totalUsage.cacheReadTokens.toLocaleString()} cached-read + ${totalUsage.cacheCreationTokens.toLocaleString()} cached-write + ${totalUsage.outputTokens.toLocaleString()} output tokens`}
+              title={`${totalUsage.inputTokens.toLocaleString()} input + ${totalUsage.outputTokens.toLocaleString()} output tokens`}
             >
-              {formatUsd(totalCost)} this chat ·{" "}
-              {formatTokens(totalTokens)} tokens
+              {formatTokens(totalTokens)} tokens this chat
             </div>
           )}
         </div>
@@ -308,12 +339,14 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
       <Stagger className="grid w-full max-w-2xl grid-cols-1 gap-2 sm:grid-cols-2">
         {STARTER_PROMPTS.map((prompt) => (
           <StaggerItem key={prompt}>
-            <button
+            <Button
+              variant="outline"
+              shape="card"
               onClick={() => onPick(prompt)}
-              className="rounded-xl border bg-card px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="w-full text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground"
             >
               {prompt}
-            </button>
+            </Button>
           </StaggerItem>
         ))}
       </Stagger>
@@ -456,10 +489,12 @@ function ReasoningBlock({
   const streaming = state === "streaming";
   return (
     <div className="rounded-2xl rounded-bl-md border border-dashed border-border/60 bg-muted/30 px-3 py-2 text-xs">
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-1.5 text-muted-foreground hover:text-foreground"
+        className="w-full justify-start text-muted-foreground hover:text-foreground"
       >
         <Brain
           className={cn("size-3.5", streaming && "animate-pulse text-primary")}
@@ -473,7 +508,7 @@ function ReasoningBlock({
             open && "rotate-180",
           )}
         />
-      </button>
+      </Button>
       <AnimatePresence initial={false}>
         {open && text && (
           <motion.div

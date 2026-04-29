@@ -1,7 +1,16 @@
 import { createClient } from "@/lib/supabase/server";
+import { decrypt, encrypt } from "@/lib/crypto";
+import {
+  defaultModel,
+  isModelForProvider,
+  isProviderId,
+  type ProviderId,
+} from "@/lib/providers";
 import type {
   ChatRow,
   MessageRow,
+  OnboardingProfileInput,
+  ProviderKeyMetaRow,
   UserFactRow,
   UserProfileRow,
   VideoRow,
@@ -185,17 +194,46 @@ export async function getUserProfile(
 
 export async function upsertUserProfile(
   userId: string,
-  bio: string,
+  patch: string | OnboardingProfileInput,
 ): Promise<UserProfileRow> {
   const supabase = await createClient();
+  const fields: Record<string, unknown> =
+    typeof patch === "string" ? { bio: patch } : { ...patch };
+
   const { data, error } = await supabase
     .from("user_profiles")
-    .upsert({ user_id: userId, bio, updated_at: new Date().toISOString() })
+    .upsert({
+      user_id: userId,
+      ...fields,
+      updated_at: new Date().toISOString(),
+    })
     .select()
     .single();
 
   if (error) throw error;
   return data;
+}
+
+export async function markOnboarded(userId: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("user_profiles")
+    .update({ onboarded_at: new Date().toISOString() })
+    .eq("user_id", userId);
+
+  if (error) throw error;
+}
+
+export async function hasCompletedOnboarding(userId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("onboarded_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data?.onboarded_at);
 }
 
 export async function listUserFacts(userId: string): Promise<UserFactRow[]> {
@@ -332,4 +370,143 @@ export async function deleteVideo(
     .eq("user_id", userId);
 
   if (error) throw error;
+}
+
+export async function listProviderKeyMeta(
+  userId: string,
+): Promise<ProviderKeyMetaRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("user_provider_keys")
+    .select("provider, last4, updated_at")
+    .eq("user_id", userId);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getDecryptedProviderKey(
+  userId: string,
+  provider: ProviderId,
+): Promise<string | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("user_provider_keys")
+    .select("ciphertext, iv, auth_tag")
+    .eq("user_id", userId)
+    .eq("provider", provider)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const ciphertext = bytesFromSupabase(data.ciphertext);
+  const iv = bytesFromSupabase(data.iv);
+  const authTag = bytesFromSupabase(data.auth_tag);
+
+  return decrypt({ ciphertext, iv, authTag });
+}
+
+export async function setProviderKey(
+  userId: string,
+  provider: ProviderId,
+  plaintext: string,
+): Promise<ProviderKeyMetaRow> {
+  const trimmed = plaintext.trim();
+  if (!trimmed) throw new Error("empty key");
+
+  const blob = encrypt(trimmed);
+  const last4 = trimmed.slice(-4);
+  const updatedAt = new Date().toISOString();
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("user_provider_keys")
+    .upsert({
+      user_id: userId,
+      provider,
+      ciphertext: bytesToSupabase(blob.ciphertext),
+      iv: bytesToSupabase(blob.iv),
+      auth_tag: bytesToSupabase(blob.authTag),
+      last4,
+      updated_at: updatedAt,
+    })
+    .select("provider, last4, updated_at")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function clearProviderKey(
+  userId: string,
+  provider: ProviderId,
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("user_provider_keys")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", provider);
+
+  if (error) throw error;
+}
+
+export async function getActiveModel(
+  userId: string,
+): Promise<{ provider: ProviderId; model: string }> {
+  const profile = await getUserProfile(userId);
+  const fallbackProvider: ProviderId = "anthropic";
+  const provider = isProviderId(profile?.active_provider)
+    ? profile.active_provider
+    : fallbackProvider;
+  const candidateModel = profile?.active_model ?? "";
+  const model = isModelForProvider(provider, candidateModel)
+    ? candidateModel
+    : defaultModel(provider);
+  return { provider, model };
+}
+
+export async function setActiveModel(
+  userId: string,
+  provider: ProviderId,
+  model: string,
+): Promise<{ provider: ProviderId; model: string }> {
+  if (!isModelForProvider(provider, model)) {
+    throw new Error(`model ${model} not in catalogue for ${provider}`);
+  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("user_profiles")
+    .upsert({
+      user_id: userId,
+      active_provider: provider,
+      active_model: model,
+      updated_at: new Date().toISOString(),
+    })
+    .select("active_provider, active_model")
+    .single();
+
+  if (error) throw error;
+  return { provider, model };
+}
+
+// Supabase JS encodes `bytea` columns as `\x...` hex strings on read and
+// accepts the same form on write.
+function bytesFromSupabase(value: unknown): Buffer {
+  if (typeof value === "string") {
+    if (value.startsWith("\\x")) {
+      return Buffer.from(value.slice(2), "hex");
+    }
+    // Fallback: assume base64.
+    return Buffer.from(value, "base64");
+  }
+  if (value instanceof Uint8Array) {
+    return Buffer.from(value);
+  }
+  throw new Error("unexpected bytea encoding");
+}
+
+function bytesToSupabase(buf: Buffer): string {
+  return `\\x${buf.toString("hex")}`;
 }

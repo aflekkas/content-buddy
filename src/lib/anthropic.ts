@@ -1,7 +1,23 @@
 import type { ModelMessage } from "ai";
 import { getPatternLibrary } from "@/lib/patterns/library";
+import type { AudienceStage, PrimaryGoal } from "@/lib/db/types";
 
 export const MODEL_ID = "claude-sonnet-4-6";
+
+const AUDIENCE_LABEL: Record<AudienceStage, string> = {
+  starting: "just starting (0-1k followers)",
+  growing: "growing (1k-10k followers)",
+  established: "established (10k-100k followers)",
+  large: "large (100k+ followers)",
+};
+
+const GOAL_LABEL: Record<PrimaryGoal, string> = {
+  grow: "grow followers",
+  monetize: "monetize",
+  brand: "build personal brand",
+  traffic: "drive traffic to something off-platform",
+  experiment: "experiment without a fixed goal",
+};
 
 const CORE_INSTRUCTIONS = `You are Content Buddy, an expert advisor for short-form video creators.
 
@@ -37,10 +53,55 @@ Memory:
 - Use status=ready only when both the hook and script are fleshed out.
 - Never set status=filmed. The user toggles that themselves.`;
 
+type CreatorProfile = {
+  platforms: string[];
+  niche_primary: string | null;
+  niche_secondary: string[];
+  channel_pitch: string | null;
+  audience_stage: AudienceStage | null;
+  primary_goal: PrimaryGoal | null;
+};
+
 type UserContext = {
   bio: string;
   facts: string[];
+  profile?: CreatorProfile | null;
 };
+
+export function buildCreatorProfileBlock(profile: CreatorProfile): string {
+  const lines: string[] = [];
+  if (profile.platforms.length > 0) {
+    lines.push(`platforms: ${profile.platforms.join(", ")}`);
+  }
+  if (profile.niche_primary) {
+    lines.push(`niche_primary: ${profile.niche_primary}`);
+  }
+  if (profile.niche_secondary.length > 0) {
+    lines.push(`niche_secondary: ${profile.niche_secondary.join(", ")}`);
+  }
+  if (profile.channel_pitch) {
+    lines.push(`channel_pitch: "${profile.channel_pitch.trim()}"`);
+  }
+  if (profile.audience_stage) {
+    lines.push(`audience_stage: ${AUDIENCE_LABEL[profile.audience_stage]}`);
+  }
+  if (profile.primary_goal) {
+    lines.push(`primary_goal: ${GOAL_LABEL[profile.primary_goal]}`);
+  }
+  return `<creator_profile>\n${lines.join("\n")}\n</creator_profile>`;
+}
+
+function hasAnyProfileContent(profile: CreatorProfile | null | undefined): boolean {
+  if (!profile) return false;
+  return (
+    profile.platforms.length > 0 ||
+    profile.niche_secondary.length > 0 ||
+    Boolean(profile.niche_primary) ||
+    Boolean(profile.channel_pitch) ||
+    Boolean(profile.audience_stage) ||
+    Boolean(profile.primary_goal)
+  );
+}
 
 export function buildSystemMessages(user: UserContext): ModelMessage[] {
   const messages: ModelMessage[] = [
@@ -51,17 +112,20 @@ export function buildSystemMessages(user: UserContext): ModelMessage[] {
     {
       role: "system",
       content: `Here is your pattern library:\n\n${getPatternLibrary()}`,
-      providerOptions: {
-        anthropic: { cacheControl: { type: "ephemeral" } },
-      },
     },
   ];
 
   const hasBio = user.bio.trim().length > 0;
   const hasFacts = user.facts.length > 0;
+  const hasProfile = hasAnyProfileContent(user.profile);
 
-  if (hasBio || hasFacts) {
+  if (hasBio || hasFacts || hasProfile) {
     const sections: string[] = ["What you know about this creator:"];
+    if (hasProfile && user.profile) {
+      sections.push(
+        `\nCreator profile (from onboarding):\n${buildCreatorProfileBlock(user.profile)}`,
+      );
+    }
     if (hasBio) {
       sections.push(`\nBio (self-described):\n${user.bio.trim()}`);
     }

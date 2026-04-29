@@ -7,16 +7,18 @@ import {
   type UIMessage,
 } from "ai";
 import { z } from "zod";
-import { anthropic } from "@ai-sdk/anthropic";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { buildSystemMessages, MODEL_ID } from "@/lib/anthropic";
+import { buildSystemMessages } from "@/lib/anthropic";
+import { getModel } from "@/lib/model-dispatch";
 import {
   addChatUsage,
   addUserFact,
   appendMessage,
   createVideo,
+  getActiveModel,
   getChat,
+  getDecryptedProviderKey,
   getUserProfile,
   listUserFacts,
   setChatTitle,
@@ -47,6 +49,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "chat_not_found" }, { status: 404 });
   }
 
+  const { provider, model } = await getActiveModel(user.id);
+  const apiKey = await getDecryptedProviderKey(user.id, provider);
+  if (!apiKey) {
+    return NextResponse.json(
+      { error: "missing_key", provider },
+      { status: 402 },
+    );
+  }
+
   const [profile, facts] = await Promise.all([
     getUserProfile(user.id),
     listUserFacts(user.id),
@@ -58,7 +69,7 @@ export async function POST(req: Request) {
     if (text) {
       await appendMessage(chatId, "user", text);
       if (!chat.title) {
-        void generateChatTitle(chatId, text);
+        void generateChatTitle(chatId, text, provider, model, apiKey);
       }
     }
   }
@@ -68,20 +79,24 @@ export async function POST(req: Request) {
   const userId = user.id;
 
   const result = streamText({
-    model: anthropic(MODEL_ID),
+    model: getModel(provider, model, apiKey),
     messages: [
       ...buildSystemMessages({
         bio: profile?.bio ?? "",
         facts: facts.map((f) => f.content),
+        profile: profile
+          ? {
+              platforms: profile.platforms ?? [],
+              niche_primary: profile.niche_primary ?? null,
+              niche_secondary: profile.niche_secondary ?? [],
+              channel_pitch: profile.channel_pitch ?? null,
+              audience_stage: profile.audience_stage ?? null,
+              primary_goal: profile.primary_goal ?? null,
+            }
+          : null,
       }),
       ...modelMessages,
     ],
-    providerOptions: {
-      anthropic: {
-        thinking: { type: "adaptive", display: "summarized" },
-        sendReasoning: true,
-      },
-    },
     stopWhen: stepCountIs(5),
     tools: {
       remember_user_fact: tool({
@@ -201,10 +216,16 @@ function extractText(message: UIMessage): string {
     .trim();
 }
 
-async function generateChatTitle(chatId: string, firstUserMessage: string) {
+async function generateChatTitle(
+  chatId: string,
+  firstUserMessage: string,
+  provider: Parameters<typeof getModel>[0],
+  model: string,
+  apiKey: string,
+) {
   try {
     const { text } = await generateText({
-      model: anthropic("claude-haiku-4-5-20251001"),
+      model: getModel(provider, model, apiKey),
       messages: [
         {
           role: "system",

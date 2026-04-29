@@ -31,10 +31,11 @@ export async function updateSession(request: NextRequest) {
 
   const path = request.nextUrl.pathname;
   const isAuthRoute = path.startsWith("/login") || path.startsWith("/auth");
+  const isPublicRoute = path === "/" || isAuthRoute;
 
-  if (!user && !isAuthRoute) {
+  if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = "/";
     return NextResponse.redirect(url);
   }
 

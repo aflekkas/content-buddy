@@ -252,13 +252,15 @@ function ChatSwitcherItem({
             : "border-transparent bg-transparent hover:border-border hover:bg-muted/40",
         )}
       >
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           type="button"
           onClick={() => router.push(`/dashboard/chat/${chat.id}`)}
-          className="min-w-0 flex-1 text-left text-sm"
+          className="min-w-0 flex-1 justify-start"
         >
           <span className="block truncate font-medium">{displayTitle}</span>
-        </button>
+        </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger

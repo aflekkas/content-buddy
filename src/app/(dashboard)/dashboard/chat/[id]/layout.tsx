@@ -18,7 +18,7 @@ export default async function ChatLayout({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/");
 
   const [chats, profile, facts, videos] = await Promise.all([
     listChats(user.id),

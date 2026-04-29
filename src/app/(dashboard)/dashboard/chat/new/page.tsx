@@ -11,7 +11,7 @@ export default async function NewChatPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/");
 
   async function createNewChat() {
     "use server";
@@ -21,7 +21,7 @@ export default async function NewChatPage() {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) redirect("/login");
+    if (!user) redirect("/");
 
     const chat = await createChat(user.id);
     redirect(`/dashboard/chat/${chat.id}`);

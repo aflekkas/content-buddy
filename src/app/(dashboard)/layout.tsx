@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { hasCompletedOnboarding } from "@/lib/db/queries";
 
 export default async function DashboardLayout({
   children,
@@ -12,7 +13,12 @@ export default async function DashboardLayout({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/login");
+    redirect("/");
+  }
+
+  const onboarded = await hasCompletedOnboarding(user.id);
+  if (!onboarded) {
+    redirect("/onboarding");
   }
 
   return <div className="h-svh overflow-hidden flex flex-col">{children}</div>;

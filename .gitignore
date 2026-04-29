@@ -45,3 +45,9 @@ next-env.d.ts
 
 # supabase cli cache
 supabase/.temp/
+
+# Claude Code: keep .claude/agents and AGENTS.md / CLAUDE.md tracked for transparency.
+# Only per-machine state is ignored.
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+.claude/.session*

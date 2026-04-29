@@ -1,6 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getChat, getMessages } from "@/lib/db/queries";
+import {
+  getActiveModel,
+  getChat,
+  getDecryptedProviderKey,
+  getMessages,
+} from "@/lib/db/queries";
 import { toUIMessages } from "@/lib/chat-messages";
 import { Chat } from "@/components/chat/chat";
 
@@ -16,12 +21,16 @@ export default async function ChatPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  if (!user) redirect("/");
 
   const chat = await getChat(id, user.id);
   if (!chat) notFound();
 
-  const rows = await getMessages(id);
+  const [rows, active] = await Promise.all([
+    getMessages(id),
+    getActiveModel(user.id),
+  ]);
+  const apiKey = await getDecryptedProviderKey(user.id, active.provider);
   const initialMessages = toUIMessages(rows);
 
   return (
@@ -34,6 +43,8 @@ export default async function ChatPage({
         cacheReadTokens: chat.cache_read_tokens,
         cacheCreationTokens: chat.cache_creation_tokens,
       }}
+      hasActiveKey={Boolean(apiKey)}
+      activeProviderId={active.provider}
     />
   );
 }

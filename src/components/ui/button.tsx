@@ -32,10 +32,25 @@ const buttonVariants = cva(
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
       },
+      shape: {
+        default: "",
+        pill: "rounded-full",
+        card: "rounded-xl h-auto py-3 px-4 items-start justify-start text-left whitespace-normal",
+      },
+      withArrow: {
+        true: "[&>svg:last-child]:transition-transform [&>svg:last-child]:duration-200 hover:[&>svg:last-child]:translate-x-0.5",
+        false: "",
+      },
     },
+    compoundVariants: [
+      { shape: "pill", size: "default", className: "px-4" },
+      { shape: "pill", size: "lg", className: "px-5" },
+    ],
     defaultVariants: {
       variant: "default",
       size: "default",
+      shape: "default",
+      withArrow: false,
     },
   }
 )
@@ -44,12 +59,14 @@ function Button({
   className,
   variant = "default",
   size = "default",
+  shape = "default",
+  withArrow = false,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size, shape, withArrow, className }))}
       {...props}
     />
   )

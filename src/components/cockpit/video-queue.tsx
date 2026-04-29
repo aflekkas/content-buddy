@@ -151,15 +151,18 @@ export function VideoQueue({ videos }: Props) {
               const label =
                 key === "all" ? "All" : STATUS_META[key].shortLabel;
               return (
-                <button
+                <Button
                   key={key}
+                  variant="ghost"
+                  size="sm"
+                  shape="pill"
                   type="button"
                   onClick={() => setStatusFilter(key)}
                   className={cn(
-                    "relative inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                    "relative",
                     active
-                      ? "border-primary text-primary-foreground"
-                      : "border-border bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                      ? "border border-primary text-primary-foreground"
+                      : "border border-border bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground",
                   )}
                 >
                   {active && (
@@ -185,7 +188,7 @@ export function VideoQueue({ videos }: Props) {
                   >
                     {counts[key]}
                   </span>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -291,14 +294,16 @@ function VideoCard({
       transition={{ duration: 0.2, ease: EASE_OUT }}
       className="flex items-start gap-2 rounded-xl border border-border bg-muted/20 p-3 transition-colors hover:bg-muted/35"
     >
-      <button
+      <Button
+        variant="ghost"
+        size="sm"
         type="button"
         onClick={() => {
           if (video.chat_id) onOpenChat();
         }}
         disabled={!video.chat_id}
         className={cn(
-          "min-w-0 flex-1 text-left",
+          "min-w-0 flex-1 justify-start",
           !video.chat_id && "cursor-default",
         )}
       >
@@ -323,7 +328,7 @@ function VideoCard({
         <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
           {video.hook || "No hook yet."}
         </p>
-      </button>
+      </Button>
 
       <DropdownMenu>
         <DropdownMenuTrigger

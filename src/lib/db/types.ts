@@ -18,10 +18,43 @@ export type MessageRow = {
   created_at: string;
 };
 
+export type AudienceStage = "starting" | "growing" | "established" | "large";
+export type PrimaryGoal =
+  | "grow"
+  | "monetize"
+  | "brand"
+  | "traffic"
+  | "experiment";
+
 export type UserProfileRow = {
   user_id: string;
   bio: string;
   updated_at: string;
+  platforms: string[];
+  niche_primary: string | null;
+  niche_secondary: string[];
+  channel_pitch: string | null;
+  audience_stage: AudienceStage | null;
+  primary_goal: PrimaryGoal | null;
+  onboarded_at: string | null;
+  active_provider: string;
+  active_model: string;
+};
+
+export type ProviderKeyMetaRow = {
+  provider: string;
+  last4: string;
+  updated_at: string;
+};
+
+export type OnboardingProfileInput = {
+  bio?: string;
+  platforms?: string[];
+  niche_primary?: string | null;
+  niche_secondary?: string[];
+  channel_pitch?: string | null;
+  audience_stage?: AudienceStage | null;
+  primary_goal?: PrimaryGoal | null;
 };
 
 export type UserFactRow = {
