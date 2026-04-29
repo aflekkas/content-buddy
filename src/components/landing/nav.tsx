@@ -53,7 +53,7 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
             <LogoMark className="size-6" />
             <span className="hidden text-sm font-semibold tracking-tight leading-none sm:inline">
               Shortform{" "}
-              <span className="font-medium italic" style={{ fontFamily: "var(--font-display)" }}>
+              <span className="font-semibold">
                 Studio
               </span>
             </span>
@@ -89,7 +89,7 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
                 href="/dashboard"
                 className={cn(
                   buttonVariants({ size: "sm", shape: "pill", withArrow: true }),
-                  "h-9",
+                  "h-10 gap-2 px-5 text-sm",
                 )}
               >
                 My account
