@@ -26,6 +26,7 @@ import {
 type Props = {
   chatId: string;
   initialMessages: UIMessage[];
+  initialHasMore: boolean;
   initialUsage: TokenUsage;
   hasActiveKey: boolean;
   activeProviderId: ProviderId;
@@ -117,6 +118,8 @@ function readVideoPart(p: ToolPart): VideoToolState | null {
 export function Chat({
   chatId,
   initialMessages,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  initialHasMore,
   initialUsage,
   hasActiveKey,
   activeProviderId,
@@ -161,12 +164,14 @@ export function Chat({
       }
       // non-provider errors (network, etc.) surface generically via status
     },
-    onFinish: () => {
-      // clear any provider error on a successful response
-      setProviderError(null);
+    onFinish: ({ isError }) => {
+      // useChat calls onFinish for errored streams too; keep those visible.
+      if (!isError) {
+        setProviderError(null);
+      }
     },
   });
-  const { messages, sendMessage, status, stop, clearError } = chat;
+  const { messages, sendMessage, status, stop, clearError, error } = chat;
 
   const isStreaming = status === "submitted" || status === "streaming";
 
@@ -191,7 +196,7 @@ export function Chat({
     if (stickToBottomRef.current) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [messages, status]);
+  }, [messages, status, providerError, error]);
 
   function handleViewportScroll(e: React.UIEvent<HTMLDivElement>) {
     const el = e.currentTarget;
@@ -221,6 +226,8 @@ export function Chat({
     totalUsage.cacheCreationTokens;
 
   function handleSubmit(text: string) {
+    setProviderError(null);
+    clearError();
     sendMessage({ text });
   }
 
@@ -295,6 +302,41 @@ export function Chat({
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              <AnimatePresence>
+                {providerError && (
+                  <motion.div
+                    key={`provider-error-${providerError.code}`}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2, ease: EASE_OUT }}
+                  >
+                    <ProviderErrorMessage
+                      payload={providerError}
+                      onOpenSettings={() => settingsDialog.open()}
+                      onDismiss={() => {
+                        setProviderError(null);
+                        clearError();
+                      }}
+                    />
+                  </motion.div>
+                )}
+                {!providerError && status === "error" && error && (
+                  <motion.div
+                    key="chat-error"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2, ease: EASE_OUT }}
+                  >
+                    <GenericErrorMessage
+                      message={readGenericErrorMessage(error)}
+                      onDismiss={() => clearError()}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </>
           )}
         </div>
@@ -316,21 +358,9 @@ export function Chat({
               <ArrowRight className="size-3.5" />
             </button>
           )}
-          {!missingKey && providerError && (
-            <ProviderErrorBanner
-              payload={providerError}
-              onDismiss={() => {
-                setProviderError(null);
-                clearError();
-              }}
-            />
-          )}
           <ChatInput
-            onSubmit={(text) => {
-              setProviderError(null);
-              handleSubmit(text);
-            }}
-            disabled={isStreaming || missingKey || !!providerError}
+            onSubmit={handleSubmit}
+            disabled={isStreaming || missingKey}
             isStreaming={isStreaming}
             onStop={() => stop()}
             autoFocus
@@ -355,45 +385,98 @@ function formatTokens(n: number): string {
   return `${(n / 1_000_000).toFixed(2)}M`;
 }
 
-function ProviderErrorBanner({
+function readGenericErrorMessage(error: Error): string {
+  const parsed = decodeProviderError(error.message);
+  if (parsed) return parsed.message;
+  return "Something went wrong while generating a response. Try again.";
+}
+
+function ProviderErrorMessage({
   payload,
+  onOpenSettings,
   onDismiss,
 }: {
   payload: ProviderErrorPayload;
+  onOpenSettings: () => void;
   onDismiss: () => void;
 }) {
+  const opensSettings = payload.helpUrl === "/settings";
   const isExternal = payload.helpUrl?.startsWith("http");
-  const inner = (
-    <span className="flex items-center gap-2">
-      <AlertTriangle className="size-3.5 shrink-0" />
-      {payload.message}
-    </span>
-  );
+  const actionLabel = opensSettings
+    ? "Open settings"
+    : payload.code === "org_unverified"
+      ? "Verify org"
+      : "Open";
 
   return (
-    <div className="mb-2 flex w-full items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive dark:text-red-400">
-      {payload.helpUrl ? (
-        <a
-          href={payload.helpUrl}
-          target={isExternal ? "_blank" : undefined}
-          rel={isExternal ? "noopener noreferrer" : undefined}
-          className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
-        >
-          {inner}
-          <ArrowRight className="ml-auto size-3.5 shrink-0" />
-        </a>
-      ) : (
-        <span className="flex min-w-0 flex-1 items-center gap-2">{inner}</span>
-      )}
-      <button
-        type="button"
-        onClick={onDismiss}
-        aria-label="Dismiss error"
-        className="ml-1 shrink-0 opacity-70 hover:opacity-100"
+    <Message className="w-full justify-start">
+      <div
+        role="alert"
+        className="flex max-w-[80%] items-start gap-3 rounded-2xl rounded-bl-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-relaxed text-destructive break-words dark:text-red-300"
       >
-        <X className="size-3.5" />
-      </button>
-    </div>
+        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p>{payload.message}</p>
+          {payload.helpUrl &&
+            (opensSettings ? (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-destructive/30 px-2 py-1 text-xs font-medium hover:bg-destructive/10"
+              >
+                {actionLabel}
+                <ArrowRight className="size-3" />
+              </button>
+            ) : (
+              <a
+                href={payload.helpUrl}
+                target={isExternal ? "_blank" : undefined}
+                rel={isExternal ? "noopener noreferrer" : undefined}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-md border border-destructive/30 px-2 py-1 text-xs font-medium hover:bg-destructive/10"
+              >
+                {actionLabel}
+                <ArrowRight className="size-3" />
+              </a>
+            ))}
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss error"
+          className="-mr-1 shrink-0 rounded-md p-1 opacity-70 hover:bg-destructive/10 hover:opacity-100"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+    </Message>
+  );
+}
+
+function GenericErrorMessage({
+  message,
+  onDismiss,
+}: {
+  message: string;
+  onDismiss: () => void;
+}) {
+  return (
+    <Message className="w-full justify-start">
+      <div
+        role="alert"
+        className="flex max-w-[80%] items-start gap-3 rounded-2xl rounded-bl-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm leading-relaxed text-destructive break-words dark:text-red-300"
+      >
+        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+        <p className="min-w-0 flex-1">{message}</p>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss error"
+          className="-mr-1 shrink-0 rounded-md p-1 opacity-70 hover:bg-destructive/10 hover:opacity-100"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
+    </Message>
   );
 }
 

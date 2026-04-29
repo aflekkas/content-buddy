@@ -26,17 +26,18 @@ export default async function ChatPage({
   const chat = await getChat(id, user.id);
   if (!chat) notFound();
 
-  const [rows, active] = await Promise.all([
-    getCachedMessages(id),
+  const [page, active] = await Promise.all([
+    getCachedMessages(id, { limit: 50 }),
     getActiveModel(user.id),
   ]);
   const apiKey = await getDecryptedProviderKey(user.id, active.provider);
-  const initialMessages = toUIMessages(rows);
+  const initialMessages = toUIMessages(page.messages);
 
   return (
     <Chat
       chatId={id}
       initialMessages={initialMessages}
+      initialHasMore={page.hasMore}
       initialUsage={{
         inputTokens: chat.input_tokens,
         outputTokens: chat.output_tokens,

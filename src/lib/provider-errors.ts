@@ -25,12 +25,23 @@ export function encodeProviderError(payload: ProviderErrorPayload): string {
 export function decodeProviderError(
   msg: string,
 ): ProviderErrorPayload | null {
-  if (!msg.startsWith(SENTINEL)) return null;
+  const sentinelIndex = msg.indexOf(SENTINEL);
+  if (sentinelIndex === -1) return null;
+
+  const encoded = msg.slice(sentinelIndex + SENTINEL.length).trim();
   try {
-    const raw = JSON.parse(msg.slice(SENTINEL.length));
+    const raw = JSON.parse(encoded);
     if (raw?.kind === "provider_error") return raw as ProviderErrorPayload;
   } catch {
-    // malformed JSON -- fall through
+    const match = encoded.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        const raw = JSON.parse(match[0]);
+        if (raw?.kind === "provider_error") return raw as ProviderErrorPayload;
+      } catch {
+        // malformed JSON -- fall through
+      }
+    }
   }
   return null;
 }
@@ -51,7 +62,9 @@ export function mapProviderError(
 ): ProviderErrorPayload {
   const providerLabel = providerName(provider);
 
-  if (!APICallError.isInstance(error)) {
+  const details = readProviderErrorDetails(error);
+
+  if (!details) {
     // Not an HTTP error from the provider — could be a network error, abort, etc.
     const msg =
       error instanceof Error ? error.message : "unknown error";
@@ -63,15 +76,7 @@ export function mapProviderError(
     };
   }
 
-  const statusCode = error.statusCode ?? 0;
-  let body: ProviderBody | null = null;
-  if (error.responseBody) {
-    try {
-      body = JSON.parse(error.responseBody) as ProviderBody;
-    } catch {
-      // leave body as null
-    }
-  }
+  const { statusCode, body, message } = details;
 
   // --- HTTP 401 / auth errors ---
   if (statusCode === 401 || isAuthError(body, provider)) {
@@ -96,7 +101,7 @@ export function mapProviderError(
 
   // --- model_not_found / org verification (OpenAI, Groq, xAI, etc.) ---
   const errorCode = extractCode(body);
-  const errorMessage = extractMessage(body) ?? error.message;
+  const errorMessage = extractMessage(body) ?? message;
 
   if (
     errorCode === "model_not_found" ||
@@ -148,20 +153,86 @@ function providerName(provider: ProviderId): string {
 // Loosely-typed body shapes across providers
 type ProviderBody = {
   // OpenAI / Groq / xAI: { error: { type, code, message } }
-  error?: { type?: string; code?: string; message?: string };
+  error?: ProviderErrorObject | string;
   // Anthropic: { type: "error", error: { type, message } }
   type?: string;
   // Google: { error: { code, message, status } }
 };
 
+type ProviderErrorDetails = {
+  statusCode: number;
+  body: ProviderBody | null;
+  message: string;
+};
+
+type ProviderErrorObject = {
+  type?: string;
+  code?: string | number;
+  message?: string;
+  status?: string;
+};
+
+function readProviderErrorDetails(error: unknown): ProviderErrorDetails | null {
+  if (APICallError.isInstance(error)) {
+    return {
+      statusCode: error.statusCode ?? 0,
+      body: parseProviderBody(error.responseBody),
+      message: error.message,
+    };
+  }
+
+  if (!isRecord(error)) return null;
+
+  const body = isProviderBody(error)
+    ? error
+    : isProviderBody(error.error)
+      ? error.error
+      : null;
+
+  if (!body) return null;
+
+  return {
+    statusCode: readStatusCode(body),
+    body,
+    message: extractMessage(body) ?? "unknown error",
+  };
+}
+
+function parseProviderBody(responseBody: string | undefined): ProviderBody | null {
+  if (!responseBody) return null;
+  try {
+    const parsed = JSON.parse(responseBody) as unknown;
+    return isProviderBody(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function isProviderBody(value: unknown): value is ProviderBody {
+  if (!isRecord(value)) return false;
+  if (!("error" in value)) return false;
+  const error = value.error;
+  return isRecord(error) || typeof error === "string";
+}
+
+function readStatusCode(body: ProviderBody): number {
+  const code = isProviderErrorObject(body.error) ? body.error.code : undefined;
+  if (typeof code === "number") return code;
+  return 0;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
 function isAuthError(body: ProviderBody | null, provider: ProviderId): boolean {
   if (!body) return false;
   if (provider === "anthropic") {
-    return (body.error as { type?: string } | undefined)?.type === "authentication_error";
+    return isProviderErrorObject(body.error) && body.error.type === "authentication_error";
   }
   // OpenAI / Groq / xAI
-  const code = body.error?.code;
-  const type = body.error?.type;
+  const code = isProviderErrorObject(body.error) ? body.error.code : undefined;
+  const type = isProviderErrorObject(body.error) ? body.error.type : undefined;
   return (
     code === "invalid_api_key" ||
     type === "invalid_request_error" && code === "invalid_api_key"
@@ -169,9 +240,15 @@ function isAuthError(body: ProviderBody | null, provider: ProviderId): boolean {
 }
 
 function extractCode(body: ProviderBody | null): string | undefined {
-  return body?.error?.code ?? undefined;
+  const code = isProviderErrorObject(body?.error) ? body.error.code : undefined;
+  return code == null ? undefined : String(code);
 }
 
 function extractMessage(body: ProviderBody | null): string | undefined {
-  return body?.error?.message ?? undefined;
+  if (typeof body?.error === "string") return body.error;
+  return isProviderErrorObject(body?.error) ? body.error.message : undefined;
+}
+
+function isProviderErrorObject(value: unknown): value is ProviderErrorObject {
+  return isRecord(value);
 }

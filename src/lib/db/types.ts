@@ -64,6 +64,11 @@ export type UserFactRow = {
   created_at: string;
 };
 
+export type MessagesPage = {
+  messages: MessageRow[];
+  hasMore: boolean;
+};
+
 export type VideoStatus = "idea" | "ready" | "filmed";
 
 export type VideoRow = {

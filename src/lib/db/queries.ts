@@ -10,6 +10,7 @@ import {
 import type {
   ChatRow,
   MessageRow,
+  MessagesPage,
   OnboardingProfileInput,
   ProviderKeyMetaRow,
   UserFactRow,
@@ -47,38 +48,83 @@ export async function getChat(
   return data;
 }
 
-export async function getMessages(chatId: string): Promise<MessageRow[]> {
+export async function getMessages(
+  chatId: string,
+  opts?: { limit?: number; before?: string },
+): Promise<MessagesPage> {
+  const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100);
+  const before = opts?.before;
+
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("messages")
     .select("*")
     .eq("chat_id", chatId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(limit + 1);
 
+  if (before) {
+    query = query.lt("created_at", before);
+  }
+
+  const { data, error } = await query;
   if (error) throw error;
-  return data ?? [];
+
+  const rows = data ?? [];
+  const hasMore = rows.length > limit;
+  if (hasMore) rows.pop();
+  rows.reverse();
+
+  return { messages: rows, hasMore };
 }
 
 /**
  * Cached variant of getMessages. Uses an admin client (bypasses RLS) so the
  * cached body is cookie-free and deterministic. Auth is enforced upstream by
  * getChat() before this is called.
+ *
+ * Cache strategy:
+ * - Latest page (before undefined): tagged `chat:<id>:messages` — busted by appendMessage.
+ * - Past pages (before set): no tag — immutable, cached forever.
  */
-export function getCachedMessages(chatId: string): Promise<MessageRow[]> {
+export function getCachedMessages(
+  chatId: string,
+  opts?: { limit?: number; before?: string },
+): Promise<MessagesPage> {
+  const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 100);
+  const before = opts?.before;
+  const cursorKey = before ?? "latest";
+
   return unstable_cache(
-    async (id: string) => {
+    async (id: string, lim: number, cur: string) => {
+      const beforeVal = cur === "latest" ? undefined : cur;
       const supabase = createAdminClient();
-      const { data, error } = await supabase
+      let query = supabase
         .from("messages")
         .select("*")
         .eq("chat_id", id)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false })
+        .limit(lim + 1);
+
+      if (beforeVal) {
+        query = query.lt("created_at", beforeVal);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
-      return data ?? [];
+
+      const rows = data ?? [];
+      const hasMore = rows.length > lim;
+      if (hasMore) rows.pop();
+      rows.reverse();
+
+      return { messages: rows, hasMore } as MessagesPage;
     },
-    ["chat-messages"],
-    { tags: [`chat:${chatId}:messages`] },
-  )(chatId);
+    ["chat-messages", chatId, String(limit), cursorKey],
+    {
+      tags: before === undefined ? [`chat:${chatId}:messages`] : [],
+    },
+  )(chatId, limit, cursorKey);
 }
 
 export async function createChat(userId: string): Promise<ChatRow> {
