@@ -282,10 +282,7 @@ function Header({ step, totalSteps }: { step: number; totalSteps: number }) {
         <div className="flex items-baseline gap-1.5 text-[15px] leading-none">
           <span className="font-semibold tracking-tight">{BRAND_LEAD}</span>
           {BRAND_TAIL && (
-            <span
-              className="italic font-medium tracking-tight text-foreground/90"
-              style={{ fontFamily: "var(--font-display)" }}
-            >
+            <span className="font-medium tracking-tight text-foreground/90">
               {BRAND_TAIL}
             </span>
           )}
