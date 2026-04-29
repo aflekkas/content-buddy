@@ -20,6 +20,8 @@ Next.js 16 TypeScript app for Shortform Studio. App Router routes live in `src/a
 
 Use `npm` for scripts and dependency changes; `package-lock.json` is the canonical lockfile. Don't update both lockfiles in the same change. Run the lightest relevant verification before finishing: `npm run lint` for most changes, `npm run build` too for routing, data flow, or framework-level changes.
 
+Do not start a local dev server (`npm run dev`, `npm run start`, `next dev`, or similar) unless the user explicitly asks for it. Prefer static verification commands such as `npm run lint` and `npm run build`.
+
 ## Coding Style & Naming Conventions
 
 Use TypeScript, React Server Components where appropriate, and existing local helpers before adding abstractions. Component files kebab-case (`chat-switcher.tsx`); exported React components PascalCase. Prefer shared primitives from `src/components/ui` and the `cn` helper from `src/lib/utils.ts` before introducing new dependencies or bespoke patterns. Keep provider logic routed through `src/lib/providers.ts` and `src/lib/model-dispatch.ts`; do not import provider SDKs directly in route handlers or feature code.
@@ -79,4 +81,4 @@ Keep server-side AI orchestration in route handlers and shared library files. Do
 
 ## Security & Configuration Tips
 
-Local secrets belong in `.env.local`, never in commits. Required values include `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `BYOK_ENCRYPTION_KEY`. User provider keys are encrypted and must never be logged, returned to the client, or handled outside server-side code.
+Local secrets belong in `.env.local`, never in commits. Required values include `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and `BYOK_ENCRYPTION_KEY`. User provider keys are encrypted and must never be logged, returned to the client, or handled outside server-side code.
