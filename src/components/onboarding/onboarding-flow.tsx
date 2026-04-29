@@ -9,6 +9,7 @@ import {
   Check,
   ExternalLink,
   KeyRound,
+  LogOut,
   Search,
   Sparkles,
 } from "lucide-react";
@@ -30,6 +31,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { createClient } from "@/lib/supabase/client";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type FlowState = {
   platforms: OnboardingPlatform[];
@@ -110,12 +120,20 @@ export function OnboardingFlow() {
     anthropicKey: "",
   });
   const [submitting, setSubmitting] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialPrompt) {
       router.replace("/onboarding");
     }
   }, [initialPrompt, router]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+    });
+  }, []);
 
   const next = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
@@ -182,7 +200,7 @@ export function OnboardingFlow() {
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
-      <Header step={step} totalSteps={TOTAL_STEPS - 1} />
+      <Header step={step} totalSteps={TOTAL_STEPS - 1} email={userEmail} />
 
       <main className="relative flex flex-1 items-center justify-center px-4 py-10 sm:px-6">
         <AnimatePresence mode="wait">
@@ -271,7 +289,61 @@ export function OnboardingFlow() {
   );
 }
 
-function Header({ step, totalSteps }: { step: number; totalSteps: number }) {
+function AvatarDropdown({ email }: { email: string | null }) {
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      window.location.href = "/login";
+    } finally {
+      setSigningOut(false);
+    }
+  }
+
+  const initial = email ? email[0].toUpperCase() : "?";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label="Account menu"
+        className="grid size-7 shrink-0 place-items-center rounded-full border border-border/80 bg-muted text-xs font-semibold tracking-tight text-foreground transition-colors hover:border-foreground/30 hover:bg-muted/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+      >
+        {initial}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side="bottom" align="end" sideOffset={6}>
+        {email && (
+          <>
+            <DropdownMenuLabel className="truncate max-w-48 text-foreground">
+              {email}
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+          </>
+        )}
+        <DropdownMenuItem
+          variant="destructive"
+          disabled={signingOut}
+          onClick={() => void handleSignOut()}
+        >
+          <LogOut />
+          Sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function Header({
+  step,
+  totalSteps,
+  email,
+}: {
+  step: number;
+  totalSteps: number;
+  email: string | null;
+}) {
   const pct = Math.min(100, (step / totalSteps) * 100);
   return (
     <header className="relative bg-background/70 backdrop-blur-xl">
@@ -292,6 +364,8 @@ function Header({ step, totalSteps }: { step: number; totalSteps: number }) {
         <span className="ml-auto text-xs tabular-nums text-muted-foreground">
           {Math.min(step, totalSteps)} / {totalSteps}
         </span>
+
+        <AvatarDropdown email={email} />
       </div>
 
       <div className="h-px w-full bg-muted/70">
@@ -492,7 +566,7 @@ function PlatformsStep({
         title="Pick the surfaces you actually publish on"
         subtitle="Defaults are the short-form trio. Toggle anything that doesn't fit."
       />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3">
         {ONBOARDING_PLATFORMS.map((p, i) => {
           const active = value.includes(p.id);
           return (
@@ -505,37 +579,29 @@ function PlatformsStep({
               <SelectableCard
                 active={active}
                 onClick={() => toggle(p.id)}
-                className="p-4"
+                className="p-5"
               >
+                {/* selection badge — absolute top-right */}
+                <span
+                  className={cn(
+                    "absolute top-3 right-3 inline-flex size-5 items-center justify-center rounded-full border transition-all",
+                    active
+                      ? "border-primary bg-primary text-primary-foreground opacity-100"
+                      : "border-border/60 opacity-0 group-hover:opacity-40",
+                  )}
+                >
+                  <Check className="size-3" />
+                </span>
                 <div className="flex w-full flex-col gap-2">
                   {(() => {
                     const Logo = getPlatformLogo(p.id);
-                    return (
-                      <Logo
-                        className={cn(
-                          "size-6 transition-colors",
-                          active
-                            ? "text-foreground"
-                            : "text-muted-foreground",
-                        )}
-                      />
-                    );
+                    return <Logo className="size-6" />;
                   })()}
                   <span className="text-sm font-semibold tracking-tight">
                     {p.label}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {p.hint}
-                  </span>
-                  <span
-                    className={cn(
-                      "mt-1 inline-flex size-5 items-center justify-center rounded-full border transition-all",
-                      active
-                        ? "border-primary bg-primary text-primary-foreground opacity-100"
-                        : "border-border opacity-0 group-hover:opacity-50",
-                    )}
-                  >
-                    <Check className="size-3" />
                   </span>
                 </div>
               </SelectableCard>
