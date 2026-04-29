@@ -4,6 +4,8 @@ import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { decrypt, encrypt } from "@/lib/crypto";
 import {
   buildStarterMemoryFiles,
+  isAutoloadMemoryPath,
+  isProtectedMemoryPath,
   memoryPreview,
   normalizeMemoryPath,
   titleFromMemoryPath,
@@ -171,20 +173,20 @@ export async function appendMessage(
   content: string,
 ): Promise<MessageRow> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("messages")
-    .insert({ chat_id: chatId, role, content })
-    .select()
-    .single();
+  const [insertResult] = await Promise.all([
+    supabase
+      .from("messages")
+      .insert({ chat_id: chatId, role, content })
+      .select()
+      .single(),
+    supabase
+      .from("chats")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", chatId),
+  ]);
 
-  if (error) throw error;
-
-  await supabase
-    .from("chats")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("id", chatId);
-
-  return data;
+  if (insertResult.error) throw insertResult.error;
+  return insertResult.data;
 }
 
 export async function appendMessageWithParts(
@@ -199,20 +201,20 @@ export async function appendMessageWithParts(
     .trim();
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("messages")
-    .insert({ chat_id: chatId, role, content, parts })
-    .select()
-    .single();
+  const [insertResult] = await Promise.all([
+    supabase
+      .from("messages")
+      .insert({ chat_id: chatId, role, content, parts })
+      .select()
+      .single(),
+    supabase
+      .from("chats")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", chatId),
+  ]);
 
-  if (error) throw error;
-
-  await supabase
-    .from("chats")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("id", chatId);
-
-  return data;
+  if (insertResult.error) throw insertResult.error;
+  return insertResult.data;
 }
 
 export async function addChatUsage(
@@ -415,7 +417,8 @@ export async function listMemoryFiles(
     .from("memory_files")
     .select("*")
     .eq("user_id", userId)
-    .order("path", { ascending: true });
+    .order("path", { ascending: true })
+    .limit(200);
 
   if (isMissingMemoryFilesTable(error)) return [];
   if (error) throw error;
@@ -431,11 +434,29 @@ export async function listAutoloadMemoryFiles(
     .select("*")
     .eq("user_id", userId)
     .eq("autoload", true)
-    .order("path", { ascending: true });
+    .order("path", { ascending: true })
+    .limit(100);
 
   if (isMissingMemoryFilesTable(error)) return [];
   if (error) throw error;
   return data ?? [];
+}
+
+export async function getMemoryFileById(
+  userId: string,
+  fileId: string,
+): Promise<MemoryFileRow | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("memory_files")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", fileId)
+    .maybeSingle();
+
+  if (isMissingMemoryFilesTable(error)) return null;
+  if (error) throw error;
+  return data;
 }
 
 export async function getMemoryFileByPath(
@@ -467,6 +488,7 @@ export async function createMemoryFile(
   },
 ): Promise<MemoryFileRow> {
   const path = normalizeMemoryPath(input.path);
+  const autoload = isAutoloadMemoryPath(path) ? true : (input.autoload ?? false);
   const now = new Date().toISOString();
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -476,7 +498,7 @@ export async function createMemoryFile(
       path,
       title: input.title?.trim() || titleFromMemoryPath(path),
       content: input.content ?? "",
-      autoload: input.autoload ?? false,
+      autoload,
       source: input.source ?? "user",
       updated_at: now,
     })
@@ -498,20 +520,34 @@ export async function updateMemoryFile(
     source?: MemoryFileSource;
   },
 ): Promise<MemoryFileRow | null> {
+  const existing = await getMemoryFileById(userId, fileId);
+  if (!existing) return null;
+
   const updates: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
   };
 
   if (patch.path !== undefined) {
-    updates.path = normalizeMemoryPath(patch.path);
+    const normalized = normalizeMemoryPath(patch.path);
+    if (
+      normalized !== existing.path &&
+      (isProtectedMemoryPath(existing.path) || isProtectedMemoryPath(normalized))
+    ) {
+      throw new Error("protected_file");
+    }
+    updates.path = normalized;
   }
   if (patch.title !== undefined) {
     updates.title =
       patch.title.trim() ||
-      titleFromMemoryPath(String(updates.path ?? "untitled.md"));
+      titleFromMemoryPath(String(updates.path ?? existing.path));
   }
   if (patch.content !== undefined) updates.content = patch.content;
-  if (patch.autoload !== undefined) updates.autoload = patch.autoload;
+  if (patch.autoload !== undefined) {
+    updates.autoload = isAutoloadMemoryPath(existing.path)
+      ? true
+      : patch.autoload;
+  }
   if (patch.source !== undefined) updates.source = patch.source;
 
   const supabase = await createClient();
@@ -540,6 +576,9 @@ export async function upsertMemoryFile(
   const path = normalizeMemoryPath(input.path);
   const existing = await getMemoryFileByPath(userId, path);
   const now = new Date().toISOString();
+  const autoload = isAutoloadMemoryPath(path)
+    ? true
+    : (input.autoload ?? existing?.autoload ?? false);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("memory_files")
@@ -549,7 +588,7 @@ export async function upsertMemoryFile(
         path,
         title: input.title?.trim() || existing?.title || titleFromMemoryPath(path),
         content: input.content,
-        autoload: input.autoload ?? existing?.autoload ?? false,
+        autoload,
         source: input.source ?? "agent",
         updated_at: now,
       },
@@ -607,22 +646,27 @@ export async function moveMemoryFolder(
   const files = await listMemoryFiles(userId);
   const targets = files.filter((file) => file.path.startsWith(normalizedFrom));
 
-  const moved: MemoryFileRow[] = [];
-  for (const file of targets) {
-    const nextPath = normalizeMemoryPath(
-      `${normalizedTo}${file.path.slice(normalizedFrom.length)}`,
-    );
-    const updated = await updateMemoryFile(userId, file.id, { path: nextPath });
-    if (updated) moved.push(updated);
-  }
+  const updates = await Promise.all(
+    targets.map((file) => {
+      const nextPath = normalizeMemoryPath(
+        `${normalizedTo}${file.path.slice(normalizedFrom.length)}`,
+      );
+      return updateMemoryFile(userId, file.id, { path: nextPath });
+    }),
+  );
 
-  return moved;
+  return updates.filter((row): row is MemoryFileRow => row !== null);
 }
 
 export async function deleteMemoryFile(
   userId: string,
   fileId: string,
 ): Promise<void> {
+  const existing = await getMemoryFileById(userId, fileId);
+  if (!existing) return;
+  if (isProtectedMemoryPath(existing.path)) {
+    throw new Error("protected_file");
+  }
   const supabase = await createClient();
   const { error } = await supabase
     .from("memory_files")
@@ -633,7 +677,9 @@ export async function deleteMemoryFile(
   if (error) throw error;
 }
 
-export async function ensureStarterMemoryFiles(
+export const ensureStarterMemoryFiles = cache(_ensureStarterMemoryFiles);
+
+async function _ensureStarterMemoryFiles(
   userId: string,
 ): Promise<MemoryFileRow[]> {
   const existing = await listMemoryFiles(userId);
@@ -907,7 +953,8 @@ export async function listVideos(userId: string): Promise<VideoRow[]> {
     .from("videos")
     .select("*")
     .eq("user_id", userId)
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .limit(100);
 
   if (error) throw error;
   return data ?? [];
@@ -1011,7 +1058,8 @@ export async function listHooks(userId: string): Promise<HookRow[]> {
     .from("hooks")
     .select("*")
     .eq("user_id", userId)
-    .order("updated_at", { ascending: false });
+    .order("updated_at", { ascending: false })
+    .limit(100);
   if (error) throw error;
   return data ?? [];
 }

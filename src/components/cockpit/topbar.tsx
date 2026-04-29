@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
 import { LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CockpitTopBarFrame } from "@/components/cockpit/cockpit-primitives";
 import { LogoLockup } from "@/components/logo";
 import { createClient } from "@/lib/supabase/client";
-import { EASE_OUT } from "@/lib/motion";
-import { useReducedMotionSafe } from "@/lib/motion";
 import { useSettingsDialog } from "@/components/settings/settings-dialog";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type Props = {
   email: string;
@@ -30,34 +29,28 @@ export function TopBar({ email }: Props) {
     }
   }
 
-  const reducedMotion = useReducedMotionSafe();
-
   return (
-    <motion.header
-      className="flex h-14 shrink-0 items-center justify-between gap-4 border-b bg-background px-5"
-      initial={reducedMotion ? false : { opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.22, ease: EASE_OUT }}
-    >
+    <CockpitTopBarFrame>
       <div className="flex min-w-0 items-center gap-3">
         <Link
           href="/"
           aria-label="Shortform Studio home"
           className="inline-flex min-w-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <LogoLockup iconClassName="size-5" textClassName="hidden sm:inline" />
+          <LogoLockup iconClassName="size-[18px]" textClassName="hidden sm:inline" />
         </Link>
       </div>
       <div className="flex shrink-0 items-center gap-3">
-        <p className="hidden truncate text-sm text-muted-foreground sm:block">
+        <p className="hidden truncate text-xs text-muted-foreground sm:block">
           {email}
         </p>
+        <ThemeToggle />
         <button
           type="button"
           aria-label="Settings"
           title="Settings"
           onClick={() => settings.open()}
-          className="inline-flex size-7 items-center justify-center rounded-[min(var(--radius-md),12px)] text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <Settings className="size-4" />
         </button>
@@ -73,6 +66,6 @@ export function TopBar({ email }: Props) {
           <LogOut />
         </Button>
       </div>
-    </motion.header>
+    </CockpitTopBarFrame>
   );
 }

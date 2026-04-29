@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
+import { CircularLoader } from "@/components/ui/loader";
 import {
   NICHES,
   ONBOARDING_PLATFORMS,
   type OnboardingPlatform,
 } from "@/lib/niches";
+import { getPlatformLogo } from "@/components/brand/platform-logos";
 import type {
   AudienceStage,
   PrimaryGoal,
@@ -121,19 +123,21 @@ export function ProfileForm({ profile }: Props) {
         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
           {ONBOARDING_PLATFORMS.map((p) => {
             const active = platforms.includes(p.id);
+            const Logo = getPlatformLogo(p.id);
             return (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => togglePlatform(p.id)}
                 className={cn(
-                  "rounded-lg border px-3 py-2 text-sm transition-colors",
+                  "flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
                   active
                     ? "border-primary bg-primary/5 text-foreground"
                     : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
                 )}
               >
-                {p.label}
+                <Logo className="size-4 shrink-0" />
+                <span>{p.label}</span>
               </button>
             );
           })}
@@ -193,7 +197,14 @@ export function ProfileForm({ profile }: Props) {
           <span className="text-xs text-muted-foreground">Unsaved changes</span>
         )}
         <Button onClick={() => void onSave()} disabled={saving || !dirty}>
-          {saving ? "Saving..." : "Save"}
+          {saving ? (
+            <>
+              <CircularLoader size="sm" />
+              Saving...
+            </>
+          ) : (
+            "Save"
+          )}
         </Button>
       </div>
     </div>

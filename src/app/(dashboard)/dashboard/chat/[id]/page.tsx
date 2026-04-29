@@ -1,13 +1,15 @@
 import { notFound, redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentUser } from "@/lib/supabase/server";
 import {
   getActiveModel,
   getChat,
   getCachedMessages,
   getDecryptedProviderKey,
+  getStarterPrompts,
 } from "@/lib/db/queries";
 import { toUIMessages } from "@/lib/chat-messages";
 import { Chat } from "@/components/chat/chat";
+import { FALLBACK_STARTER_PROMPTS } from "@/lib/starter-prompts";
 
 export default async function ChatPage({
   params,
@@ -16,21 +18,18 @@ export default async function ChatPage({
 }) {
   const { id } = await params;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const user = await getCurrentUser();
   if (!user) redirect("/");
 
   const chat = await getChat(id, user.id);
   if (!chat) notFound();
 
-  const [page, active] = await Promise.all([
+  const active = await getActiveModel(user.id);
+  const [page, starterPrompts, apiKey] = await Promise.all([
     getCachedMessages(id, { limit: 50 }),
-    getActiveModel(user.id),
+    getStarterPrompts(user.id),
+    getDecryptedProviderKey(user.id, active.provider),
   ]);
-  const apiKey = await getDecryptedProviderKey(user.id, active.provider);
   const initialMessages = toUIMessages(page.messages);
 
   return (
@@ -38,6 +37,11 @@ export default async function ChatPage({
       chatId={id}
       initialMessages={initialMessages}
       initialHasMore={page.hasMore}
+      initialStarterPrompts={
+        starterPrompts?.prompts.length === 6
+          ? starterPrompts.prompts
+          : FALLBACK_STARTER_PROMPTS
+      }
       initialUsage={{
         inputTokens: chat.input_tokens,
         outputTokens: chat.output_tokens,
@@ -46,6 +50,7 @@ export default async function ChatPage({
       }}
       hasActiveKey={Boolean(apiKey)}
       activeProviderId={active.provider}
+      activeModelId={active.model}
     />
   );
 }

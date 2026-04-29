@@ -12,15 +12,22 @@ export function StepAha({
   state,
   submit,
   onDone,
+  onFallback,
 }: {
   state: OnboardingFlowState
   submit: () => Promise<{ chatId: string } | null>
   onDone: (chatId: string) => void
+  onFallback: () => void
 }) {
   const niche = state.nichePrimary
     ? NICHE_BY_ID[state.nichePrimary]?.label.toLowerCase() ?? "your niche"
     : "your niche"
   const platform = state.platforms[0] ?? "tiktok"
+
+  const hasProfile =
+    Boolean(state.nichePrimary) ||
+    state.channelPitch.trim().length >= 3 ||
+    state.platforms.length > 0
 
   const stages = useMemo(
     () => [
@@ -36,6 +43,11 @@ export function StepAha({
   const [failed, setFailed] = useState(false)
 
   useEffect(() => {
+    if (!hasProfile) {
+      const t = window.setTimeout(() => onFallback(), 800)
+      return () => window.clearTimeout(t)
+    }
+
     let cancelled = false
     const interval = window.setInterval(() => {
       setStageIdx((i) => (i < stages.length - 1 ? i + 1 : i))
@@ -62,6 +74,24 @@ export function StepAha({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  if (!hasProfile) {
+    return (
+      <div className="flex flex-col items-center text-center">
+        <div className="relative grid size-16 place-items-center">
+          <span className="relative grid size-16 place-items-center rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
+            <Sparkles className="size-7 text-primary" />
+          </span>
+        </div>
+        <h2 className="mt-5 text-balance text-2xl font-semibold tracking-tight sm:text-3xl">
+          You&apos;re set
+        </h2>
+        <p className="mt-3 max-w-md text-balance text-muted-foreground">
+          Taking you to your dashboard.
+        </p>
+      </div>
+    )
+  }
+
   if (failed) {
     return (
       <div className="flex flex-col items-center text-center">
@@ -69,12 +99,16 @@ export function StepAha({
           That didn&apos;t go through
         </h2>
         <p className="mt-3 max-w-md text-balance text-muted-foreground">
-          Most often this is the API key. Hit back, double-check it, and try
-          again.
+          Something failed generating your starter script. You can keep going
+          to your dashboard and chat normally.
         </p>
-        <div className="mt-7">
+        <div className="mt-7 flex gap-2">
+          <Button size="lg" variant="outline" onClick={onFallback}>
+            Go to dashboard
+            <ArrowRight className="size-4" />
+          </Button>
           <Button size="lg" onClick={() => window.location.reload()}>
-            Restart
+            Try again
             <ArrowRight className="size-4" />
           </Button>
         </div>

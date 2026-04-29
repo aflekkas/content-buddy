@@ -36,8 +36,8 @@ export function StepWelcome({ onNext }: { onNext: () => void }) {
         transition={{ duration: 0.45, ease: EASE, delay: 0.12 }}
         className="mt-4 max-w-xl text-balance text-base text-muted-foreground"
       >
-        Six quick questions, then I&apos;ll draft your first three hooks and a
-        ready-to-film 30-second script.
+        Drop in your API key first, then answer as many questions as you
+        want. Skip whenever, get to chatting whenever.
       </motion.p>
       <motion.div
         initial={{ opacity: 0, y: 8 }}

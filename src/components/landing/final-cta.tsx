@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { ArrowRight, KeyRound } from "lucide-react";
 import { DotPattern } from "@/components/ui/dot-pattern";

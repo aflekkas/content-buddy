@@ -6,8 +6,15 @@ import {
   parseBody,
   requireAuth,
 } from "@/lib/api";
-import { deleteMemoryFile, updateMemoryFile } from "@/lib/db/queries";
-import { MAX_MEMORY_CONTENT_LENGTH } from "@/lib/memory";
+import {
+  deleteMemoryFile,
+  getMemoryFileById,
+  updateMemoryFile,
+} from "@/lib/db/queries";
+import {
+  MAX_MEMORY_CONTENT_LENGTH,
+  isProtectedMemoryPath,
+} from "@/lib/memory";
 
 const PatchBody = z.object({
   path: z.string().min(1).max(180).optional(),
@@ -28,6 +35,18 @@ export async function PATCH(
 
   const { id } = await params;
   try {
+    const existing = await getMemoryFileById(auth.user.id, id);
+    if (!existing) return notFound();
+    if (isProtectedMemoryPath(existing.path)) {
+      return errorResponse("protected_file", 403);
+    }
+    if (
+      parsed.data.path !== undefined &&
+      isProtectedMemoryPath(parsed.data.path)
+    ) {
+      return errorResponse("protected_file", 403);
+    }
+
     const file = await updateMemoryFile(auth.user.id, id, {
       ...parsed.data,
       source: "user",
@@ -50,6 +69,11 @@ export async function DELETE(
   if (!auth.ok) return auth.response;
 
   const { id } = await params;
+  const existing = await getMemoryFileById(auth.user.id, id);
+  if (!existing) return notFound();
+  if (isProtectedMemoryPath(existing.path)) {
+    return errorResponse("protected_file", 403);
+  }
   await deleteMemoryFile(auth.user.id, id);
   return jsonResponse({ ok: true });
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { DUR_NORMAL, EASE_OUT, useReducedMotionSafe } from "@/lib/motion";
 
 type FadeInProps = {
@@ -40,6 +40,16 @@ const STAGGER_ITEM_VARIANTS = {
     transition: { duration: DUR_NORMAL, ease: EASE_OUT },
   },
 } as const;
+
+const BURST_TICK_MS = 120;
+const FORCE_FLUSH_MS = 600;
+
+function lastWordBoundary(text: string, fromIdx: number): number {
+  for (let i = text.length - 1; i > fromIdx; i--) {
+    if (/\s/.test(text[i])) return i + 1;
+  }
+  return -1;
+}
 
 export function FadeIn({ delay = 0, y = 4, className, children }: FadeInProps) {
   const reducedMotion = useReducedMotionSafe();
@@ -93,6 +103,12 @@ export function StaggerItem({ className, children }: StaggerProps) {
   );
 }
 
+const TOKEN_RE = /(\s+)/;
+
+function tokenizeStream(text: string) {
+  return text.split(TOKEN_RE).filter((t) => t.length > 0);
+}
+
 export function StreamText({
   text,
   className,
@@ -100,65 +116,85 @@ export function StreamText({
   renderStable,
 }: StreamTextProps) {
   const reducedMotion = useReducedMotionSafe();
-  const stableRef = useRef<string>("");
-  const [stable, setStable] = useState("");
-  const [, setVersion] = useState(0);
+  const displayedRef = useRef<string>(text);
+  const lastUpdateRef = useRef(0);
+  const [displayed, setDisplayed] = useState(text);
 
-  const promoteStable = (nextStable: string) => {
-    if (stableRef.current === nextStable) return;
-    stableRef.current = nextStable;
-    setStable(nextStable);
-    setVersion((v) => v + 1);
-  };
+  const showText = useCallback((nextText: string) => {
+    if (displayedRef.current === nextText) return;
+    lastUpdateRef.current = performance.now();
+    displayedRef.current = nextText;
+    setDisplayed(nextText);
+  }, []);
 
   useEffect(() => {
-    if (reducedMotion) {
+    if (reducedMotion || isStreaming === false) {
+      showText(text);
       return;
     }
 
-    if (isStreaming === false) {
-      promoteStable(text);
+    if (text.length < displayedRef.current.length) {
+      showText(text);
       return;
     }
 
-    if (text.length < stableRef.current.length) {
-      promoteStable(text);
+    if (text.length <= displayedRef.current.length) {
       return;
     }
 
-    if (text.length <= stableRef.current.length) {
+    const fromIdx = displayedRef.current.length;
+    const elapsed = performance.now() - lastUpdateRef.current;
+    const wait = Math.max(0, BURST_TICK_MS - elapsed);
+
+    const flush = () => {
+      const boundary = lastWordBoundary(text, fromIdx);
+      if (boundary === -1) {
+        if (performance.now() - lastUpdateRef.current >= FORCE_FLUSH_MS) {
+          showText(text);
+        }
+        return;
+      }
+      showText(text.slice(0, boundary));
+    };
+
+    if (wait === 0) {
+      flush();
       return;
     }
-
-    const timeout = window.setTimeout(() => {
-      promoteStable(text);
-    }, 60);
-
+    const timeout = window.setTimeout(flush, wait);
     return () => window.clearTimeout(timeout);
-  }, [isStreaming, reducedMotion, text]);
+  }, [isStreaming, reducedMotion, showText, text]);
 
   if (reducedMotion) {
     return <>{renderStable(text)}</>;
   }
 
-  const stableText = isStreaming === false ? text : stable;
-  const tail =
-    text.length > stableText.length ? text.slice(stableText.length) : "";
+  if (!isStreaming) {
+    const stable = renderStable(text);
+    if (!className) return <>{stable}</>;
+    return <div className={className}>{stable}</div>;
+  }
+
+  const tokens = tokenizeStream(displayed);
+  const nodes = tokens.map((tok, i) => {
+    if (/^\s+$/.test(tok)) {
+      return <span key={i}>{tok}</span>;
+    }
+    return (
+      <motion.span
+        key={i}
+        initial={{ filter: "blur(4px)", opacity: 0 }}
+        animate={{ filter: "blur(0px)", opacity: 1 }}
+        transition={{ duration: 0.28, ease: EASE_OUT }}
+      >
+        {tok}
+      </motion.span>
+    );
+  });
 
   return (
-    <>
-      {renderStable(stableText)}
-      {tail.length > 0 && (
-        <motion.span
-          key={stableText.length}
-          className={className}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.12, ease: EASE_OUT }}
-        >
-          {tail}
-        </motion.span>
-      )}
-    </>
+    <div className={className} style={{ whiteSpace: "pre-wrap" }}>
+      {nodes}
+    </div>
   );
 }

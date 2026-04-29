@@ -3,8 +3,23 @@ import type { UserFactRow, UserProfileRow } from "@/lib/db/types";
 
 export const DEFAULT_MEMORY_PATH = "identity.md";
 export const AUTOLOAD_MEMORY_PATHS = new Set(["identity.md", "facts.md"]);
+export const PROTECTED_MEMORY_PATHS = new Set(["identity.md", "facts.md"]);
+export const SYSTEM_PROMPT_VIRTUAL_PATH = "system-prompt.md";
+export const SYSTEM_PROMPT_VIRTUAL_ID = "synthetic:system-prompt";
 export const MAX_MEMORY_CONTENT_LENGTH = 20000;
 export const MAX_MEMORY_PATH_LENGTH = 180;
+
+export function isProtectedMemoryPath(path: string): boolean {
+  return PROTECTED_MEMORY_PATHS.has(path);
+}
+
+export function isAutoloadMemoryPath(path: string): boolean {
+  return AUTOLOAD_MEMORY_PATHS.has(path);
+}
+
+export function isSyntheticMemoryFileId(id: string): boolean {
+  return id.startsWith("synthetic:");
+}
 
 export function normalizeMemoryPath(input: string): string {
   const path = input
@@ -73,16 +88,9 @@ export function buildStarterMemoryFiles(
     },
     {
       path: "facts.md",
-      title: "Facts Index",
-      content: buildFactsIndexMarkdown(facts),
+      title: "Facts",
+      content: buildFactsMarkdown(facts),
       autoload: true,
-      source: "migration",
-    },
-    {
-      path: "facts/general.md",
-      title: "General Facts",
-      content: buildGeneralFactsMarkdown(facts),
-      autoload: false,
       source: "migration",
     },
   ];
@@ -133,39 +141,19 @@ function buildIdentityMarkdown(profile: UserProfileRow | null): string {
   return lines.join("\n").trimEnd();
 }
 
-function buildFactsIndexMarkdown(facts: UserFactRow[]): string {
+function buildFactsMarkdown(facts: UserFactRow[]): string {
   const lines = [
     "# Facts",
     "",
-    "This is the stable-memory index. Keep short summaries here and move detailed context into files under `facts/`.",
-    "",
-    "## Files",
-    "",
-    "- General facts: facts/general.md",
+    "Stable things the agent has learned about the creator. One bullet per fact.",
   ];
 
   if (facts.length > 0) {
-    lines.push("", "## Recent stable facts", "");
-    for (const fact of facts.slice(0, 10)) {
+    lines.push("");
+    for (const fact of facts) {
       lines.push(`- ${fact.content.trim()}`);
     }
   }
 
   return lines.join("\n");
-}
-
-function buildGeneralFactsMarkdown(facts: UserFactRow[]): string {
-  if (facts.length === 0) {
-    return [
-      "# General Facts",
-      "",
-      "Add stable facts here when they do not fit a more specific file yet.",
-    ].join("\n");
-  }
-
-  return [
-    "# General Facts",
-    "",
-    ...facts.map((fact) => `- ${fact.content.trim()}`),
-  ].join("\n");
 }

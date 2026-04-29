@@ -3,12 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, LayoutGroup, motion } from "motion/react";
+import dynamic from "next/dynamic";
 import { ArrowRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CockpitMockup } from "./cockpit-mockup";
 import { HeroPromptBar } from "./hero-prompt-bar";
 import type { DemoPhase } from "./demo-types";
 import { useReducedMotionSafe } from "@/lib/motion";
+
+const CockpitMockup = dynamic(
+  () => import("./cockpit-mockup").then((m) => m.CockpitMockup),
+  { ssr: false },
+);
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 const RUN_DURATION_MS = 6800;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Eye, EyeOff, Layers, Sparkles, Zap } from "lucide-react";
 import { CircularLoader } from "@/components/ui/loader";
@@ -47,7 +47,6 @@ function isSafeNext(value: string | null): value is string {
 }
 
 export function AuthForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get("next");
   const next = isSafeNext(nextParam) ? nextParam : "/dashboard";
@@ -63,25 +62,38 @@ export function AuthForm() {
     setLoading(true);
 
     const supabase = createClient();
-    const result =
+    let result =
       mode === "signup"
         ? await supabase.auth.signUp({ email, password })
         : await supabase.auth.signInWithPassword({ email, password });
 
-    setLoading(false);
+    // Existing account on signup: fall back to signin with same credentials.
+    if (mode === "signup" && result.error) {
+      const msg = result.error.message?.toLowerCase() ?? "";
+      if (
+        msg.includes("already") ||
+        msg.includes("registered") ||
+        msg.includes("exists")
+      ) {
+        result = await supabase.auth.signInWithPassword({ email, password });
+      }
+    }
 
     if (result.error) {
+      setLoading(false);
       toast.error(result.error.message);
       return;
     }
 
     if (mode === "signup" && !result.data.session) {
+      setLoading(false);
       toast.success("Check your email to confirm your account.");
       return;
     }
 
-    router.push(next);
-    router.refresh();
+    // Full page nav so middleware + server layouts see fresh auth cookies.
+    // The (dashboard) layout redirects unonboarded users to /onboarding.
+    window.location.assign(next);
   }
 
   return (

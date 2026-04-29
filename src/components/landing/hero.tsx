@@ -1,5 +1,3 @@
-"use client";
-
 import { Sparkles } from "lucide-react";
 import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
 import { AuroraText } from "@/components/ui/aurora-text";
@@ -32,6 +30,7 @@ export function Hero({ isAuthed = false }: { isAuthed?: boolean }) {
             <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
               Tell me what you want,{" "}
               <AuroraText
+                speed={0.8}
                 colors={[
                   "oklch(0.685 0.169 237.323)",
                   "oklch(0.746 0.16 232.661)",
