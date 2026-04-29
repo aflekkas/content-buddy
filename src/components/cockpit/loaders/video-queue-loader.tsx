@@ -8,5 +8,5 @@ type Props = {
 export async function VideoQueueLoader({ userId }: Props) {
   const videos = await listVideos(userId);
 
-  return <VideoQueue videos={videos} />;
+  return <VideoQueue userId={userId} videos={videos} />;
 }

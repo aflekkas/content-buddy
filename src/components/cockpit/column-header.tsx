@@ -7,6 +7,8 @@ type Props = {
   titleSlot?: ReactNode;
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
   iconClassName?: string;
+  iconTone?: "neutral" | "memory" | "queue" | "chat";
+  density?: "compact" | "comfortable";
   left?: ReactNode;
   right?: ReactNode;
   className?: string;
@@ -18,14 +20,20 @@ export function ColumnHeader({
   titleSlot,
   icon: Icon,
   iconClassName,
+  iconTone,
+  density = "compact",
   left,
   right,
   className,
 }: Props) {
+  const compact = density === "compact";
+  const tone = iconTone ?? inferIconTone(title);
+
   return (
     <header
       className={cn(
-        "flex h-14 shrink-0 items-center gap-3 border-b bg-muted/50 px-4",
+        "flex shrink-0 items-center border-b bg-muted/40",
+        compact ? "h-12 gap-2.5 px-3" : "h-14 gap-3 px-4",
         className,
       )}
     >
@@ -34,23 +42,40 @@ export function ColumnHeader({
         <span
           aria-hidden
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground",
+            "flex shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground",
+            compact ? "size-7" : "size-8",
+            iconToneClassName(tone),
             iconClassName,
           )}
         >
-          <Icon className="size-4" />
+          <Icon
+            className={cn(
+              compact ? "size-4" : "size-4.5",
+              tone === "memory" && (compact ? "size-4.5" : "size-5"),
+            )}
+          />
         </span>
       ) : null}
       <div className="min-w-0 flex-1 leading-tight">
         {titleSlot ? (
           titleSlot
         ) : (
-          <p className="truncate text-sm font-medium text-foreground">
+          <p
+            className={cn(
+              "truncate font-medium text-foreground",
+              compact ? "text-xs" : "text-sm",
+            )}
+          >
             {title}
           </p>
         )}
         {description ? (
-          <p className="truncate text-xs text-muted-foreground">
+          <p
+            className={cn(
+              "truncate text-muted-foreground",
+              compact ? "text-[11px]" : "text-xs",
+            )}
+          >
             {description}
           </p>
         ) : null}
@@ -58,4 +83,23 @@ export function ColumnHeader({
       {right}
     </header>
   );
+}
+
+function inferIconTone(title: string | undefined): NonNullable<Props["iconTone"]> {
+  if (title === "Memory") return "memory";
+  if (title === "Video queue") return "queue";
+  return "neutral";
+}
+
+function iconToneClassName(tone: NonNullable<Props["iconTone"]>) {
+  switch (tone) {
+    case "memory":
+      return "text-sky-600 dark:text-sky-300";
+    case "queue":
+      return "text-amber-600 dark:text-amber-300";
+    case "chat":
+      return "text-violet-600 dark:text-violet-300";
+    default:
+      return null;
+  }
 }

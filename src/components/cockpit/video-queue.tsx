@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { forwardRef, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Download,
@@ -35,11 +35,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ColumnHeader } from "@/components/cockpit/column-header";
+import {
+  cockpitInputClass,
+  cockpitSoftPanelClass,
+} from "@/components/cockpit/cockpit-primitives";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { VideoRow, VideoStatus } from "@/lib/db/types";
 import type { VideoExportFormat } from "@/lib/video-export";
 
 type Props = {
+  userId: string;
   videos: VideoRow[];
 };
 
@@ -67,15 +73,96 @@ const STATUS_META: Record<
 };
 
 const FILTER_ORDER: StatusFilter[] = ["all", "idea", "ready", "filmed"];
+const VIDEO_EVENT_NAME = "shortform-studio:video";
 
-export function VideoQueue({ videos }: Props) {
+type VideoQueueEvent =
+  | { type: "updated"; video: VideoRow }
+  | { type: "deleted"; id: string };
+
+export function VideoQueue({ userId, videos }: Props) {
   const router = useRouter();
-  const [items, setItems] = useState(videos);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [items, setItems] = useState(() => sortVideos(videos));
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [pendingDelete, setPendingDelete] = useState<VideoRow | null>(null);
   const [exportingFormat, setExportingFormat] =
     useState<VideoExportFormat | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const supabase = createClient();
+    const syncVideos = async () => {
+      const { data, error } = await supabase
+        .from("videos")
+        .select("*")
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false });
+
+      if (!active || error) return;
+      setItems(sortVideos((data ?? []) as VideoRow[]));
+    };
+
+    const channel = supabase
+      .channel(`videos:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "videos",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          setItems((current) => {
+            if (
+              payload.eventType === "INSERT" ||
+              payload.eventType === "UPDATE"
+            ) {
+              const video = payload.new as VideoRow;
+              if (video.user_id !== userId) return current;
+              return upsertVideo(current, video);
+            }
+
+            if (payload.eventType === "DELETE") {
+              const deleted = payload.old as Pick<VideoRow, "id">;
+              return current.filter((video) => video.id !== deleted.id);
+            }
+
+            return current;
+          });
+        },
+      )
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void syncVideos();
+        }
+      });
+
+    void syncVideos();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
+  useEffect(() => {
+    function handleVideoEvent(event: Event) {
+      const detail = (event as CustomEvent<VideoQueueEvent>).detail;
+      if (!detail) return;
+
+      if (detail.type === "updated" && detail.video.user_id === userId) {
+        setItems((current) => upsertVideo(current, detail.video));
+      } else if (detail.type === "deleted") {
+        setItems((current) => current.filter((video) => video.id !== detail.id));
+      }
+    }
+
+    window.addEventListener(VIDEO_EVENT_NAME, handleVideoEvent);
+    return () => window.removeEventListener(VIDEO_EVENT_NAME, handleVideoEvent);
+  }, [userId]);
 
   const counts = useMemo(() => {
     const base = { all: items.length, idea: 0, ready: 0, filmed: 0 };
@@ -108,7 +195,6 @@ export function VideoQueue({ videos }: Props) {
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error("update_failed");
-      router.refresh();
     } catch {
       setItems(prev);
       toast.error("Could not update video");
@@ -122,7 +208,6 @@ export function VideoQueue({ videos }: Props) {
     try {
       const res = await fetch(`/api/videos/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("delete_failed");
-      router.refresh();
     } catch {
       setItems(prev);
       toast.error("Could not delete video");
@@ -153,6 +238,15 @@ export function VideoQueue({ videos }: Props) {
     } finally {
       setExportingFormat(null);
     }
+  }
+
+  function openVideoScript(videoId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("video", videoId);
+    const targetPath = pathname.startsWith("/dashboard/chat/")
+      ? pathname
+      : "/dashboard/chat/new";
+    router.push(`${targetPath}?${params.toString()}`, { scroll: false });
   }
 
   const hasAnyVideos = items.length > 0;
@@ -218,17 +312,17 @@ export function VideoQueue({ videos }: Props) {
       />
 
       {hasAnyVideos && (
-        <div className="space-y-2 border-b bg-background/80 px-4 py-3">
+        <div className="space-y-2.5 border-b bg-background/80 px-3 py-3">
           <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search videos"
-              className="pl-8"
+              className={cn("h-8 rounded-md pl-8 text-xs", cockpitInputClass)}
             />
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {FILTER_ORDER.map((key) => {
               const active = statusFilter === key;
               const label =
@@ -242,7 +336,7 @@ export function VideoQueue({ videos }: Props) {
                   type="button"
                   onClick={() => setStatusFilter(key)}
                   className={cn(
-                    "relative",
+                    "relative h-7 gap-1.5 px-2.5 text-xs",
                     active
                       ? "border border-primary text-primary-foreground"
                       : "border border-border bg-muted/30 text-muted-foreground hover:bg-muted/60 hover:text-foreground",
@@ -252,7 +346,7 @@ export function VideoQueue({ videos }: Props) {
                     <motion.span
                       layoutId="video-filter-active"
                       aria-hidden
-                      className="absolute inset-0 -z-0 rounded-full bg-primary"
+                      className="absolute inset-0 z-0 rounded-full bg-primary"
                       transition={{
                         type: "spring",
                         stiffness: 500,
@@ -261,14 +355,7 @@ export function VideoQueue({ videos }: Props) {
                     />
                   )}
                   <span className="relative z-10">{label}</span>
-                  <span
-                    className={cn(
-                      "relative z-10 rounded-full px-1 text-[10px] tabular-nums",
-                      active
-                        ? "bg-primary-foreground/25 text-primary-foreground"
-                        : "bg-background/60 text-muted-foreground",
-                    )}
-                  >
+                  <span className="relative z-10 text-xs tabular-nums opacity-80">
                     {counts[key]}
                   </span>
                 </Button>
@@ -288,8 +375,8 @@ export function VideoQueue({ videos }: Props) {
             No videos match your filter.
           </div>
         ) : (
-          <ul className="space-y-2 p-4">
-            <AnimatePresence initial={false}>
+          <motion.ul layout className="space-y-1.5 p-3">
+            <AnimatePresence initial={false} mode="popLayout">
               {visibleItems.map((video) => (
                 <VideoCard
                   key={video.id}
@@ -302,11 +389,12 @@ export function VideoQueue({ videos }: Props) {
                       router.push(`/dashboard/chat/${video.chat_id}`);
                     }
                   }}
+                  onOpenScript={() => openVideoScript(video.id)}
                   onRequestDelete={() => setPendingDelete(video)}
                 />
               ))}
             </AnimatePresence>
-          </ul>
+          </motion.ul>
         )}
       </div>
 
@@ -352,6 +440,22 @@ export function VideoQueue({ videos }: Props) {
   );
 }
 
+function upsertVideo(items: VideoRow[], video: VideoRow) {
+  const exists = items.some((item) => item.id === video.id);
+  if (!exists) return sortVideos([video, ...items]);
+
+  return sortVideos(
+    items.map((item) => (item.id === video.id ? { ...item, ...video } : item)),
+  );
+}
+
+function sortVideos(videos: VideoRow[]) {
+  return [...videos].sort(
+    (a, b) =>
+      new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+  );
+}
+
 function getDownloadFilename(
   contentDisposition: string | null,
   fallback: string,
@@ -364,62 +468,57 @@ type VideoCardProps = {
   video: VideoRow;
   onChangeStatus: (status: VideoStatus) => void;
   onOpenChat: () => void;
+  onOpenScript: () => void;
   onRequestDelete: () => void;
 };
 
-function VideoCard({
-  video,
-  onChangeStatus,
-  onOpenChat,
-  onRequestDelete,
-}: VideoCardProps) {
+const VideoCard = forwardRef<HTMLLIElement, VideoCardProps>(function VideoCard(
+  { video, onChangeStatus, onOpenChat, onOpenScript, onRequestDelete },
+  ref,
+) {
   const meta = STATUS_META[video.status];
   const updated = formatRelativeTime(video.updated_at);
 
   return (
     <motion.li
+      ref={ref}
       layout
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96 }}
       transition={{ duration: 0.2, ease: EASE_OUT }}
-      className="flex items-start gap-2 rounded-xl border border-border bg-muted/20 p-3 transition-colors hover:bg-muted/35"
+      className={cn(
+        "group flex min-w-0 items-start gap-2 p-2.5 transition-colors hover:bg-muted/35",
+        cockpitSoftPanelClass,
+      )}
     >
-      <Button
-        variant="ghost"
-        size="sm"
+      <button
         type="button"
-        onClick={() => {
-          if (video.chat_id) onOpenChat();
-        }}
-        disabled={!video.chat_id}
-        className={cn(
-          "min-w-0 flex-1 justify-start",
-          !video.chat_id && "cursor-default",
-        )}
+        onClick={onOpenScript}
+        className="min-w-0 flex-1 appearance-none rounded-md bg-transparent p-0 text-left text-inherit outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/40"
       >
-        <div className="mb-1.5 flex items-center gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <span
             className={cn(
-              "inline-flex items-center rounded-full px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide",
+              "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
               meta.chip,
             )}
           >
             {meta.label}
           </span>
           {updated && (
-            <span className="text-[10px] text-muted-foreground">
+            <span className="shrink-0 text-xs text-muted-foreground">
               {updated}
             </span>
           )}
         </div>
-        <p className="truncate text-sm font-medium text-foreground">
+        <p className="mt-1.5 truncate text-[13px] font-semibold leading-5 text-foreground">
           {video.title || "Untitled video"}
         </p>
-        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+        <p className="mt-0.5 line-clamp-2 break-words text-xs leading-5 text-muted-foreground">
           {video.hook || "No hook yet."}
         </p>
-      </Button>
+      </button>
 
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -460,6 +559,15 @@ function VideoCard({
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuItem
+            onClick={(event) => {
+              event.preventDefault();
+              onOpenScript();
+            }}
+          >
+            <FileText className="mr-2 size-4" />
+            Open script
+          </DropdownMenuItem>
+          <DropdownMenuItem
             disabled={!video.chat_id}
             onClick={(event) => {
               event.preventDefault();
@@ -483,7 +591,7 @@ function VideoCard({
       </DropdownMenu>
     </motion.li>
   );
-}
+});
 
 function formatRelativeTime(iso: string): string {
   const then = new Date(iso).getTime();

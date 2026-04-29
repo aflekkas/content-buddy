@@ -1,0 +1,443 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import {
+  Bold,
+  Code,
+  FileText,
+  Heading2,
+  Italic,
+  List,
+  MessageSquare,
+  Quote,
+  Trash2,
+  X,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { ColumnHeader } from "@/components/cockpit/column-header";
+import {
+  cockpitDashedPanelClass,
+  cockpitIconButtonClass,
+  cockpitInputClass,
+} from "@/components/cockpit/cockpit-primitives";
+import { cn } from "@/lib/utils";
+import type { VideoRow, VideoStatus } from "@/lib/db/types";
+import { VIDEO_STATUS_OPTIONS } from "@/lib/video-status";
+
+type Props = {
+  videoId: string;
+  onClose: () => void;
+  onOpenChat: (chatId: string) => void;
+};
+
+type SaveState = "idle" | "loading" | "saving" | "saved" | "error";
+const VIDEO_EVENT_NAME = "shortform-studio:video";
+
+const STATUS_OPTIONS = VIDEO_STATUS_OPTIONS.map((o) => ({
+  status: o.status,
+  label: o.shortLabel,
+  dot: o.dot,
+  active: o.active,
+}));
+
+export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
+  const [video, setVideo] = useState<VideoRow | null>(null);
+  const [title, setTitle] = useState("");
+  const [hook, setHook] = useState("");
+  const [script, setScript] = useState("");
+  const [status, setStatus] = useState<VideoStatus>("idea");
+  const [lastSaved, setLastSaved] = useState({
+    title: "",
+    hook: "",
+    script: "",
+    status: "idea" as VideoStatus,
+  });
+  const [saveState, setSaveState] = useState<SaveState>("loading");
+  const scriptRef = useRef<HTMLTextAreaElement | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dirty =
+    lastSaved.title !== title ||
+    lastSaved.hook !== hook ||
+    lastSaved.script !== script ||
+    lastSaved.status !== status;
+
+  useEffect(() => {
+    let active = true;
+    const loadingFrame = requestAnimationFrame(() => {
+      if (active) setSaveState("loading");
+    });
+
+    async function loadVideo() {
+      try {
+        const res = await fetch(`/api/videos/${videoId}`);
+        if (!res.ok) throw new Error(String(res.status));
+        const next = (await res.json()) as VideoRow;
+        if (!active) return;
+        setVideo(next);
+        setTitle(next.title);
+        setHook(next.hook);
+        setScript(next.script);
+        setStatus(next.status);
+        setLastSaved({
+          title: next.title,
+          hook: next.hook,
+          script: next.script,
+          status: next.status,
+        });
+        setSaveState("idle");
+      } catch {
+        if (!active) return;
+        setVideo(null);
+        setSaveState("error");
+        toast.error("Could not open video");
+      }
+    }
+
+    void loadVideo();
+
+    return () => {
+      active = false;
+      cancelAnimationFrame(loadingFrame);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [videoId]);
+
+  async function save(patch: Partial<VideoRow>) {
+    setSaveState("saving");
+    try {
+      const res = await fetch(`/api/videos/${videoId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const updated = (await res.json()) as VideoRow;
+      setVideo(updated);
+      setLastSaved({
+        title: updated.title,
+        hook: updated.hook,
+        script: updated.script,
+        status: updated.status,
+      });
+      setSaveState("saved");
+      window.dispatchEvent(
+        new CustomEvent(VIDEO_EVENT_NAME, {
+          detail: { type: "updated", video: updated },
+        }),
+      );
+    } catch {
+      setSaveState("error");
+      toast.error("Could not save video");
+    }
+  }
+
+  useEffect(() => {
+    if (!video || !dirty) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(() => {
+      void save({
+        title: title.trim() || video.title,
+        hook,
+        script,
+      });
+    }, 550);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, hook, script]);
+
+  function changeStatus(next: VideoStatus) {
+    if (next === status) return;
+    setStatus(next);
+    void save({ status: next });
+  }
+
+  async function deleteVideo() {
+    if (!video) return;
+    if (!window.confirm(`Delete ${video.title || "this video"}?`)) return;
+
+    try {
+      const res = await fetch(`/api/videos/${video.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(String(res.status));
+      window.dispatchEvent(
+        new CustomEvent(VIDEO_EVENT_NAME, {
+          detail: { type: "deleted", id: video.id },
+        }),
+      );
+      onClose();
+    } catch {
+      toast.error("Could not delete video");
+    }
+  }
+
+  function applyMarkdown(format: MarkdownFormat) {
+    const textarea = scriptRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const next = formatMarkdown(script, start, end, format);
+    setScript(next.value);
+
+    window.requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(next.selectionStart, next.selectionEnd);
+    });
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-background">
+      <ColumnHeader
+        icon={FileText}
+        iconTone="queue"
+        title={video?.title || "Video script"}
+        description={saveLabel(saveState, dirty)}
+        right={
+          <button
+            type="button"
+            aria-label="Close video editor"
+            onClick={onClose}
+            className={cockpitIconButtonClass}
+          >
+            <X className="size-4" />
+          </button>
+        }
+      />
+
+      {saveState === "loading" ? (
+        <div className="p-4 text-sm text-muted-foreground">Opening video...</div>
+      ) : !video ? (
+        <div
+          className={cn(
+            "m-3 px-3 py-8 text-center text-xs text-muted-foreground",
+            cockpitDashedPanelClass,
+          )}
+        >
+          This video could not be opened.
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-1 rounded-full border border-border bg-muted/30 p-1">
+              {STATUS_OPTIONS.map((opt) => (
+                <button
+                  key={opt.status}
+                  type="button"
+                  onClick={() => changeStatus(opt.status)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors",
+                    status === opt.status
+                      ? opt.active
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <span className={cn("size-2 rounded-full", opt.dot)} />
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1">
+              {video.chat_id ? (
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label="Open source chat"
+                  onClick={() => onOpenChat(video.chat_id!)}
+                  className="text-muted-foreground hover:text-foreground"
+                >
+                  <MessageSquare />
+                </Button>
+              ) : null}
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                aria-label="Delete video"
+                onClick={() => void deleteVideo()}
+                className="text-destructive hover:text-destructive"
+              >
+                <Trash2 />
+              </Button>
+            </div>
+          </div>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">
+              Title
+            </span>
+            <Input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Untitled video"
+              maxLength={120}
+              className={cockpitInputClass}
+            />
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-muted-foreground">
+              Hook
+            </span>
+            <Textarea
+              value={hook}
+              onChange={(event) => setHook(event.target.value)}
+              placeholder="Opening line that stops the scroll."
+              maxLength={500}
+              className={cn("min-h-20 resize-none text-sm", cockpitInputClass)}
+            />
+          </label>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs font-medium text-muted-foreground">
+                Script
+              </span>
+              <div className="flex items-center gap-1">
+                <MarkdownButton
+                  label="Heading"
+                  icon={Heading2}
+                  onClick={() => applyMarkdown("heading")}
+                />
+                <MarkdownButton
+                  label="Bold"
+                  icon={Bold}
+                  onClick={() => applyMarkdown("bold")}
+                />
+                <MarkdownButton
+                  label="Italic"
+                  icon={Italic}
+                  onClick={() => applyMarkdown("italic")}
+                />
+                <MarkdownButton
+                  label="List"
+                  icon={List}
+                  onClick={() => applyMarkdown("list")}
+                />
+                <MarkdownButton
+                  label="Quote"
+                  icon={Quote}
+                  onClick={() => applyMarkdown("quote")}
+                />
+                <MarkdownButton
+                  label="Code"
+                  icon={Code}
+                  onClick={() => applyMarkdown("code")}
+                />
+              </div>
+            </div>
+            <Textarea
+              ref={scriptRef}
+              value={script}
+              onChange={(event) => setScript(event.target.value)}
+              placeholder="Write the script in Markdown."
+              maxLength={4000}
+              className={cn(
+                "min-h-[22rem] flex-1 resize-none font-mono text-xs leading-5",
+                cockpitInputClass,
+              )}
+            />
+            <div className="text-right text-[11px] text-muted-foreground">
+              {script.length}/4000
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type MarkdownFormat = "heading" | "bold" | "italic" | "list" | "quote" | "code";
+
+function MarkdownButton({
+  label,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  icon: typeof Bold;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+    >
+      <Icon className="size-3.5" />
+    </button>
+  );
+}
+
+function saveLabel(state: SaveState, dirty: boolean) {
+  if (state === "loading") return "Opening...";
+  if (state === "saving") return "Saving...";
+  if (state === "error") return "Save failed";
+  if (dirty) return "Unsaved";
+  if (state === "saved") return "Saved";
+  return "Markdown script editor";
+}
+
+function formatMarkdown(
+  value: string,
+  start: number,
+  end: number,
+  format: MarkdownFormat,
+) {
+  const selected = value.slice(start, end);
+  const fallback = placeholderFor(format);
+  const text = selected || fallback;
+  let replacement = text;
+  let innerStart = start;
+  let innerEnd = start + text.length;
+
+  if (format === "bold") {
+    replacement = `**${text}**`;
+    innerStart = start + 2;
+    innerEnd = innerStart + text.length;
+  } else if (format === "italic") {
+    replacement = `*${text}*`;
+    innerStart = start + 1;
+    innerEnd = innerStart + text.length;
+  } else if (format === "code") {
+    replacement = selected.includes("\n")
+      ? `\`\`\`\n${text}\n\`\`\``
+      : `\`${text}\``;
+    innerStart = selected.includes("\n") ? start + 4 : start + 1;
+    innerEnd = innerStart + text.length;
+  } else {
+    const prefix =
+      format === "heading" ? "## " : format === "list" ? "- " : "> ";
+    replacement = prefixLines(text, prefix);
+    innerStart = start + prefix.length;
+    innerEnd = start + replacement.length;
+  }
+
+  return {
+    value: `${value.slice(0, start)}${replacement}${value.slice(end)}`,
+    selectionStart: innerStart,
+    selectionEnd: innerEnd,
+  };
+}
+
+function prefixLines(value: string, prefix: string) {
+  return value
+    .split("\n")
+    .map((line) => `${prefix}${line}`)
+    .join("\n");
+}
+
+function placeholderFor(format: MarkdownFormat) {
+  if (format === "heading") return "Section";
+  if (format === "list") return "List item";
+  if (format === "quote") return "Quote";
+  if (format === "code") return "code";
+  return "text";
+}
