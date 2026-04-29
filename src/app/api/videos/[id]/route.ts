@@ -45,8 +45,8 @@ export async function PATCH(
   const { id } = await params;
   const video = await updateVideo(auth.user.id, id, {
     title: parsed.data.title?.trim(),
-    hook: parsed.data.hook?.trim(),
-    script: parsed.data.script?.trim(),
+    hook: parsed.data.hook,
+    script: parsed.data.script,
     status: parsed.data.status,
   });
 

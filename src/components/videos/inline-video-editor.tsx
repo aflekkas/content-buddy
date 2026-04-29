@@ -8,6 +8,7 @@ import {
   Heading2,
   Italic,
   List,
+  Loader2,
   MessageSquare,
   Quote,
   Trash2,
@@ -71,9 +72,6 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
 
   useEffect(() => {
     let active = true;
-    const loadingFrame = requestAnimationFrame(() => {
-      if (active) setSaveState("loading");
-    });
 
     async function loadVideo() {
       try {
@@ -105,7 +103,6 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
 
     return () => {
       active = false;
-      cancelAnimationFrame(loadingFrame);
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, [videoId]);
@@ -216,7 +213,9 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
       />
 
       {saveState === "loading" ? (
-        <div className="p-4 text-sm text-muted-foreground">Opening video...</div>
+        <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
+          <Loader2 className="size-5 animate-spin" aria-label="Opening video" />
+        </div>
       ) : !video ? (
         <div
           className={cn(
