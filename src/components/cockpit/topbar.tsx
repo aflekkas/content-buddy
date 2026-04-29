@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { motion } from "motion/react";
 import { LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { LogoLockup } from "@/components/logo";
 import { createClient } from "@/lib/supabase/client";
 import { EASE_OUT } from "@/lib/motion";
 import { useReducedMotionSafe } from "@/lib/motion";
+import { useSettingsDialog } from "@/components/settings/settings-dialog";
 
 type Props = {
   email: string;
@@ -16,6 +16,7 @@ type Props = {
 
 export function TopBar({ email }: Props) {
   const [signingOut, setSigningOut] = useState(false);
+  const settings = useSettingsDialog();
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -44,14 +45,15 @@ export function TopBar({ email }: Props) {
         <p className="hidden truncate text-sm text-muted-foreground sm:block">
           {email}
         </p>
-        <Link
-          href="/settings"
+        <button
+          type="button"
           aria-label="Settings"
           title="Settings"
+          onClick={() => settings.open()}
           className="inline-flex size-7 items-center justify-center rounded-[min(var(--radius-md),12px)] text-muted-foreground hover:bg-muted hover:text-foreground"
         >
           <Settings className="size-4" />
-        </Link>
+        </button>
         <Button
           variant="ghost"
           size="icon-sm"

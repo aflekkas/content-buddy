@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasCompletedOnboarding } from "@/lib/db/queries";
+import { SettingsDialogProvider } from "@/components/settings/settings-dialog";
 
 export default async function DashboardLayout({
   children,
@@ -21,5 +22,9 @@ export default async function DashboardLayout({
     redirect("/onboarding");
   }
 
-  return <div className="h-svh overflow-hidden flex flex-col">{children}</div>;
+  return (
+    <SettingsDialogProvider>
+      <div className="h-svh overflow-hidden flex flex-col">{children}</div>
+    </SettingsDialogProvider>
+  );
 }

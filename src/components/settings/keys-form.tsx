@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Check, ExternalLink, Eye, EyeOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -318,6 +317,3 @@ function ProviderKeyCard({
   );
 }
 
-export function SettingsLink() {
-  return <Link href="/settings">Settings</Link>;
-}

@@ -1,13 +1,13 @@
 "use client";
 
 import { startTransition, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Brain, Check, ChevronDown, Film, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSettingsDialog } from "@/components/settings/settings-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Message } from "@/components/ui/message";
 import { Markdown } from "@/components/ui/markdown";
@@ -118,6 +118,7 @@ export function Chat({
   activeProviderId,
 }: Props) {
   const router = useRouter();
+  const settingsDialog = useSettingsDialog();
   const previousStatus = useRef<string | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -285,9 +286,10 @@ export function Chat({
       <div className="shrink-0">
         <div className="w-full px-4 pb-4">
           {missingKey && (
-            <Link
-              href="/settings"
-              className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
+            <button
+              type="button"
+              onClick={() => settingsDialog.open()}
+              className="mb-2 flex w-full items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 hover:bg-amber-500/20 dark:text-amber-300"
             >
               <span className="flex items-center gap-2">
                 <KeyRound className="size-3.5" />
@@ -295,7 +297,7 @@ export function Chat({
                 settings to start chatting.
               </span>
               <ArrowRight className="size-3.5" />
-            </Link>
+            </button>
           )}
           <ChatInput
             onSubmit={handleSubmit}
