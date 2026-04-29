@@ -9,6 +9,9 @@ type VideoActivityEvent = {
   maskedEmail: string;
   providerLabel: string;
   providerLogo: string;
+  action: string;
+  countryName: string | null;
+  countryFlag: string | null;
   occurredAt: string;
 };
 
@@ -38,7 +41,7 @@ async function listPublicVideoActivityEvents({
   after?: string;
 }): Promise<VideoActivityEvent[]> {
   const supabase = createAdminClient();
-  const limit = 6;
+  const limit = 8;
 
   async function fetchVideoRows(recentOnly = false) {
     let query = supabase
@@ -60,9 +63,19 @@ async function listPublicVideoActivityEvents({
   }
 
   let videoRows = await fetchVideoRows(!after);
-  if (!after && videoRows.length === 0) {
-    videoRows = await fetchVideoRows(false);
-  }
+  if (!after && videoRows.length === 0) videoRows = await fetchVideoRows(false);
+
+  const realEvents = await buildRealActivityEvents(supabase, videoRows);
+  if (realEvents.length > 0) return realEvents;
+
+  if (after) return [];
+  return listSeedActivityEvents(supabase, limit);
+}
+
+async function buildRealActivityEvents(
+  supabase: ReturnType<typeof createAdminClient>,
+  videoRows: Array<{ id: string; user_id: string; created_at: string }>,
+): Promise<VideoActivityEvent[]> {
   if (videoRows.length === 0) return [];
 
   const userIds = Array.from(new Set(videoRows.map((row) => row.user_id)));
@@ -108,11 +121,48 @@ async function listPublicVideoActivityEvents({
       maskedEmail: maskEmailForPublicActivity(email),
       providerLabel: providerMeta.label,
       providerLogo: providerMeta.logo,
+      action: "generated a video",
+      countryName: null,
+      countryFlag: null,
       occurredAt: row.created_at,
     });
   }
 
   return events;
+}
+
+async function listSeedActivityEvents(
+  supabase: ReturnType<typeof createAdminClient>,
+  limit: number,
+): Promise<VideoActivityEvent[]> {
+  const { data, error } = await supabase
+    .from("landing_video_activity_seed_events")
+    .select(
+      "id,masked_email,provider,country_name,country_flag,action,occurred_at",
+    )
+    .order("occurred_at", { ascending: false })
+    .limit(limit);
+
+  if (isMissingSeedEventsTable(error)) return [];
+  if (error) throw error;
+
+  return (data ?? [])
+    .filter((row) => isProviderId(row.provider))
+    .map((row) => {
+      const provider = row.provider as ProviderId;
+      const providerMeta = PROVIDERS[provider];
+
+      return {
+        id: row.id,
+        maskedEmail: row.masked_email,
+        providerLabel: providerMeta.label,
+        providerLogo: providerMeta.logo,
+        action: row.action,
+        countryName: row.country_name,
+        countryFlag: row.country_flag,
+        occurredAt: row.occurred_at,
+      };
+    });
 }
 
 function maskEmailForPublicActivity(email: string): string {
@@ -127,4 +177,14 @@ function maskToken(value: string): string {
   const cleaned = value.replace(/[^a-z0-9]/g, "");
   if (cleaned.length <= 1) return `${cleaned || "u"}***`;
   return `${cleaned[0]}***${cleaned[cleaned.length - 1]}`;
+}
+
+function isMissingSeedEventsTable(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const maybe = error as { code?: unknown; message?: unknown };
+  return (
+    maybe.code === "PGRST205" &&
+    typeof maybe.message === "string" &&
+    maybe.message.includes("landing_video_activity_seed_events")
+  );
 }

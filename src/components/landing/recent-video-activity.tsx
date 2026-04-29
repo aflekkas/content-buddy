@@ -11,6 +11,9 @@ type ActivityEvent = {
   maskedEmail: string;
   providerLabel: string;
   providerLogo: string;
+  action: string;
+  countryName: string | null;
+  countryFlag: string | null;
   occurredAt: string;
 };
 
@@ -18,10 +21,10 @@ type ActivityResponse = {
   events?: ActivityEvent[];
 };
 
-const INITIAL_DELAY_MS = 5200;
-const DISPLAY_MS = 7600;
-const BETWEEN_TOASTS_MS = 3600;
-const POLL_MS = 45000;
+const INITIAL_DELAY_MS = 2600;
+const DISPLAY_MS = 6200;
+const BETWEEN_TOASTS_MS = 1700;
+const POLL_MS = 36000;
 
 export function RecentVideoActivity() {
   const reducedMotion = useReducedMotionSafe();
@@ -98,7 +101,7 @@ export function RecentVideoActivity() {
   return (
     <aside
       aria-label="Recent anonymized video activity"
-      className="pointer-events-none fixed right-3 bottom-3 z-30 hidden w-[min(330px,calc(100vw-1.5rem))] sm:block lg:right-5 lg:bottom-5"
+      className="pointer-events-none fixed right-3 bottom-3 z-30 hidden w-[min(380px,calc(100vw-1.5rem))] sm:block lg:right-5 lg:bottom-5"
     >
       <AnimatePresence mode="wait">
         {activeEvent && (
@@ -146,13 +149,39 @@ function ActivityToast({
           <span className="font-medium text-foreground">
             {event.maskedEmail}
           </span>{" "}
-          just generated a video using{" "}
+          {event.action} using{" "}
           <span className="inline-flex items-center gap-1 font-medium text-foreground">
             {event.providerLabel}
             <Clapperboard className="size-3.5 text-primary" />
+          </span>
+          <span className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground/80">
+            <span>{timeAgo(event.occurredAt)}</span>
+            {event.countryFlag && event.countryName && (
+              <>
+                <span aria-hidden>·</span>
+                <span aria-label={event.countryName} title={event.countryName}>
+                  {event.countryFlag}
+                </span>
+                <span>{event.countryName}</span>
+              </>
+            )}
           </span>
         </span>
       </figcaption>
     </motion.figure>
   );
+}
+
+function timeAgo(value: string): string {
+  const elapsedMs = Date.now() - new Date(value).getTime();
+  if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return "just now";
+
+  const minutes = Math.max(1, Math.round(elapsedMs / 60000));
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
 }
