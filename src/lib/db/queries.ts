@@ -111,27 +111,13 @@ export async function addChatUsage(
   }
 
   const supabase = await createClient();
-  const { data: current, error: readError } = await supabase
-    .from("chats")
-    .select(
-      "input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens",
-    )
-    .eq("id", chatId)
-    .single();
-
-  if (readError) throw readError;
-
-  const { error } = await supabase
-    .from("chats")
-    .update({
-      input_tokens: (current?.input_tokens ?? 0) + usage.inputTokens,
-      output_tokens: (current?.output_tokens ?? 0) + usage.outputTokens,
-      cache_read_tokens:
-        (current?.cache_read_tokens ?? 0) + usage.cacheReadTokens,
-      cache_creation_tokens:
-        (current?.cache_creation_tokens ?? 0) + usage.cacheCreationTokens,
-    })
-    .eq("id", chatId);
+  const { error } = await supabase.rpc("add_chat_usage", {
+    p_chat_id: chatId,
+    p_input: usage.inputTokens,
+    p_output: usage.outputTokens,
+    p_cache_read: usage.cacheReadTokens,
+    p_cache_creation: usage.cacheCreationTokens,
+  });
 
   if (error) throw error;
 }
@@ -145,6 +131,25 @@ export async function setChatTitle(
     .from("chats")
     .update({ title })
     .eq("id", chatId);
+
+  if (error) throw error;
+}
+
+/**
+ * Sets the chat title only when the chat currently has no title (NULL or empty
+ * string). Multiple concurrent calls are safe — the last-writer-wins race is
+ * acceptable since they all compute the same first-message title.
+ */
+export async function setChatTitleIfEmpty(
+  chatId: string,
+  title: string,
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("chats")
+    .update({ title })
+    .eq("id", chatId)
+    .or("title.is.null,title.eq.");
 
   if (error) throw error;
 }
@@ -332,7 +337,6 @@ export async function updateVideo(
     script?: string;
     status?: VideoStatus;
     updated_at: string;
-    filmed_at?: string | null;
   } = {
     updated_at: now,
   };
@@ -340,18 +344,42 @@ export async function updateVideo(
   if (patch.title !== undefined) updates.title = patch.title;
   if (patch.hook !== undefined) updates.hook = patch.hook;
   if (patch.script !== undefined) updates.script = patch.script;
-  if (patch.status !== undefined) {
-    updates.status = patch.status;
-    updates.filmed_at = patch.status === "filmed" ? now : null;
-  }
+  if (patch.status !== undefined) updates.status = patch.status;
 
   const supabase = await createClient();
-  const { data, error } = await supabase
+
+  // Apply main fields first.
+  const { error: updateError } = await supabase
     .from("videos")
     .update(updates)
     .eq("id", videoId)
-    .eq("user_id", userId)
+    .eq("user_id", userId);
+
+  if (updateError) throw updateError;
+
+  // filmed_at is set only on the first transition into "filmed" (filmed_at IS
+  // NULL), so double-updates don't overwrite the original timestamp. Clearing
+  // filmed_at happens immediately when status moves away from "filmed".
+  if (patch.status === "filmed") {
+    await supabase
+      .from("videos")
+      .update({ filmed_at: now })
+      .eq("id", videoId)
+      .eq("user_id", userId)
+      .is("filmed_at", null);
+  } else if (patch.status !== undefined) {
+    await supabase
+      .from("videos")
+      .update({ filmed_at: null })
+      .eq("id", videoId)
+      .eq("user_id", userId);
+  }
+
+  const { data, error } = await supabase
+    .from("videos")
     .select()
+    .eq("id", videoId)
+    .eq("user_id", userId)
     .maybeSingle();
 
   if (error) throw error;

@@ -21,7 +21,7 @@ import {
   getDecryptedProviderKey,
   getUserProfile,
   listUserFacts,
-  setChatTitle,
+  setChatTitleIfEmpty,
   updateVideo,
 } from "@/lib/db/queries";
 
@@ -69,7 +69,9 @@ export async function POST(req: Request) {
     if (text) {
       await appendMessage(chatId, "user", text);
       if (!chat.title) {
-        void generateChatTitle(chatId, text, provider, model, apiKey);
+        generateChatTitle(chatId, text, provider, model, apiKey).catch((err) =>
+          console.error("[chat] title generation failed", err),
+        );
       }
     }
   }
@@ -201,8 +203,9 @@ export async function POST(req: Request) {
           cacheReadTokens: total.inputTokenDetails?.cacheReadTokens ?? 0,
           cacheCreationTokens: total.inputTokenDetails?.cacheWriteTokens ?? 0,
         });
-      } catch {
+      } catch (err) {
         // usage tracking is best-effort; don't fail the response
+        console.error("[chat] addChatUsage failed", err);
       }
     },
   });
@@ -237,12 +240,12 @@ async function generateChatTitle(
     });
     const title = text.trim().replace(/^["']|["']$/g, "").slice(0, 80);
     if (title) {
-      await setChatTitle(chatId, title);
+      await setChatTitleIfEmpty(chatId, title);
     }
   } catch {
     const fallback = firstUserMessage.slice(0, 40).trim();
     if (fallback) {
-      await setChatTitle(chatId, fallback);
+      await setChatTitleIfEmpty(chatId, fallback);
     }
   }
 }

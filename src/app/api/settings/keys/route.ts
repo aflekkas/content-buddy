@@ -69,12 +69,7 @@ export async function PUT(req: Request) {
       { status: 400 },
     );
   }
-  if (!validation.ok && validation.reason === "network") {
-    // Network/timeout — log and continue, don't block the user.
-    console.warn(
-      `[provider-validate] Network error validating ${provider} key — storing anyway`,
-    );
-  }
+  // Network/timeout: continue — we can't disprove the key is valid, don't block the user.
 
   const meta = await setProviderKey(user.id, provider, key);
   return NextResponse.json(meta);
