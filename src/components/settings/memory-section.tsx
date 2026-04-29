@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Lock, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import type { MemoryFileRow, UserFactRow } from "@/lib/db/types";
+import { isProtectedMemoryPath } from "@/lib/memory";
+import type { UserFactRow, MemoryFileRow } from "@/lib/db/types";
 
 type Props = {
   initialFacts: UserFactRow[];
@@ -88,11 +89,16 @@ export function MemorySection({ initialFacts, initialMemoryFiles }: Props) {
                     {file.path}
                   </p>
                 </div>
-                {file.autoload && (
+                {isProtectedMemoryPath(file.path) ? (
+                  <span className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <Lock className="size-3" />
+                    Protected
+                  </span>
+                ) : file.autoload ? (
                   <span className="rounded-md border px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                     Autoload
                   </span>
-                )}
+                ) : null}
               </li>
             ))}
           </ul>

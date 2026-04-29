@@ -107,6 +107,16 @@ export async function POST(req: Request) {
         memoryFiles: autoloadMemoryFiles,
         assistantName: profile?.assistant_name ?? null,
         assistantPersona: profile?.assistant_persona ?? null,
+        creatorProfile: profile
+          ? {
+              platforms: profile.platforms ?? [],
+              niche_primary: profile.niche_primary,
+              niche_secondary: profile.niche_secondary ?? [],
+              channel_pitch: profile.channel_pitch,
+              audience_stage: profile.audience_stage,
+              primary_goal: profile.primary_goal,
+            }
+          : null,
       }),
       ...modelMessages,
     ],
@@ -123,7 +133,7 @@ export async function POST(req: Request) {
       }),
       read_memory_file: tool({
         description:
-          "Read a markdown memory file by exact path, for example identity.md, facts.md, or facts/audience.md.",
+          "Read a markdown memory file by exact path, for example identity.md or facts.md.",
         inputSchema: z.object({
           path: z
             .string()
@@ -151,7 +161,7 @@ export async function POST(req: Request) {
       }),
       upsert_memory_file: tool({
         description:
-          "Create or replace a markdown memory file. Use for stable creator context. Organize detailed learned facts under facts/ and keep facts.md as an index.",
+          "Create or replace a markdown memory file. Use for stable creator context. Append new facts to facts.md; do not create a facts/ subfolder.",
         inputSchema: z.object({
           path: z.string().min(1).max(180),
           title: z.string().max(120).optional(),

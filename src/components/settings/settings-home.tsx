@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Brain, ChevronRight, KeyRound, User } from "lucide-react";
+import { Bot, ChevronRight, KeyRound, NotebookText, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Stagger, StaggerItem } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ const CARDS: Card[] = [
     view: "memory",
     title: "Memory",
     subtitle: "Remembered facts and knowledge files",
-    icon: Brain,
+    icon: NotebookText,
   },
 ];
 

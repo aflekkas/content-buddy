@@ -98,7 +98,18 @@ export function SettingsDialogProvider({
   initialMemoryFiles,
 }: ProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [view, setView] = useState<SettingsView>("home");
+  const [navState, setNavState] = useState<{
+    view: SettingsView;
+    direction: 1 | -1 | 0;
+  }>({ view: "home", direction: 0 });
+  const { view, direction } = navState;
+
+  const navigate = useCallback((next: SettingsView) => {
+    setNavState((prev) => ({
+      view: next,
+      direction: prev.view === next ? 0 : next === "home" ? -1 : 1,
+    }));
+  }, []);
 
   const provider: ProviderId = isProviderId(initialActive.provider)
     ? initialActive.provider
@@ -106,17 +117,20 @@ export function SettingsDialogProvider({
   const active: Active = { provider, model: initialActive.model };
 
   const open = useCallback(() => {
-    setView("home");
+    setNavState({ view: "home", direction: 0 });
     setIsOpen(true);
   }, []);
   const openTo = useCallback((next: SettingsView) => {
-    setView(next);
+    setNavState({ view: next, direction: 1 });
     setIsOpen(true);
   }, []);
 
   useEffect(() => {
     if (!isOpen) {
-      const t = window.setTimeout(() => setView("home"), 200);
+      const t = window.setTimeout(
+        () => setNavState({ view: "home", direction: 0 }),
+        200,
+      );
       return () => window.clearTimeout(t);
     }
   }, [isOpen]);
@@ -125,10 +139,11 @@ export function SettingsDialogProvider({
     <SettingsDialogContext.Provider value={{ open, openTo }}>
       {children}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="top-[10vh] sm:max-w-2xl -translate-y-0">
+        <DialogContent className="sm:max-w-2xl overflow-hidden">
           <SettingsBody
             view={view}
-            setView={setView}
+            direction={direction}
+            navigate={navigate}
             initialKeys={initialKeys}
             active={active}
             profile={profile}
@@ -143,7 +158,8 @@ export function SettingsDialogProvider({
 
 type BodyProps = {
   view: SettingsView;
-  setView: (v: SettingsView) => void;
+  direction: 1 | -1 | 0;
+  navigate: (v: SettingsView) => void;
   initialKeys: ProviderKeyMetaRow[];
   active: Active;
   profile: UserProfileRow | null;
@@ -153,7 +169,8 @@ type BodyProps = {
 
 function SettingsBody({
   view,
-  setView,
+  direction,
+  navigate,
   initialKeys,
   active,
   profile,
@@ -161,81 +178,93 @@ function SettingsBody({
   initialMemoryFiles,
 }: BodyProps) {
   const reducedMotion = useReducedMotionSafe();
-  // iOS "smooth" / "snappy" spring — visualDuration sets perceived length,
-  // bounce: 0 = critically damped, no overshoot. Matches UIKit .smooth.
-  const layoutSpring = {
+
+  // iOS spring: critically damped, ~340ms perceived. Matches UIKit .smooth.
+  const spring = {
     type: "spring" as const,
     visualDuration: 0.34,
     bounce: 0,
   };
-  const fadeOut = { duration: 0.12, ease: [0.32, 0.72, 0, 1] as const };
-  const fadeIn = { duration: 0.22, ease: [0.32, 0.72, 0, 1] as const, delay: 0.05 };
 
-  const headerNode =
+  const slideOffset = 24;
+
+  const node =
     view === "home" ? (
-      <DialogHeader>
-        <DialogTitle>Settings</DialogTitle>
-        <DialogDescription>
-          Configure how the bot behaves, your profile, keys, and memory.
-        </DialogDescription>
-      </DialogHeader>
+      <ViewPane>
+        <DialogHeader>
+          <DialogTitle>Settings</DialogTitle>
+          <DialogDescription>
+            Configure how the bot behaves, your profile, keys, and memory.
+          </DialogDescription>
+        </DialogHeader>
+        <SettingsHome onSelect={navigate} />
+      </ViewPane>
     ) : (
-      <SectionHeader
-        title={SECTION_TITLES[view].title}
-        subtitle={SECTION_TITLES[view].subtitle}
-        onBack={() => setView("home")}
-      />
+      <ViewPane>
+        <SectionHeader
+          title={SECTION_TITLES[view].title}
+          subtitle={SECTION_TITLES[view].subtitle}
+          onBack={() => navigate("home")}
+        />
+        {view === "keys" && (
+          <KeysForm initialKeys={initialKeys} initialActive={active} />
+        )}
+        {view === "persona" && (
+          <PersonaForm
+            initialName={profile?.assistant_name ?? null}
+            initialPersona={profile?.assistant_persona ?? null}
+          />
+        )}
+        {view === "profile" && profile && <ProfileForm profile={profile} />}
+        {view === "memory" && (
+          <MemorySection
+            initialFacts={initialFacts}
+            initialMemoryFiles={initialMemoryFiles}
+          />
+        )}
+      </ViewPane>
     );
-
-  const bodyNode =
-    view === "home" ? (
-      <SettingsHome onSelect={setView} />
-    ) : view === "keys" ? (
-      <KeysForm initialKeys={initialKeys} initialActive={active} />
-    ) : view === "persona" ? (
-      <PersonaForm
-        initialName={profile?.assistant_name ?? null}
-        initialPersona={profile?.assistant_persona ?? null}
-      />
-    ) : view === "profile" && profile ? (
-      <ProfileForm profile={profile} />
-    ) : view === "memory" ? (
-      <MemorySection
-        initialFacts={initialFacts}
-        initialMemoryFiles={initialMemoryFiles}
-      />
-    ) : null;
 
   return (
     <motion.div
       layout={reducedMotion ? false : "size"}
-      transition={layoutSpring}
-      className="flex flex-col gap-4"
-      style={{ transformOrigin: "top" }}
+      transition={spring}
+      className="relative"
     >
-      <AnimatePresence mode="popLayout" initial={false}>
+      <AnimatePresence mode="popLayout" initial={false} custom={direction}>
         <motion.div
-          key={`h-${view}`}
-          initial={reducedMotion ? false : { opacity: 0 }}
-          animate={{ opacity: 1, transition: fadeIn }}
-          exit={{ opacity: 0, transition: fadeOut }}
+          key={view}
+          custom={direction}
+          variants={{
+            enter: (dir: number) => ({
+              x: reducedMotion ? 0 : dir * slideOffset,
+              opacity: 0,
+            }),
+            center: { x: 0, opacity: 1 },
+            exit: (dir: number) => ({
+              x: reducedMotion ? 0 : -dir * slideOffset,
+              opacity: 0,
+            }),
+          }}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={spring}
+          className="w-full"
         >
-          {headerNode}
+          {node}
         </motion.div>
       </AnimatePresence>
-
-      <div className="max-h-[65vh] overflow-y-auto px-1">
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.div
-            key={view}
-            initial={reducedMotion ? false : { opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0, transition: fadeIn }}
-            exit={{ opacity: 0, y: -4, transition: fadeOut }}
-          >
-            {bodyNode}
-          </motion.div>
-        </AnimatePresence>
-      </div>
     </motion.div>
+  );
+}
+
+function ViewPane({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="max-h-[65vh] overflow-y-auto px-1">
+        <div className="flex flex-col gap-4">{children}</div>
+      </div>
+    </div>
   );
 }

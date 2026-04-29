@@ -9,6 +9,10 @@ import type {
 
 export const MODEL_ID = "claude-sonnet-4-6";
 
+export function getCoreInstructions(): string {
+  return CORE_INSTRUCTIONS;
+}
+
 export const DEFAULT_ASSISTANT_NAME = "Shortform Studio";
 
 const CORE_INSTRUCTIONS = `You are Shortform Studio, an expert advisor for short-form video creators.
@@ -35,10 +39,11 @@ Platform shortcodes:
 
 Memory:
 - The creator's durable memory is organized as markdown files.
-- Autoloaded memory files are shown below every chat. Other files are available through memory tools.
-- Use list_memory_files and read_memory_file when the creator asks for advice that may depend on deeper context not already loaded.
-- When the creator tells you something stable about themselves, their audience, offer, platforms, content style, constraints, wins, or failures, store it with upsert_memory_file or append_memory_file.
-- Prefer organized markdown under facts/ for learned details. Keep facts.md as a short index that points to deeper files.
+- identity.md (who they are) and facts.md (stable things you've learned about them) are autoloaded into every chat.
+- Use list_memory_files and read_memory_file for any other files the creator has created.
+- When the creator tells you something stable about themselves, their audience, offer, platforms, content style, constraints, wins, or failures, append it to facts.md with append_memory_file.
+- Keep facts.md as one flat list of bullets. Do not create a facts/ subfolder or split facts across files.
+- identity.md and facts.md cannot be deleted or renamed. You can rewrite their content with upsert_memory_file or add to facts.md with append_memory_file.
 - Do NOT save ephemeral chat state, one-off questions, or duplicate information.
 - You do not need to ask permission before updating memory when the detail is clearly stable.
 - When the creator lands on a specific video idea, call create_video with a short working title and any hook/script language discussed so far.
@@ -51,6 +56,7 @@ type UserContext = {
   memoryFiles: MemoryFileRow[];
   assistantName?: string | null;
   assistantPersona?: string | null;
+  creatorProfile?: CreatorProfile | null;
 };
 
 function buildPersonaBlock(
@@ -118,6 +124,13 @@ export function buildSystemMessages(user: UserContext): ModelMessage[] {
       content: `Here is your pattern library:\n\n${getPatternLibrary()}`,
     },
   ];
+
+  if (user.creatorProfile) {
+    messages.push({
+      role: "system",
+      content: buildCreatorProfileBlock(user.creatorProfile),
+    });
+  }
 
   const personaBlock = buildPersonaBlock(user.assistantName, user.assistantPersona);
   if (personaBlock) {
