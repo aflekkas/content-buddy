@@ -24,6 +24,7 @@ import {
   ONBOARDING_PLATFORMS,
   type OnboardingPlatform,
 } from "@/lib/niches";
+import { getPlatformLogo } from "@/components/brand/platform-logos";
 import type { AudienceStage, PrimaryGoal } from "@/lib/db/types";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -506,22 +507,37 @@ function PlatformsStep({
                 onClick={() => toggle(p.id)}
                 className="p-4"
               >
-                <span className="text-base font-semibold tracking-tight">
-                  {p.label}
-                </span>
-                <span className="mt-1 text-xs text-muted-foreground">
-                  {p.hint}
-                </span>
-                <span
-                  className={cn(
-                    "mt-3 inline-flex size-5 items-center justify-center rounded-full border transition-all",
-                    active
-                      ? "border-primary bg-primary text-primary-foreground opacity-100"
-                      : "border-border opacity-0 group-hover:opacity-50",
-                  )}
-                >
-                  <Check className="size-3" />
-                </span>
+                <div className="flex w-full flex-col gap-2">
+                  {(() => {
+                    const Logo = getPlatformLogo(p.id);
+                    return (
+                      <Logo
+                        className={cn(
+                          "size-6 transition-colors",
+                          active
+                            ? "text-foreground"
+                            : "text-muted-foreground",
+                        )}
+                      />
+                    );
+                  })()}
+                  <span className="text-sm font-semibold tracking-tight">
+                    {p.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {p.hint}
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-1 inline-flex size-5 items-center justify-center rounded-full border transition-all",
+                      active
+                        ? "border-primary bg-primary text-primary-foreground opacity-100"
+                        : "border-border opacity-0 group-hover:opacity-50",
+                    )}
+                  >
+                    <Check className="size-3" />
+                  </span>
+                </div>
               </SelectableCard>
             </motion.div>
           );
