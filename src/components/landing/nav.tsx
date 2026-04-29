@@ -48,9 +48,15 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
           <Link
             href="/"
             aria-label={`${BRAND_NAME} home`}
-            className="shrink-0"
+            className="inline-flex shrink-0 items-center gap-2"
           >
             <LogoMark className="size-6" />
+            <span className="hidden text-sm font-semibold tracking-tight leading-none sm:inline">
+              Content{" "}
+              <span className="font-medium italic" style={{ fontFamily: "var(--font-display)" }}>
+                Buddy
+              </span>
+            </span>
           </Link>
 
           <nav

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LogoMark } from "@/components/logo";
+import { LogoLockup } from "@/components/logo";
 import { createClient } from "@/lib/supabase/client";
 import { EASE_OUT } from "@/lib/motion";
 import { useReducedMotionSafe } from "@/lib/motion";
@@ -38,7 +38,7 @@ export function TopBar({ email }: Props) {
       transition={{ duration: 0.22, ease: EASE_OUT }}
     >
       <div className="flex min-w-0 items-center gap-3">
-        <LogoMark className="size-5" />
+        <LogoLockup iconClassName="size-5" textClassName="hidden sm:inline" />
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <p className="hidden truncate text-sm text-muted-foreground sm:block">

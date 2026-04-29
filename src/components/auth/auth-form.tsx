@@ -7,7 +7,7 @@ import { ArrowRight, Eye, EyeOff, Layers, Sparkles, Zap } from "lucide-react";
 import { CircularLoader } from "@/components/ui/loader";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { LogoMark } from "@/components/logo";
+import { LogoMark, LogoLockup } from "@/components/logo";
 import { EASE_OUT, useReducedMotionSafe } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -89,11 +89,15 @@ export function AuthForm() {
       {/* Left column: form */}
       <div className="flex flex-col items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-sm">
-          {/* LogoMark badge */}
-          <div className="mb-6 flex flex-col items-center text-center">
+          {/* Logo lockup */}
+          <div className="mb-6 flex flex-col items-center gap-3 text-center">
             <span className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
               <LogoMark className="size-7" />
             </span>
+            <LogoLockup
+              iconClassName="hidden"
+              textClassName="text-base font-semibold tracking-tight"
+            />
           </div>
 
           {/* Animated form block — entire form blurs-fades on mode change */}
@@ -259,14 +263,11 @@ function BrandPanel() {
         <span className="grid size-16 place-items-center rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
           <LogoMark className="size-8" />
         </span>
-        <div className="flex flex-col gap-1.5">
-          <p className="text-2xl font-semibold tracking-tight">Content Buddy</p>
-          <p className="text-base text-muted-foreground leading-snug">
-            One cockpit. Every model.
-            <br />
-            Your script, ten times faster.
-          </p>
-        </div>
+        <p className="text-base text-muted-foreground leading-snug">
+          One cockpit. Every model.
+          <br />
+          Your script, ten times faster.
+        </p>
       </motion.div>
 
       {/* Provider strip */}

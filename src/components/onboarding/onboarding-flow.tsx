@@ -19,7 +19,7 @@ import { CircularLoader } from "@/components/ui/loader";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { BRAND_NAME } from "@/lib/brand";
-import { LogoMark } from "@/components/logo";
+import { LogoMark, LogoLockup } from "@/components/logo";
 import { DUR_NORMAL, EASE_OUT } from "@/lib/motion";
 import {
   NICHES,
@@ -56,12 +56,6 @@ type FlowState = {
 const TOTAL_STEPS = 8;
 
 const EASE = [0.22, 1, 0.36, 1] as const;
-
-const [BRAND_LEAD, BRAND_TAIL] = (() => {
-  const parts = BRAND_NAME.split(" ");
-  if (parts.length < 2) return [BRAND_NAME, ""];
-  return [parts.slice(0, -1).join(" "), parts.at(-1) ?? ""];
-})();
 
 const AUDIENCE_OPTIONS: {
   id: AudienceStage;
@@ -354,14 +348,7 @@ function Header({
           <LogoMark className="size-4" />
         </span>
 
-        <div className="flex items-baseline gap-1.5 text-sm leading-none">
-          <span className="font-semibold tracking-tight">{BRAND_LEAD}</span>
-          {BRAND_TAIL && (
-            <span className="font-medium tracking-tight text-foreground/90">
-              {BRAND_TAIL}
-            </span>
-          )}
-        </div>
+        <LogoLockup iconClassName="hidden" />
 
         <span className="ml-auto text-xs tabular-nums text-muted-foreground">
           {Math.min(step, totalSteps)} / {totalSteps}
