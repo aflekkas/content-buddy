@@ -8,7 +8,6 @@ import { ExternalLink, Eye, EyeOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
@@ -16,13 +15,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/components/ui/select-field";
 import { ProviderIcon } from "@/components/ui/provider-icon";
 import {
   PROVIDER_IDS,
@@ -89,52 +82,30 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
         </div>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="active-provider" className="text-xs">
-              Provider
-            </Label>
-            <Select
-              value={active.provider}
-              onValueChange={(v) => onProviderChange(v as ProviderId)}
-              disabled={savingActive}
-            >
-              <SelectTrigger id="active-provider">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PROVIDER_IDS.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    <span className="flex items-center gap-2">
-                      <ProviderIcon provider={p} size={14} />
-                      {PROVIDERS[p].label}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <SelectField
+            id="active-provider"
+            label="Provider"
+            value={active.provider}
+            onValueChange={(v) => onProviderChange(v as ProviderId)}
+            disabled={savingActive}
+            options={PROVIDER_IDS.map((p) => ({
+              value: p,
+              label: PROVIDERS[p].label,
+              icon: <ProviderIcon provider={p} size={14} />,
+            }))}
+          />
 
-          <div className="flex flex-col gap-1">
-            <Label htmlFor="active-model" className="text-xs">
-              Model
-            </Label>
-            <Select
-              value={active.model}
-              onValueChange={onModelChange}
-              disabled={savingActive}
-            >
-              <SelectTrigger id="active-model">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {PROVIDERS[active.provider].models.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <SelectField
+            id="active-model"
+            label="Model"
+            value={active.model}
+            onValueChange={onModelChange}
+            disabled={savingActive}
+            options={PROVIDERS[active.provider].models.map((m) => ({
+              value: m.id,
+              label: m.label,
+            }))}
+          />
         </div>
 
         {!activeProviderHasKey && (
