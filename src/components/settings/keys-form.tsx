@@ -4,17 +4,16 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Check, ExternalLink, Eye, EyeOff, Trash2 } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import {
@@ -31,7 +30,6 @@ import {
   type ProviderId,
 } from "@/lib/providers";
 import type { ProviderKeyMetaRow } from "@/lib/db/types";
-import { cn } from "@/lib/utils";
 
 type Active = { provider: ProviderId; model: string };
 
@@ -61,7 +59,6 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
       });
       if (!res.ok) throw new Error("save_failed");
       setActive(next);
-      toast.success(`Now using ${PROVIDERS[next.provider].label}`);
     } catch {
       toast.error("Could not change model");
     } finally {
@@ -79,53 +76,54 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card className="border p-4 ring-0">
-        <h2 className="text-sm font-medium">Active model</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Which provider and model your chats use. Changing this saves
-          immediately.
-        </p>
+    <div className="flex flex-col gap-5">
+      {/* Active model */}
+      <section className="flex flex-col gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Active model
+          </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Changes save immediately.
+          </p>
+        </div>
 
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="active-provider" className="text-xs font-medium">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="active-provider" className="text-xs">
               Provider
-            </label>
+            </Label>
             <Select
               value={active.provider}
               onValueChange={(v) => onProviderChange(v as ProviderId)}
               disabled={savingActive}
             >
-              <SelectTrigger
-                id="active-provider"
-                className="h-8 rounded-lg text-sm"
-              >
+              <SelectTrigger id="active-provider">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {PROVIDER_IDS.map((p) => (
                   <SelectItem key={p} value={p}>
-                    {PROVIDERS[p].label}
+                    <span className="flex items-center gap-2">
+                      <ProviderIcon provider={p} size={14} />
+                      {PROVIDERS[p].label}
+                    </span>
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="active-model" className="text-xs font-medium">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="active-model" className="text-xs">
               Model
-            </label>
+            </Label>
             <Select
               value={active.model}
               onValueChange={onModelChange}
               disabled={savingActive}
             >
-              <SelectTrigger
-                id="active-model"
-                className="h-8 rounded-lg text-sm"
-              >
+              <SelectTrigger id="active-model">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -140,17 +138,22 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
         </div>
 
         {!activeProviderHasKey && (
-          <p className="mt-3 text-xs text-amber-700 dark:text-amber-400">
+          <p className="text-xs text-amber-700 dark:text-amber-400">
             No key saved for {PROVIDERS[active.provider].label}. Add one below
             or chats will fail until you do.
           </p>
         )}
-      </Card>
+      </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium">API keys</h2>
+      <hr className="border-border" />
+
+      {/* API keys */}
+      <section className="flex flex-col gap-0">
+        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          API keys
+        </p>
         {PROVIDER_IDS.map((p) => (
-          <ProviderKeyCard
+          <ProviderKeyRow
             key={p}
             provider={p}
             meta={keys[p] ?? null}
@@ -169,21 +172,17 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
   );
 }
 
-function makeKeySchema(keyPrefix: string) {
+function buildKeySchema(prefix: string) {
   return z.object({
     key: z
       .string()
       .trim()
-      .min(1, "API key is required")
-      .refine((v) => v.startsWith(keyPrefix), {
-        message: `Key should start with ${keyPrefix}`,
-      }),
+      .min(1, "Required")
+      .startsWith(prefix, `Key should start with ${prefix}`),
   });
 }
 
-type KeyFormValues = { key: string };
-
-function ProviderKeyCard({
+function ProviderKeyRow({
   provider,
   meta,
   onSaved,
@@ -199,14 +198,17 @@ function ProviderKeyCard({
   const [showPlain, setShowPlain] = useState(false);
   const [removing, setRemoving] = useState(false);
 
-  const form = useForm<KeyFormValues>({
-    resolver: zodResolver(makeKeySchema(info.keyPrefix)),
+  const schema = buildKeySchema(info.keyPrefix);
+  type FormValues = z.infer<typeof schema>;
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
     defaultValues: { key: "" },
   });
 
   const saving = form.formState.isSubmitting;
 
-  async function handleSave(values: KeyFormValues) {
+  async function onSubmit(values: FormValues) {
     try {
       const res = await fetch("/api/settings/keys", {
         method: "PUT",
@@ -216,17 +218,13 @@ function ProviderKeyCard({
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         if (body?.error === "invalid_key") {
-          form.setError("key", {
-            message:
-              body.message ??
-              "Provider rejected this key. Check it and try again.",
-          });
+          toast.error(
+            body.message ?? "Provider rejected this key. Check it and try again.",
+          );
         } else if (body?.error === "wrong_prefix") {
-          form.setError("key", {
-            message: `Key should start with ${body.expected ?? info.keyPrefix}`,
-          });
+          toast.error(`Key should start with ${body.expected}`);
         } else {
-          form.setError("key", { message: "Could not save key" });
+          toast.error("Could not save key");
         }
         return;
       }
@@ -236,7 +234,7 @@ function ProviderKeyCard({
       setEditing(false);
       toast.success(`${info.label} key saved`);
     } catch {
-      form.setError("key", { message: "Could not save key" });
+      toast.error("Could not save key");
     }
   }
 
@@ -251,7 +249,6 @@ function ProviderKeyCard({
       if (!res.ok) throw new Error("delete_failed");
       onCleared();
       setEditing(true);
-      form.reset();
       toast.success(`${info.label} key removed`);
     } catch {
       toast.error("Could not remove key");
@@ -261,11 +258,12 @@ function ProviderKeyCard({
   }
 
   return (
-    <Card className="border p-4 ring-0">
-      <div className="flex items-start justify-between gap-3">
+    <div className="border-b border-border py-2.5 last:border-b-0">
+      {meta && !editing ? (
+        /* Saved state: single row */
         <div className="flex items-center gap-3">
-          <ProviderIcon provider={provider} size={28} />
-          <div className="flex flex-col">
+          <ProviderIcon provider={provider} size={18} className="shrink-0" />
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="text-sm font-medium">{info.label}</span>
             <a
               href={info.consoleUrl}
@@ -276,21 +274,13 @@ function ProviderKeyCard({
               Get key <ExternalLink className="size-3" />
             </a>
           </div>
-        </div>
-        {meta && (
-          <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-700 dark:text-emerald-400">
-            <Check className="size-3" />
-            saved
-          </div>
-        )}
-      </div>
-
-      {meta && !editing && (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
-          <span className="font-mono text-muted-foreground">
-            ...{meta.last4}
-          </span>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className="font-mono text-xs text-muted-foreground">
+              ...{meta.last4}
+            </span>
+            <span className="text-xs text-emerald-600 dark:text-emerald-400">
+              Saved
+            </span>
             <Button
               size="sm"
               variant="ghost"
@@ -311,70 +301,81 @@ function ProviderKeyCard({
             </Button>
           </div>
         </div>
-      )}
+      ) : (
+        /* Editing state: label row + input row */
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <ProviderIcon provider={provider} size={18} className="shrink-0" />
+            <span className="text-sm font-medium">{info.label}</span>
+            <a
+              href={info.consoleUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="ml-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+            >
+              Get key <ExternalLink className="size-3" />
+            </a>
+          </div>
 
-      {(editing || !meta) && (
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(handleSave)}
-            className="mt-3 flex flex-col gap-2"
-          >
-            <FormField
-              control={form.control}
-              name="key"
-              render={({ field }) => (
-                <FormItem className="space-y-1.5">
-                  <FormLabel className="sr-only">
-                    {info.label} API key
-                  </FormLabel>
-                  <div className="flex items-center gap-2">
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="flex flex-col gap-1.5"
+            >
+              <FormField
+                control={form.control}
+                name="key"
+                render={({ field }) => (
+                  <FormItem className="space-y-1">
                     <FormControl>
-                      <Input
-                        {...field}
-                        type={showPlain ? "text" : "password"}
-                        placeholder={`${info.keyPrefix}...`}
-                        className={cn("font-mono text-sm bg-background")}
-                        spellCheck={false}
-                        autoComplete="off"
-                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          {...field}
+                          type={showPlain ? "text" : "password"}
+                          placeholder={`${info.keyPrefix}...`}
+                          className="flex-1 bg-background font-mono text-sm"
+                          spellCheck={false}
+                          autoComplete="off"
+                        />
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          type="button"
+                          onClick={() => setShowPlain((v) => !v)}
+                          aria-label={showPlain ? "Hide key" : "Show key"}
+                        >
+                          {showPlain ? <EyeOff /> : <Eye />}
+                        </Button>
+                      </div>
                     </FormControl>
-                    <Button
-                      size="icon-sm"
-                      variant="ghost"
-                      type="button"
-                      onClick={() => setShowPlain((v) => !v)}
-                      aria-label={showPlain ? "Hide key" : "Show key"}
-                    >
-                      {showPlain ? <EyeOff /> : <Eye />}
-                    </Button>
-                  </div>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <FormMessage className="text-xs" />
+                  </FormItem>
+                )}
+              />
 
-            <div className="flex items-center gap-2">
-              <Button size="sm" type="submit" disabled={saving}>
-                {saving ? "Verifying..." : "Save"}
-              </Button>
-              {meta && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  type="button"
-                  onClick={() => {
-                    form.reset();
-                    setEditing(false);
-                  }}
-                  disabled={saving}
-                >
-                  Cancel
+              <div className="flex items-center gap-2">
+                <Button size="sm" type="submit" disabled={saving}>
+                  {saving ? "Verifying..." : "Save"}
                 </Button>
-              )}
-            </div>
-          </form>
-        </Form>
+                {meta && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    type="button"
+                    onClick={() => {
+                      form.reset();
+                      setEditing(false);
+                    }}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
+            </form>
+          </Form>
+        </div>
       )}
-    </Card>
+    </div>
   );
 }
