@@ -1,5 +1,7 @@
 # 🎬 shortform-studio
 
+![Shortform Studio landing page](./public/landing.png)
+
 Most AI script tools are blank chat boxes wearing a logo. Shortform Studio ships with the playbook: hook archetypes, retention mechanics, video format templates, and niche-specific tactics, all loaded as system context on every turn. Paste an idea, get a script that respects how short-form actually works. Built for the creator who's seen the gurus, read the threads, and still doesn't know what to post tomorrow morning.
 
 The knowledge layer at `src/lib/patterns/pattern-library.md` is the entire competitive moat, and it's right there. Fork it, read the prompt, change the playbook.

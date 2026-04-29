@@ -52,9 +52,9 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
           >
             <LogoMark className="size-6" />
             <span className="hidden text-sm font-semibold tracking-tight leading-none sm:inline">
-              Content{" "}
+              Shortform{" "}
               <span className="font-medium italic" style={{ fontFamily: "var(--font-display)" }}>
-                Buddy
+                Studio
               </span>
             </span>
           </Link>
