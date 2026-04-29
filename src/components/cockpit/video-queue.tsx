@@ -1,6 +1,13 @@
 "use client";
 
-import { forwardRef, useEffect, useMemo, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
@@ -74,6 +81,50 @@ const STATUS_META: Record<
 
 const FILTER_ORDER: StatusFilter[] = ["all", "idea", "ready", "filmed"];
 const VIDEO_EVENT_NAME = "shortform-studio:video";
+const STATUS_FILTER_STORAGE_KEY = "shortform-studio:video-queue:status-filter";
+const QUERY_STORAGE_KEY = "shortform-studio:video-queue:query";
+
+function isStatusFilter(value: unknown): value is StatusFilter {
+  return (
+    typeof value === "string" &&
+    (FILTER_ORDER as string[]).includes(value)
+  );
+}
+
+function subscribeToLocalStorage(key: string, onChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  function handler(event: StorageEvent) {
+    if (event.key === key) onChange();
+  }
+  window.addEventListener("storage", handler);
+  return () => window.removeEventListener("storage", handler);
+}
+
+function useLocalStorageString(key: string, fallback: string) {
+  const subscribe = useCallback(
+    (onChange: () => void) => subscribeToLocalStorage(key, onChange),
+    [key],
+  );
+  const getSnapshot = useCallback(() => {
+    try {
+      return window.localStorage.getItem(key) ?? fallback;
+    } catch {
+      return fallback;
+    }
+  }, [key, fallback]);
+  const value = useSyncExternalStore(subscribe, getSnapshot, () => fallback);
+  const setValue = useCallback(
+    (next: string) => {
+      try {
+        if (next === fallback) window.localStorage.removeItem(key);
+        else window.localStorage.setItem(key, next);
+        window.dispatchEvent(new StorageEvent("storage", { key }));
+      } catch {}
+    },
+    [key, fallback],
+  );
+  return [value, setValue] as const;
+}
 
 type VideoQueueEvent =
   | { type: "updated"; video: VideoRow }
@@ -84,8 +135,20 @@ export function VideoQueue({ userId, videos }: Props) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [items, setItems] = useState(() => sortVideos(videos));
-  const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [storedQuery, setStoredQuery] = useLocalStorageString(
+    QUERY_STORAGE_KEY,
+    "",
+  );
+  const [storedFilter, setStoredFilter] = useLocalStorageString(
+    STATUS_FILTER_STORAGE_KEY,
+    "all",
+  );
+  const query = storedQuery;
+  const setQuery = setStoredQuery;
+  const statusFilter: StatusFilter = isStatusFilter(storedFilter)
+    ? storedFilter
+    : "all";
+  const setStatusFilter = setStoredFilter;
   const [pendingDelete, setPendingDelete] = useState<VideoRow | null>(null);
   const [exportingFormat, setExportingFormat] =
     useState<VideoExportFormat | null>(null);
@@ -112,7 +175,6 @@ export function VideoQueue({ userId, videos }: Props) {
           event: "*",
           schema: "public",
           table: "videos",
-          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
           setItems((current) => {
@@ -347,11 +409,7 @@ export function VideoQueue({ userId, videos }: Props) {
                       layoutId="video-filter-active"
                       aria-hidden
                       className="absolute inset-0 z-0 rounded-full bg-primary"
-                      transition={{
-                        type: "spring",
-                        stiffness: 500,
-                        damping: 40,
-                      }}
+                      transition={{ duration: 0.18, ease: EASE_OUT }}
                     />
                   )}
                   <span className="relative z-10">{label}</span>
