@@ -28,10 +28,6 @@ export function LogoLockup({
   iconClassName?: string;
   textClassName?: string;
 }) {
-  const parts = BRAND_NAME.split(" ");
-  const lead = parts.length >= 2 ? parts.slice(0, -1).join(" ") : BRAND_NAME;
-  const tail = parts.length >= 2 ? (parts.at(-1) ?? "") : "";
-
   return (
     <span
       className={cn("inline-flex items-center gap-2", className)}
@@ -39,10 +35,7 @@ export function LogoLockup({
     >
       <Clapperboard aria-hidden className={cn("shrink-0 text-primary", iconClassName)} />
       <span className={cn("truncate text-sm font-semibold tracking-tight leading-none", textClassName)}>
-        {lead}
-        {tail && (
-          <span className="font-medium text-foreground/80"> {tail}</span>
-        )}
+        {BRAND_NAME}
       </span>
     </span>
   );
