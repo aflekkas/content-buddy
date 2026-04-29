@@ -1,2 +1,3 @@
 [mcp_servers.supabase]
 url = "https://mcp.supabase.com/mcp?project_ref=jcytbcvnyouhulfzbkep&read_only=false"
+bearer_token_env_var = "SUPABASE_ACCESS_TOKEN"
