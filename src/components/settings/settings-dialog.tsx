@@ -98,18 +98,8 @@ export function SettingsDialogProvider({
   initialMemoryFiles,
 }: ProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [navState, setNavState] = useState<{
-    view: SettingsView;
-    direction: 1 | -1 | 0;
-  }>({ view: "home", direction: 0 });
-  const { view, direction } = navState;
-
-  const navigate = useCallback((next: SettingsView) => {
-    setNavState((prev) => ({
-      view: next,
-      direction: prev.view === next ? 0 : next === "home" ? -1 : 1,
-    }));
-  }, []);
+  const [view, setView] = useState<SettingsView>("home");
+  const navigate = useCallback((next: SettingsView) => setView(next), []);
 
   const provider: ProviderId = isProviderId(initialActive.provider)
     ? initialActive.provider
@@ -117,20 +107,17 @@ export function SettingsDialogProvider({
   const active: Active = { provider, model: initialActive.model };
 
   const open = useCallback(() => {
-    setNavState({ view: "home", direction: 0 });
+    setView("home");
     setIsOpen(true);
   }, []);
   const openTo = useCallback((next: SettingsView) => {
-    setNavState({ view: next, direction: 1 });
+    setView(next);
     setIsOpen(true);
   }, []);
 
   useEffect(() => {
     if (!isOpen) {
-      const t = window.setTimeout(
-        () => setNavState({ view: "home", direction: 0 }),
-        200,
-      );
+      const t = window.setTimeout(() => setView("home"), 200);
       return () => window.clearTimeout(t);
     }
   }, [isOpen]);
@@ -142,7 +129,6 @@ export function SettingsDialogProvider({
         <DialogContent className="sm:max-w-2xl overflow-hidden">
           <SettingsBody
             view={view}
-            direction={direction}
             navigate={navigate}
             initialKeys={initialKeys}
             active={active}
@@ -158,7 +144,6 @@ export function SettingsDialogProvider({
 
 type BodyProps = {
   view: SettingsView;
-  direction: 1 | -1 | 0;
   navigate: (v: SettingsView) => void;
   initialKeys: ProviderKeyMetaRow[];
   active: Active;
@@ -169,7 +154,6 @@ type BodyProps = {
 
 function SettingsBody({
   view,
-  direction,
   navigate,
   initialKeys,
   active,
@@ -178,92 +162,60 @@ function SettingsBody({
   initialMemoryFiles,
 }: BodyProps) {
   const reducedMotion = useReducedMotionSafe();
+  const fade = { duration: 0.16, ease: [0.32, 0.72, 0, 1] as const };
 
-  // iOS spring: critically damped, ~340ms perceived. Matches UIKit .smooth.
-  const spring = {
-    type: "spring" as const,
-    visualDuration: 0.34,
-    bounce: 0,
-  };
-
-  const slideOffset = 24;
-
-  const node =
-    view === "home" ? (
-      <ViewPane>
-        <DialogHeader>
-          <DialogTitle>Settings</DialogTitle>
-          <DialogDescription>
-            Configure how the bot behaves, your profile, keys, and memory.
-          </DialogDescription>
-        </DialogHeader>
-        <SettingsHome onSelect={navigate} />
-      </ViewPane>
-    ) : (
-      <ViewPane>
-        <SectionHeader
-          title={SECTION_TITLES[view].title}
-          subtitle={SECTION_TITLES[view].subtitle}
-          onBack={() => navigate("home")}
-        />
-        {view === "keys" && (
-          <KeysForm initialKeys={initialKeys} initialActive={active} />
-        )}
-        {view === "persona" && (
-          <PersonaForm
-            initialName={profile?.assistant_name ?? null}
-            initialPersona={profile?.assistant_persona ?? null}
-          />
-        )}
-        {view === "profile" && profile && <ProfileForm profile={profile} />}
-        {view === "memory" && (
-          <MemorySection
-            initialFacts={initialFacts}
-            initialMemoryFiles={initialMemoryFiles}
-          />
-        )}
-      </ViewPane>
-    );
-
-  return (
-    <motion.div
-      layout={reducedMotion ? false : "size"}
-      transition={spring}
-      className="relative"
-    >
-      <AnimatePresence mode="popLayout" initial={false} custom={direction}>
-        <motion.div
-          key={view}
-          custom={direction}
-          variants={{
-            enter: (dir: number) => ({
-              x: reducedMotion ? 0 : dir * slideOffset,
-              opacity: 0,
-            }),
-            center: { x: 0, opacity: 1 },
-            exit: (dir: number) => ({
-              x: reducedMotion ? 0 : -dir * slideOffset,
-              opacity: 0,
-            }),
-          }}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={spring}
-          className="w-full"
-        >
-          {node}
-        </motion.div>
-      </AnimatePresence>
-    </motion.div>
-  );
-}
-
-function ViewPane({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="max-h-[65vh] overflow-y-auto px-1">
-        <div className="flex flex-col gap-4">{children}</div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={view}
+            initial={reducedMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={fade}
+            className="flex flex-col gap-4"
+          >
+            {view === "home" ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Settings</DialogTitle>
+                  <DialogDescription>
+                    Configure how the bot behaves, your profile, keys, and
+                    memory.
+                  </DialogDescription>
+                </DialogHeader>
+                <SettingsHome onSelect={navigate} />
+              </>
+            ) : (
+              <>
+                <SectionHeader
+                  title={SECTION_TITLES[view].title}
+                  subtitle={SECTION_TITLES[view].subtitle}
+                  onBack={() => navigate("home")}
+                />
+                {view === "keys" && (
+                  <KeysForm initialKeys={initialKeys} initialActive={active} />
+                )}
+                {view === "persona" && (
+                  <PersonaForm
+                    initialName={profile?.assistant_name ?? null}
+                    initialPersona={profile?.assistant_persona ?? null}
+                  />
+                )}
+                {view === "profile" && profile && (
+                  <ProfileForm profile={profile} />
+                )}
+                {view === "memory" && (
+                  <MemorySection
+                    initialFacts={initialFacts}
+                    initialMemoryFiles={initialMemoryFiles}
+                  />
+                )}
+              </>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
