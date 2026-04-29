@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,6 +33,7 @@ type Props = {
 };
 
 export function KeysForm({ initialKeys, initialActive }: Props) {
+  const router = useRouter();
   const [keys, setKeys] = useState<Record<string, ProviderKeyMetaRow>>(() => {
     const map: Record<string, ProviderKeyMetaRow> = {};
     for (const k of initialKeys) map[k.provider] = k;
@@ -52,6 +54,7 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
       });
       if (!res.ok) throw new Error("save_failed");
       setActive(next);
+      router.refresh();
     } catch {
       toast.error("Could not change model");
     } finally {
@@ -164,6 +167,7 @@ function ProviderKeyRow({
   onSaved: (m: ProviderKeyMetaRow) => void;
   onCleared: () => void;
 }) {
+  const router = useRouter();
   const info = PROVIDERS[provider];
   const [editing, setEditing] = useState(!meta);
   const [showPlain, setShowPlain] = useState(false);
@@ -203,6 +207,7 @@ function ProviderKeyRow({
       onSaved(next);
       form.reset();
       setEditing(false);
+      router.refresh();
       toast.success(`${info.label} key saved`);
     } catch {
       toast.error("Could not save key");
@@ -220,6 +225,7 @@ function ProviderKeyRow({
       if (!res.ok) throw new Error("delete_failed");
       onCleared();
       setEditing(true);
+      router.refresh();
       toast.success(`${info.label} key removed`);
     } catch {
       toast.error("Could not remove key");

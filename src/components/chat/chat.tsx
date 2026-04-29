@@ -122,7 +122,9 @@ export function Chat({
   const previousStatus = useRef<string | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
-  const [missingKey, setMissingKey] = useState(!hasActiveKey);
+  const [keyErrorFrom402, setKeyErrorFrom402] = useState(false);
+  const missingKey = !hasActiveKey || keyErrorFrom402;
+
   const baseMessageIds = useMemo(
     () => new Set(initialMessages.map((m) => m.id)),
     [initialMessages],
@@ -139,9 +141,9 @@ export function Chat({
       fetch: async (input, init) => {
         const res = await fetch(input, init);
         if (res.status === 402) {
-          setMissingKey(true);
+          setKeyErrorFrom402(true);
         } else if (res.ok) {
-          setMissingKey(false);
+          setKeyErrorFrom402(false);
         }
         return res;
       },
