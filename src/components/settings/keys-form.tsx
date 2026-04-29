@@ -1,12 +1,29 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Check, ExternalLink, Eye, EyeOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ProviderIcon } from "@/components/ui/provider-icon";
 import {
   PROVIDER_IDS,
@@ -72,41 +89,53 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
 
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="active-provider" className="text-xs">
+            <label htmlFor="active-provider" className="text-xs font-medium">
               Provider
-            </Label>
-            <select
-              id="active-provider"
+            </label>
+            <Select
               value={active.provider}
-              onChange={(e) => onProviderChange(e.target.value as ProviderId)}
+              onValueChange={(v) => onProviderChange(v as ProviderId)}
               disabled={savingActive}
-              className="h-9 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              {PROVIDER_IDS.map((p) => (
-                <option key={p} value={p}>
-                  {PROVIDERS[p].label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                id="active-provider"
+                className="h-8 rounded-lg text-sm"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROVIDER_IDS.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {PROVIDERS[p].label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="active-model" className="text-xs">
+            <label htmlFor="active-model" className="text-xs font-medium">
               Model
-            </Label>
-            <select
-              id="active-model"
+            </label>
+            <Select
               value={active.model}
-              onChange={(e) => onModelChange(e.target.value)}
+              onValueChange={onModelChange}
               disabled={savingActive}
-              className="h-9 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              {PROVIDERS[active.provider].models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger
+                id="active-model"
+                className="h-8 rounded-lg text-sm"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PROVIDERS[active.provider].models.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -140,6 +169,20 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
   );
 }
 
+function makeKeySchema(keyPrefix: string) {
+  return z.object({
+    key: z
+      .string()
+      .trim()
+      .min(1, "API key is required")
+      .refine((v) => v.startsWith(keyPrefix), {
+        message: `Key should start with ${keyPrefix}`,
+      }),
+  });
+}
+
+type KeyFormValues = { key: string };
+
 function ProviderKeyCard({
   provider,
   meta,
@@ -153,45 +196,47 @@ function ProviderKeyCard({
 }) {
   const info = PROVIDERS[provider];
   const [editing, setEditing] = useState(!meta);
-  const [keyText, setKeyText] = useState("");
   const [showPlain, setShowPlain] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
 
-  async function handleSave() {
-    const trimmed = keyText.trim();
-    if (!trimmed) return;
-    if (!trimmed.startsWith(info.keyPrefix)) {
-      toast.error(`Key should start with ${info.keyPrefix}`);
-      return;
-    }
-    setSaving(true);
+  const form = useForm<KeyFormValues>({
+    resolver: zodResolver(makeKeySchema(info.keyPrefix)),
+    defaultValues: { key: "" },
+  });
+
+  const saving = form.formState.isSubmitting;
+
+  async function handleSave(values: KeyFormValues) {
     try {
       const res = await fetch("/api/settings/keys", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, key: trimmed }),
+        body: JSON.stringify({ provider, key: values.key }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
         if (body?.error === "invalid_key") {
-          toast.error(body.message ?? "Provider rejected this key. Check it and try again.");
+          form.setError("key", {
+            message:
+              body.message ??
+              "Provider rejected this key. Check it and try again.",
+          });
         } else if (body?.error === "wrong_prefix") {
-          toast.error(`Key should start with ${body.expected}`);
+          form.setError("key", {
+            message: `Key should start with ${body.expected ?? info.keyPrefix}`,
+          });
         } else {
-          toast.error("Could not save key");
+          form.setError("key", { message: "Could not save key" });
         }
         return;
       }
       const next: ProviderKeyMetaRow = await res.json();
       onSaved(next);
-      setKeyText("");
+      form.reset();
       setEditing(false);
       toast.success(`${info.label} key saved`);
     } catch {
-      toast.error("Could not save key");
-    } finally {
-      setSaving(false);
+      form.setError("key", { message: "Could not save key" });
     }
   }
 
@@ -206,6 +251,7 @@ function ProviderKeyCard({
       if (!res.ok) throw new Error("delete_failed");
       onCleared();
       setEditing(true);
+      form.reset();
       toast.success(`${info.label} key removed`);
     } catch {
       toast.error("Could not remove key");
@@ -242,7 +288,7 @@ function ProviderKeyCard({
       {meta && !editing && (
         <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border bg-muted/30 px-3 py-2 text-sm">
           <span className="font-mono text-muted-foreground">
-            …{meta.last4}
+            ...{meta.last4}
           </span>
           <div className="flex items-center gap-2">
             <Button
@@ -268,52 +314,67 @@ function ProviderKeyCard({
       )}
 
       {(editing || !meta) && (
-        <div className="mt-3 flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <Input
-              type={showPlain ? "text" : "password"}
-              value={keyText}
-              onChange={(e) => setKeyText(e.target.value)}
-              placeholder={`${info.keyPrefix}…`}
-              className={cn("font-mono text-sm bg-background")}
-              spellCheck={false}
-              autoComplete="off"
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(handleSave)}
+            className="mt-3 flex flex-col gap-2"
+          >
+            <FormField
+              control={form.control}
+              name="key"
+              render={({ field }) => (
+                <FormItem className="space-y-1.5">
+                  <FormLabel className="sr-only">
+                    {info.label} API key
+                  </FormLabel>
+                  <div className="flex items-center gap-2">
+                    <FormControl>
+                      <Input
+                        {...field}
+                        type={showPlain ? "text" : "password"}
+                        placeholder={`${info.keyPrefix}...`}
+                        className={cn("font-mono text-sm bg-background")}
+                        spellCheck={false}
+                        autoComplete="off"
+                      />
+                    </FormControl>
+                    <Button
+                      size="icon-sm"
+                      variant="ghost"
+                      type="button"
+                      onClick={() => setShowPlain((v) => !v)}
+                      aria-label={showPlain ? "Hide key" : "Show key"}
+                    >
+                      {showPlain ? <EyeOff /> : <Eye />}
+                    </Button>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              type="button"
-              onClick={() => setShowPlain((v) => !v)}
-              aria-label={showPlain ? "Hide key" : "Show key"}
-            >
-              {showPlain ? <EyeOff /> : <Eye />}
-            </Button>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={() => void handleSave()}
-              disabled={saving || !keyText.trim()}
-            >
-              {saving ? "Verifying…" : "Save"}
-            </Button>
-            {meta && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setKeyText("");
-                  setEditing(false);
-                }}
-                disabled={saving}
-              >
-                Cancel
+
+            <div className="flex items-center gap-2">
+              <Button size="sm" type="submit" disabled={saving}>
+                {saving ? "Verifying..." : "Save"}
               </Button>
-            )}
-          </div>
-        </div>
+              {meta && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  type="button"
+                  onClick={() => {
+                    form.reset();
+                    setEditing(false);
+                  }}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </form>
+        </Form>
       )}
     </Card>
   );
 }
-
