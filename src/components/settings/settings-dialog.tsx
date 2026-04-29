@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
 } from "react";
 import {
@@ -15,17 +14,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Loader } from "@/components/ui/loader";
-import { Button } from "@/components/ui/button";
 import { KeysForm } from "@/components/settings/keys-form";
+import { SettingsHome } from "@/components/settings/settings-home";
+import { SectionHeader } from "@/components/settings/section-header";
+import { PersonaForm } from "@/components/settings/persona-form";
+import { ProfileForm } from "@/components/settings/profile-form";
+import { MemorySection } from "@/components/settings/memory-section";
+import { AccountSection } from "@/components/settings/account-section";
 import { isProviderId } from "@/lib/providers";
-import type { ProviderKeyMetaRow } from "@/lib/db/types";
+import type {
+  ActiveModel as Active,
+  MemoryFileRow,
+  ProviderKeyMetaRow,
+  UserFactRow,
+  UserProfileRow,
+} from "@/lib/db/types";
 import type { ProviderId } from "@/lib/providers";
 
-type Active = { provider: ProviderId; model: string };
+export type SettingsView =
+  | "home"
+  | "keys"
+  | "persona"
+  | "profile"
+  | "memory"
+  | "account";
 
 type SettingsDialogContextValue = {
   open: () => void;
+  openTo: (view: SettingsView) => void;
 };
 
 const SettingsDialogContext = createContext<SettingsDialogContextValue | null>(
@@ -40,117 +56,115 @@ export function useSettingsDialog(): SettingsDialogContextValue {
   return ctx;
 }
 
-async function loadSettingsData() {
-  const [keysRes, activeRes] = await Promise.all([
-    fetch("/api/settings/keys"),
-    fetch("/api/settings/active-model"),
-  ]);
-  if (!keysRes.ok || !activeRes.ok) {
-    throw new Error("fetch_failed");
-  }
-  const [keysData, activeData] = await Promise.all([
-    keysRes.json() as Promise<ProviderKeyMetaRow[]>,
-    activeRes.json() as Promise<{ provider: string; model: string }>,
-  ]);
-  const provider = isProviderId(activeData.provider)
-    ? activeData.provider
-    : ("anthropic" as ProviderId);
-  return { keys: keysData, active: { provider, model: activeData.model } };
-}
+type ProviderProps = {
+  children: React.ReactNode;
+  initialKeys: ProviderKeyMetaRow[];
+  initialActive: { provider: string; model: string };
+  profile: UserProfileRow | null;
+  initialFacts: UserFactRow[];
+  initialMemoryFiles: MemoryFileRow[];
+  email: string;
+};
+
+const SECTION_TITLES: Record<
+  Exclude<SettingsView, "home">,
+  { title: string; subtitle?: string }
+> = {
+  keys: {
+    title: "Models & keys",
+    subtitle:
+      "Bring your own API key. Keys are encrypted at rest and only used to call the provider on your behalf.",
+  },
+  persona: {
+    title: "Bot persona",
+    subtitle: "Name your assistant and describe how it should sound.",
+  },
+  profile: {
+    title: "Channel profile",
+    subtitle:
+      "Niche, platforms, and pitch the bot uses for every recommendation.",
+  },
+  memory: {
+    title: "Memory",
+    subtitle: "Facts the bot has remembered and the knowledge files it loads.",
+  },
+  account: {
+    title: "Account",
+  },
+};
 
 export function SettingsDialogProvider({
   children,
-}: {
-  children: React.ReactNode;
-}) {
+  initialKeys,
+  initialActive,
+  profile,
+  initialFacts,
+  initialMemoryFiles,
+  email,
+}: ProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [keys, setKeys] = useState<ProviderKeyMetaRow[] | null>(null);
-  const [active, setActive] = useState<Active | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const prefetchedRef = useRef(false);
+  const [view, setView] = useState<SettingsView>("home");
 
-  // Prefetch silently on mount — no loading spinner, just populate cache
-  useEffect(() => {
-    if (prefetchedRef.current) return;
-    prefetchedRef.current = true;
-    loadSettingsData()
-      .then(({ keys: k, active: a }) => {
-        setKeys(k);
-        setActive(a);
-      })
-      .catch(() => {
-        // Silently ignore prefetch errors; user will see error if they open the dialog
-      });
-  }, []);
+  const provider: ProviderId = isProviderId(initialActive.provider)
+    ? initialActive.provider
+    : ("anthropic" as ProviderId);
+  const active: Active = { provider, model: initialActive.model };
 
-  const fetchSettings = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { keys: k, active: a } = await loadSettingsData();
-      setKeys(k);
-      setActive(a);
-    } catch {
-      setError("Could not load settings. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const openDialog = useCallback(() => {
+  const open = useCallback(() => {
+    setView("home");
     setIsOpen(true);
-    // If data isn't ready yet or previous fetch errored, trigger a full fetch
-    if (error || (keys === null && active === null)) {
-      void fetchSettings();
-    }
-  }, [fetchSettings, error, keys, active]);
+  }, []);
+  const openTo = useCallback((next: SettingsView) => {
+    setView(next);
+    setIsOpen(true);
+  }, []);
 
-  function handleOpenChange(open: boolean) {
-    setIsOpen(open);
-    if (!open) {
-      setError(null);
-      // Keep keys/active cached for next open
+  useEffect(() => {
+    if (!isOpen) {
+      const t = window.setTimeout(() => setView("home"), 200);
+      return () => window.clearTimeout(t);
     }
-  }
+  }, [isOpen]);
 
   return (
-    <SettingsDialogContext.Provider value={{ open: openDialog }}>
+    <SettingsDialogContext.Provider value={{ open, openTo }}>
       {children}
-      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Settings</DialogTitle>
-            <DialogDescription>
-              Bring your own API key for any of these providers. Keys are stored
-              encrypted at rest and only ever used to call the provider on your
-              behalf.
-            </DialogDescription>
-          </DialogHeader>
+          {view === "home" ? (
+            <DialogHeader>
+              <DialogTitle>Settings</DialogTitle>
+              <DialogDescription>
+                Configure how the bot behaves, your profile, keys, and memory.
+              </DialogDescription>
+            </DialogHeader>
+          ) : (
+            <SectionHeader
+              title={SECTION_TITLES[view].title}
+              subtitle={SECTION_TITLES[view].subtitle}
+              onBack={() => setView("home")}
+            />
+          )}
 
           <div className="max-h-[65vh] overflow-y-auto px-1">
-            {loading && keys === null && (
-              <div className="flex items-center justify-center py-10">
-                <Loader variant="circular" size="md" />
-              </div>
+            {view === "home" && <SettingsHome onSelect={setView} />}
+            {view === "keys" && (
+              <KeysForm initialKeys={initialKeys} initialActive={active} />
             )}
-            {error && !loading && (
-              <div className="flex flex-col items-center gap-3 py-6">
-                <p className="text-center text-sm text-destructive">
-                  {error}
-                </p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void fetchSettings()}
-                >
-                  Retry
-                </Button>
-              </div>
+            {view === "persona" && (
+              <PersonaForm
+                initialName={profile?.assistant_name ?? null}
+                initialPersona={profile?.assistant_persona ?? null}
+              />
             )}
-            {!loading && !error && keys !== null && active !== null && (
-              <KeysForm initialKeys={keys} initialActive={active} />
+            {view === "profile" && profile && <ProfileForm profile={profile} />}
+            {view === "memory" && (
+              <MemorySection
+                initialFacts={initialFacts}
+                initialMemoryFiles={initialMemoryFiles}
+              />
             )}
+            {view === "account" && <AccountSection email={email} />}
           </div>
         </DialogContent>
       </Dialog>

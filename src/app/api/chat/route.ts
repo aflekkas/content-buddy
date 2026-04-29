@@ -27,6 +27,7 @@ import {
   getMemoryFileByPath,
   getActiveModel,
   getChat,
+  getUserProfile,
   setChatTitleIfEmpty,
   summarizeMemoryFiles,
   updateVideo,
@@ -79,6 +80,7 @@ export async function POST(req: Request) {
 
   const memoryFiles = await ensureStarterMemoryFiles(user.id);
   const autoloadMemoryFiles = memoryFiles.filter((file) => file.autoload);
+  const profile = await getUserProfile(user.id);
 
   const lastMessage = messages[messages.length - 1];
   if (lastMessage?.role === "user") {
@@ -103,6 +105,8 @@ export async function POST(req: Request) {
     messages: [
       ...buildSystemMessages({
         memoryFiles: autoloadMemoryFiles,
+        assistantName: profile?.assistant_name ?? null,
+        assistantPersona: profile?.assistant_persona ?? null,
       }),
       ...modelMessages,
     ],
