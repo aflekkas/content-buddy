@@ -1,4 +1,5 @@
-import { createClient } from "@/lib/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { decrypt, encrypt } from "@/lib/crypto";
 import {
   defaultModel,
@@ -56,6 +57,28 @@ export async function getMessages(chatId: string): Promise<MessageRow[]> {
 
   if (error) throw error;
   return data ?? [];
+}
+
+/**
+ * Cached variant of getMessages. Uses an admin client (bypasses RLS) so the
+ * cached body is cookie-free and deterministic. Auth is enforced upstream by
+ * getChat() before this is called.
+ */
+export function getCachedMessages(chatId: string): Promise<MessageRow[]> {
+  return unstable_cache(
+    async (id: string) => {
+      const supabase = createAdminClient();
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("chat_id", id)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+    ["chat-messages"],
+    { tags: [`chat:${chatId}:messages`] },
+  )(chatId);
 }
 
 export async function createChat(userId: string): Promise<ChatRow> {

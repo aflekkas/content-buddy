@@ -7,6 +7,7 @@ import {
   type UIMessage,
 } from "ai";
 import { z } from "zod";
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { buildSystemMessages } from "@/lib/anthropic";
@@ -24,6 +25,7 @@ import {
   setChatTitleIfEmpty,
   updateVideo,
 } from "@/lib/db/queries";
+import { encodeProviderError, mapProviderError } from "@/lib/provider-errors";
 
 export const maxDuration = 60;
 
@@ -68,6 +70,7 @@ export async function POST(req: Request) {
     const text = extractText(lastMessage);
     if (text) {
       await appendMessage(chatId, "user", text);
+      revalidateTag(`chat:${chatId}:messages`, "max");
       if (!chat.title) {
         generateChatTitle(chatId, text, provider, model, apiKey).catch((err) =>
           console.error("[chat] title generation failed", err),
@@ -172,6 +175,11 @@ export async function POST(req: Request) {
 
   return result.toUIMessageStreamResponse({
     originalMessages: messages,
+    onError: (error) => {
+      console.error("[chat] streamText error", error);
+      const payload = mapProviderError(provider, model, error);
+      return encodeProviderError(payload);
+    },
     messageMetadata: ({ part }) => {
       if (part.type === "finish") {
         const u = part.totalUsage;
@@ -191,6 +199,7 @@ export async function POST(req: Request) {
         const text = extractText(assistantMsg);
         if (text) {
           await appendMessage(chatId, "assistant", text);
+          revalidateTag(`chat:${chatId}:messages`, "max");
         }
       }
       try {

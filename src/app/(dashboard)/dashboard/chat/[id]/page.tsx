@@ -3,8 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getActiveModel,
   getChat,
+  getCachedMessages,
   getDecryptedProviderKey,
-  getMessages,
 } from "@/lib/db/queries";
 import { toUIMessages } from "@/lib/chat-messages";
 import { Chat } from "@/components/chat/chat";
@@ -27,7 +27,7 @@ export default async function ChatPage({
   if (!chat) notFound();
 
   const [rows, active] = await Promise.all([
-    getMessages(id),
+    getCachedMessages(id),
     getActiveModel(user.id),
   ]);
   const apiKey = await getDecryptedProviderKey(user.id, active.provider);

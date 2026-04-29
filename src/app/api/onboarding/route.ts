@@ -1,3 +1,4 @@
+import { revalidateTag } from "next/cache";
 import { NextResponse } from "next/server";
 import { generateText } from "ai";
 import { z } from "zod";
@@ -188,6 +189,7 @@ export async function POST(req: Request) {
   const title = extractTitle(artifact) ?? `${data.niche_primary} starter pack`;
   await setChatTitle(chat.id, title);
   await appendMessage(chat.id, "assistant", artifact);
+  revalidateTag(`chat:${chat.id}:messages`, "max");
 
   if (usage) {
     const nonCacheInput = usage.inputTokenDetails?.noCacheTokens;
