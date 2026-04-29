@@ -1,17 +1,20 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  getUserProfile,
-  listChats,
-  listUserFacts,
-  listVideos,
-} from "@/lib/db/queries";
 import { CockpitShell } from "@/components/cockpit/cockpit-shell";
+import { BrandPanelLoader } from "@/components/cockpit/loaders/brand-panel-loader";
+import { BrandPanelSkeleton } from "@/components/cockpit/loaders/brand-panel-skeleton";
+import { VideoQueueLoader } from "@/components/cockpit/loaders/video-queue-loader";
+import { VideoQueueSkeleton } from "@/components/cockpit/loaders/video-queue-skeleton";
+import { ChatSwitcherLoader } from "@/components/cockpit/loaders/chat-switcher-loader";
+import { ChatSwitcherSkeleton } from "@/components/cockpit/loaders/chat-switcher-skeleton";
 
 export default async function ChatLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{ id: string }>;
 }) {
   const supabase = await createClient();
   const {
@@ -20,20 +23,29 @@ export default async function ChatLayout({
 
   if (!user) redirect("/");
 
-  const [chats, profile, facts, videos] = await Promise.all([
-    listChats(user.id),
-    getUserProfile(user.id),
-    listUserFacts(user.id),
-    listVideos(user.id),
-  ]);
+  // Await params per Next.js 15 dynamic segment convention (matches page.tsx).
+  // activeChatId isn't needed server-side; the ChatSwitcherClient reads useParams
+  // so the active chat highlight stays reactive across sibling navigation.
+  await params;
 
   return (
     <CockpitShell
       user={{ id: user.id, email: user.email ?? "" }}
-      bio={profile?.bio ?? ""}
-      facts={facts}
-      videos={videos}
-      chats={chats}
+      brandSlot={
+        <Suspense fallback={<BrandPanelSkeleton />}>
+          <BrandPanelLoader userId={user.id} />
+        </Suspense>
+      }
+      videoSlot={
+        <Suspense fallback={<VideoQueueSkeleton />}>
+          <VideoQueueLoader userId={user.id} />
+        </Suspense>
+      }
+      chatSwitcherSlot={
+        <Suspense fallback={<ChatSwitcherSkeleton />}>
+          <ChatSwitcherLoader userId={user.id} />
+        </Suspense>
+      }
     >
       {children}
     </CockpitShell>
