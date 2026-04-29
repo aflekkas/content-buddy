@@ -8,27 +8,11 @@ import { cn } from "@/lib/utils";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-// Compact display labels for tiles where the full PROVIDERS.label is verbose
-// (e.g. "Llama (via Groq)" wraps in a tight card).
-const DISPLAY_LABEL: Record<ProviderId, string> = {
-  anthropic: "Anthropic",
-  openai: "OpenAI",
-  google: "Gemini",
-  xai: "Grok",
-  groq: "Llama",
-};
-
-const SUBLABEL: Record<ProviderId, string> = {
-  anthropic: "Claude",
-  openai: "GPT",
-  google: "Google",
-  xai: "xAI",
-  groq: "via Groq",
-};
-
 function ProviderTile({ id, index }: { id: ProviderId; index: number }) {
   const [hovered, setHovered] = useState(false);
   const meta = PROVIDERS[id];
+  const previewModels = meta.models.slice(0, 2);
+  const remainingModels = meta.models.length - previewModels.length;
 
   return (
     <motion.div
@@ -54,15 +38,15 @@ function ProviderTile({ id, index }: { id: ProviderId; index: number }) {
       </span>
       <div className="min-w-0">
         <p className="text-sm font-semibold tracking-tight">
-          {DISPLAY_LABEL[id]}
+          {meta.displayLabel}
         </p>
         <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-          {SUBLABEL[id]}
+          {meta.sublabel}
         </p>
       </div>
 
       {/* Count / model labels swap — fixed-height slot so tiles never resize */}
-      <div className="relative h-10 w-full">
+      <div className="relative h-12 w-full">
         <AnimatePresence mode="wait" initial={false}>
           {hovered ? (
             <motion.div
@@ -73,7 +57,7 @@ function ProviderTile({ id, index }: { id: ProviderId; index: number }) {
               transition={{ duration: 0.18, ease: EASE }}
               className="absolute inset-0 flex flex-col justify-center gap-1"
             >
-              {meta.models.map((m, mi) => (
+              {previewModels.map((m, mi) => (
                 <motion.span
                   key={m.id}
                   initial={{ opacity: 0, y: 4 }}
@@ -88,6 +72,21 @@ function ProviderTile({ id, index }: { id: ProviderId; index: number }) {
                   {m.label}
                 </motion.span>
               ))}
+              {remainingModels > 0 && (
+                <motion.span
+                  key="more"
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.22,
+                    ease: EASE,
+                    delay: previewModels.length * 0.05,
+                  }}
+                  className="font-mono text-[11px] text-muted-foreground"
+                >
+                  +{remainingModels} more
+                </motion.span>
+              )}
             </motion.div>
           ) : (
             <motion.div
