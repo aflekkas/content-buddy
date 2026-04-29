@@ -28,6 +28,7 @@ import {
   getActiveModel,
   getChat,
   getUserProfile,
+  getVideo,
   setChatTitleIfEmpty,
   summarizeMemoryFiles,
   updateVideo,
@@ -43,7 +44,10 @@ export const maxDuration = 60;
 type ChatRequestBody = {
   id: string;
   messages: UIMessage[];
+  activeVideoIds?: string[];
 };
+
+const MAX_ACTIVE_VIDEOS = 5;
 
 export async function POST(req: Request) {
   const auth = await requireAuth();
@@ -61,7 +65,21 @@ export async function POST(req: Request) {
     );
   }
 
-  const { id: chatId, messages }: ChatRequestBody = await req.json();
+  const {
+    id: chatId,
+    messages,
+    activeVideoIds: rawActiveVideoIds,
+  }: ChatRequestBody = await req.json();
+
+  const activeVideoIds = Array.isArray(rawActiveVideoIds)
+    ? Array.from(
+        new Set(
+          rawActiveVideoIds.filter(
+            (id): id is string => typeof id === "string" && id.length > 0,
+          ),
+        ),
+      ).slice(0, MAX_ACTIVE_VIDEOS)
+    : [];
 
   const chat = await getChat(chatId, user.id);
   if (!chat) return notFound();
@@ -81,6 +99,18 @@ export async function POST(req: Request) {
   const memoryFiles = await ensureStarterMemoryFiles(user.id);
   const autoloadMemoryFiles = memoryFiles.filter((file) => file.autoload);
   const profile = await getUserProfile(user.id);
+
+  const activeVideos = (
+    await Promise.all(activeVideoIds.map((id) => getVideo(user.id, id)))
+  )
+    .filter((video): video is NonNullable<typeof video> => Boolean(video))
+    .map((video) => ({
+      id: video.id,
+      title: video.title,
+      status: video.status,
+      hook: video.hook,
+      script: video.script,
+    }));
 
   const lastMessage = messages[messages.length - 1];
   if (lastMessage?.role === "user") {
@@ -117,6 +147,7 @@ export async function POST(req: Request) {
               primary_goal: profile.primary_goal,
             }
           : null,
+        activeVideos,
       }),
       ...modelMessages,
     ],
@@ -273,6 +304,27 @@ export async function POST(req: Request) {
             id: hook.id,
             text: hook.text,
             tags: hook.tags,
+          };
+        },
+      }),
+      get_video_details: tool({
+        description:
+          "Fetch the full latest details of a specific saved video by id. Use this when the creator references one of their open videos and you need its current title, hook, full script, status, or filmed_at to give a precise answer.",
+        inputSchema: z.object({
+          id: z.string().uuid(),
+        }),
+        execute: async ({ id }) => {
+          const video = await getVideo(userId, id);
+          if (!video) return { error: "not_found" as const };
+          return {
+            id: video.id,
+            title: video.title,
+            hook: video.hook,
+            script: video.script,
+            status: video.status,
+            chat_id: video.chat_id,
+            filmed_at: video.filmed_at,
+            updated_at: video.updated_at,
           };
         },
       }),

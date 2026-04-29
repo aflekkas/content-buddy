@@ -47,6 +47,10 @@ import {
   cockpitSoftPanelClass,
 } from "@/components/cockpit/cockpit-primitives";
 import { createClient } from "@/lib/supabase/client";
+import {
+  parseActiveVideoIds,
+  writeActiveVideoIds,
+} from "@/lib/active-videos";
 import { cn } from "@/lib/utils";
 import type { VideoRow, VideoStatus } from "@/lib/db/types";
 import type { VideoExportFormat } from "@/lib/video-export";
@@ -304,7 +308,9 @@ export function VideoQueue({ userId, videos }: Props) {
 
   function openVideoScript(videoId: string) {
     const params = new URLSearchParams(searchParams.toString());
-    params.set("video", videoId);
+    const current = parseActiveVideoIds(params);
+    const next = current.includes(videoId) ? current : [...current, videoId];
+    writeActiveVideoIds(params, next);
     const targetPath = pathname.startsWith("/dashboard/chat/")
       ? pathname
       : "/dashboard/chat/new";

@@ -22,8 +22,8 @@ export default async function VideoEditorPage({
   const chats = await listChats(user.id);
   const targetChatId = video.chat_id ?? chats[0]?.id;
   if (targetChatId) {
-    redirect(`/dashboard/chat/${targetChatId}?video=${id}`);
+    redirect(`/dashboard/chat/${targetChatId}?videos=${id}`);
   }
 
-  redirect(`/dashboard/chat/new?video=${id}`);
+  redirect(`/dashboard/chat/new?videos=${id}`);
 }

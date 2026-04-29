@@ -19,6 +19,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { InlineVideoEditor } from "@/components/videos/inline-video-editor";
+import {
+  ACTIVE_VIDEOS_PARAM,
+  parseActiveVideoIds,
+  writeActiveVideoIds,
+} from "@/lib/active-videos";
 import { EASE_OUT, useReducedMotionSafe } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +49,6 @@ const MOBILE_PANELS = [
 
 const MEMORY_PANEL_WIDTH = 420;
 const VIDEO_PANEL_WIDTH = 360;
-const VIDEO_EDITOR_PANEL_WIDTH = 440;
 const RAIL_WIDTH = 56;
 const PANEL_STATE_STORAGE_KEY = "shortform-studio:cockpit-panels";
 const MEMORY_ICON_BUTTON_CLASS =
@@ -53,6 +57,10 @@ const QUEUE_ICON_BUTTON_CLASS =
   "text-amber-600 hover:text-amber-700 dark:text-amber-300";
 const HEADER_ICON_BUTTON_CLASS =
   "inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+
+const PANEL_TRANSITION = { duration: 0.28, ease: EASE_OUT } as const;
+const RAIL_TRANSITION = { duration: 0.22, ease: EASE_OUT } as const;
+const REDUCED_TRANSITION = { duration: 0 } as const;
 
 type StoredPanelState = {
   memoryCollapsed?: boolean;
@@ -77,30 +85,31 @@ export function CockpitShell({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [activePanel, setActivePanel] = useState<MobilePanel>("chat");
-  const [memoryCollapsed, setMemoryCollapsed] = useState(
-    () => getStoredPanelState().memoryCollapsed,
+  const [memoryCollapsed, setMemoryCollapsed] = useState<boolean>(
+    DEFAULT_PANEL_STATE.memoryCollapsed,
   );
-  const [videoCollapsed, setVideoCollapsed] = useState(
-    () => getStoredPanelState().videoCollapsed,
+  const [videoCollapsed, setVideoCollapsed] = useState<boolean>(
+    DEFAULT_PANEL_STATE.videoCollapsed,
   );
-  const [chatCollapsed, setChatCollapsed] = useState(
-    () => getStoredPanelState().chatCollapsed,
+  const [chatCollapsed, setChatCollapsed] = useState<boolean>(
+    DEFAULT_PANEL_STATE.chatCollapsed,
   );
-  const activeVideoId = searchParams.get("video");
-  const chatCanCollapse = Boolean(activeVideoId);
-  const effectiveChatCollapsed = chatCanCollapse && chatCollapsed;
-  const effectiveMemoryCollapsed =
-    memoryCollapsed ||
-    Boolean(activeVideoId && !videoCollapsed && !effectiveChatCollapsed);
-  const hasCollapsedRail =
-    effectiveMemoryCollapsed || videoCollapsed || effectiveChatCollapsed;
+
+  useEffect(() => {
+    const stored = getStoredPanelState();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration sync from localStorage
+    setMemoryCollapsed(stored.memoryCollapsed);
+    setVideoCollapsed(stored.videoCollapsed);
+    setChatCollapsed(stored.chatCollapsed);
+  }, []);
+  const activeVideoIds = parseActiveVideoIds(searchParams);
+  const hasActiveVideos = activeVideoIds.length > 0;
+  const hasCollapsedRail = memoryCollapsed || videoCollapsed || chatCollapsed;
+  const showEmptyCanvas =
+    memoryCollapsed && videoCollapsed && chatCollapsed && !hasActiveVideos;
   const reducedMotion = useReducedMotionSafe();
-  const panelTransition = reducedMotion
-    ? { duration: 0 }
-    : { duration: 0.28, ease: EASE_OUT };
-  const railTransition = reducedMotion
-    ? { duration: 0 }
-    : { duration: 0.22, ease: EASE_OUT };
+  const panelTransition = reducedMotion ? REDUCED_TRANSITION : PANEL_TRANSITION;
+  const railTransition = reducedMotion ? REDUCED_TRANSITION : RAIL_TRANSITION;
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -109,21 +118,37 @@ export function CockpitShell({
     );
   }, [chatCollapsed, memoryCollapsed, videoCollapsed]);
 
-  function setActiveVideoId(videoId: string | null) {
-    if (videoId && !activeVideoId) setChatCollapsed(false);
-    if (!videoId) setChatCollapsed(false);
-
+  function closeActiveVideo(videoId: string) {
     const params = new URLSearchParams(searchParams.toString());
-    if (videoId) params.set("video", videoId);
-    else params.delete("video");
+    const next = parseActiveVideoIds(params).filter((id) => id !== videoId);
+    writeActiveVideoIds(params, next);
+    const query = params.toString();
+    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }
 
+  function reorderActiveVideos(fromIndex: number, toIndex: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    const current = parseActiveVideoIds(params);
+    if (
+      fromIndex < 0 ||
+      fromIndex >= current.length ||
+      toIndex < 0 ||
+      toIndex >= current.length ||
+      fromIndex === toIndex
+    ) {
+      return;
+    }
+    const next = [...current];
+    const [moved] = next.splice(fromIndex, 1);
+    next.splice(toIndex, 0, moved);
+    writeActiveVideoIds(params, next);
     const query = params.toString();
     router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
   }
 
   function openChat(chatId: string) {
     const params = new URLSearchParams(searchParams.toString());
-    params.delete("video");
+    params.delete(ACTIVE_VIDEOS_PARAM);
     const query = params.toString();
     router.push(
       query ? `/dashboard/chat/${chatId}?${query}` : `/dashboard/chat/${chatId}`,
@@ -132,23 +157,14 @@ export function CockpitShell({
   }
 
   function expandMemoryPanel() {
-    if (activeVideoId && !videoCollapsed && !effectiveChatCollapsed) {
-      setChatCollapsed(true);
-    }
     setMemoryCollapsed(false);
   }
 
   function expandVideoPanel() {
-    if (activeVideoId && !effectiveMemoryCollapsed && !effectiveChatCollapsed) {
-      setMemoryCollapsed(true);
-    }
     setVideoCollapsed(false);
   }
 
   function expandChatPanel() {
-    if (activeVideoId && !effectiveMemoryCollapsed && !videoCollapsed) {
-      setMemoryCollapsed(true);
-    }
     setChatCollapsed(false);
   }
 
@@ -189,8 +205,8 @@ export function CockpitShell({
         })}
       </nav>
 
-      <div className="min-h-0 flex-1 lg:flex lg:flex-row">
-        <TooltipProvider>
+      <TooltipProvider>
+      <div className="min-h-0 flex-1 lg:flex lg:flex-row lg:overflow-x-auto">
           <motion.aside
             aria-label="Collapsed workspace panels"
             initial={false}
@@ -204,7 +220,7 @@ export function CockpitShell({
           >
             <div className="flex w-14 shrink-0 flex-col items-center gap-2 px-2 py-3">
               <AnimatePresence initial={false} mode="popLayout">
-                {effectiveMemoryCollapsed ? (
+                {memoryCollapsed ? (
                   <motion.div
                     key="memory"
                     layout
@@ -239,7 +255,7 @@ export function CockpitShell({
                     />
                   </motion.div>
                 ) : null}
-                {effectiveChatCollapsed ? (
+                {chatCollapsed ? (
                   <motion.div
                     key="chat"
                     layout
@@ -259,13 +275,12 @@ export function CockpitShell({
               </AnimatePresence>
             </div>
           </motion.aside>
-        </TooltipProvider>
 
         <motion.div
           initial={false}
           animate={{
             "--memory-panel-width": `${
-              effectiveMemoryCollapsed ? 0 : MEMORY_PANEL_WIDTH
+              memoryCollapsed ? 0 : MEMORY_PANEL_WIDTH
             }px`,
           }}
           transition={panelTransition}
@@ -273,28 +288,26 @@ export function CockpitShell({
             "relative min-h-0 flex-1 overflow-hidden",
             activePanel === "memory" ? "flex" : "hidden",
             "lg:flex lg:h-full lg:w-[var(--memory-panel-width)] lg:flex-none lg:border-r",
-            effectiveMemoryCollapsed && "lg:border-r-0",
+            memoryCollapsed && "lg:border-r-0",
           )}
         >
           <aside
-            aria-hidden={effectiveMemoryCollapsed}
-            inert={effectiveMemoryCollapsed ? true : undefined}
+            aria-hidden={memoryCollapsed}
+            inert={memoryCollapsed ? true : undefined}
             className={cn(
               "flex min-h-0 flex-1 flex-col transition-opacity duration-150 lg:w-[420px] lg:flex-none",
-              effectiveMemoryCollapsed && "lg:pointer-events-none lg:opacity-0",
+              memoryCollapsed && "lg:pointer-events-none lg:opacity-0",
             )}
           >
             {brandSlot}
           </aside>
 
-          <TooltipProvider>
-            <PanelButton
-              label="Collapse memory"
-              icon={ChevronLeft}
-              onClick={() => setMemoryCollapsed(true)}
-              className={effectiveMemoryCollapsed && "lg:hidden"}
-            />
-          </TooltipProvider>
+          <PanelButton
+            label="Collapse memory"
+            icon={ChevronLeft}
+            onClick={() => setMemoryCollapsed(true)}
+            className={memoryCollapsed && "lg:hidden"}
+          />
         </motion.div>
 
         <motion.div
@@ -321,65 +334,67 @@ export function CockpitShell({
             {videoSlot}
           </aside>
 
-          <TooltipProvider>
-            <PanelButton
-              label="Collapse video queue"
-              icon={ChevronLeft}
-              onClick={() => setVideoCollapsed(true)}
-              className={videoCollapsed && "lg:hidden"}
-            />
-          </TooltipProvider>
+          <PanelButton
+            label="Collapse video queue"
+            icon={ChevronLeft}
+            onClick={() => setVideoCollapsed(true)}
+            className={videoCollapsed && "lg:hidden"}
+          />
         </motion.div>
 
-        <motion.div
-          initial={false}
-          animate={{
-            "--video-editor-panel-width": `${
-              activeVideoId ? VIDEO_EDITOR_PANEL_WIDTH : 0
-            }px`,
-          }}
-          transition={panelTransition}
-          className={cn(
-            "relative min-h-0 flex-1 overflow-hidden",
-            activePanel === "chat" ? "hidden" : "hidden",
-            "lg:flex lg:h-full lg:w-[var(--video-editor-panel-width)] lg:flex-none",
-            activeVideoId && "lg:border-r",
-          )}
-        >
-          <aside
-            aria-hidden={!activeVideoId}
-            inert={!activeVideoId ? true : undefined}
-            className={cn(
-              "flex min-h-0 flex-1 flex-col transition-opacity duration-150 lg:w-[440px] lg:flex-none",
-              !activeVideoId && "lg:pointer-events-none lg:opacity-0",
-            )}
+        {activeVideoIds.map((videoId, idx) => (
+          <div
+            key={videoId}
+            onDragOver={(e) => {
+              if (e.dataTransfer.types.includes("application/x-video-tab")) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+              }
+            }}
+            onDrop={(e) => {
+              const raw = e.dataTransfer.getData("application/x-video-tab");
+              if (!raw) return;
+              e.preventDefault();
+              const from = Number(raw);
+              if (Number.isFinite(from)) reorderActiveVideos(from, idx);
+            }}
+            className="relative hidden min-h-0 overflow-hidden lg:flex lg:h-full lg:w-[440px] lg:flex-none lg:flex-col lg:border-r"
           >
-            {activeVideoId ? (
+            <div
+              aria-label="Reorder video tab"
+              title="Drag to reorder"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData("application/x-video-tab", String(idx));
+                e.dataTransfer.effectAllowed = "move";
+              }}
+              className="absolute inset-x-0 top-0 z-20 h-1.5 cursor-grab bg-transparent transition-colors hover:bg-violet-500/40 active:cursor-grabbing"
+            />
+            <aside className="flex min-h-0 flex-1 flex-col">
               <InlineVideoEditor
-                key={activeVideoId}
-                videoId={activeVideoId}
-                onClose={() => setActiveVideoId(null)}
+                videoId={videoId}
+                onClose={() => closeActiveVideo(videoId)}
                 onOpenChat={openChat}
               />
-            ) : null}
-          </aside>
-        </motion.div>
+            </aside>
+          </div>
+        ))}
 
         <motion.div
           initial={false}
-          animate={{ opacity: effectiveChatCollapsed ? 0 : 1 }}
+          animate={{ opacity: chatCollapsed ? 0 : 1 }}
           transition={panelTransition}
           className={cn(
             "min-h-0 overflow-hidden",
             activePanel === "chat" ? "flex" : "hidden",
-            effectiveChatCollapsed
+            chatCollapsed
               ? "lg:w-0 lg:flex-none"
-              : "lg:flex lg:flex-1",
+              : "lg:flex lg:flex-1 lg:min-w-[480px]",
           )}
         >
           <section
-            aria-hidden={effectiveChatCollapsed}
-            inert={effectiveChatCollapsed ? true : undefined}
+            aria-hidden={chatCollapsed}
+            inert={chatCollapsed ? true : undefined}
             className="flex min-h-0 flex-1 flex-col"
           >
             <ColumnHeader
@@ -387,23 +402,43 @@ export function CockpitShell({
               iconTone="chat"
               titleSlot={chatSwitcherSlot}
               right={
-                activeVideoId ? (
-                  <button
-                    type="button"
-                    aria-label="Collapse chat"
-                    title="Collapse chat"
-                    onClick={() => setChatCollapsed(true)}
-                    className={HEADER_ICON_BUTTON_CLASS}
-                  >
-                    <ChevronLeft className="size-4" />
-                  </button>
-                ) : null
+                <button
+                  type="button"
+                  aria-label="Collapse chat"
+                  title="Collapse chat"
+                  onClick={() => setChatCollapsed(true)}
+                  className={HEADER_ICON_BUTTON_CLASS}
+                >
+                  <ChevronLeft className="size-4" />
+                </button>
               }
             />
             <div className="min-h-0 flex-1">{children}</div>
           </section>
         </motion.div>
+
+        <AnimatePresence initial={false}>
+          {showEmptyCanvas ? (
+            <motion.div
+              key="empty-canvas"
+              initial={reducedMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={reducedMotion ? { opacity: 0 } : { opacity: 0 }}
+              transition={panelTransition}
+              className="hidden min-h-0 lg:flex lg:flex-1 lg:items-center lg:justify-center"
+            >
+              <EmptyCanvas
+                onExpandAll={() => {
+                  setMemoryCollapsed(false);
+                  setVideoCollapsed(false);
+                  setChatCollapsed(false);
+                }}
+              />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
       </div>
+      </TooltipProvider>
     </CockpitFrame>
   );
 }
@@ -434,6 +469,48 @@ function getStoredPanelState() {
     window.localStorage.removeItem(PANEL_STATE_STORAGE_KEY);
     return DEFAULT_PANEL_STATE;
   }
+}
+
+const EMPTY_CANVAS_MESSAGES = [
+  {
+    title: "lights out.",
+    body: "you minimized everything. bold move. tap a panel on the rail to bring it back.",
+  },
+  {
+    title: "all tucked in.",
+    body: "nothing's open. peek something from the rail or pop it all back.",
+  },
+  {
+    title: "studio's quiet.",
+    body: "every panel collapsed. enjoy the silence or open one back up.",
+  },
+  {
+    title: "blank canvas.",
+    body: "no panels, no chat, no queue. you're flying clean.",
+  },
+] as const;
+
+function EmptyCanvas({ onExpandAll }: { onExpandAll: () => void }) {
+  const [message] = useState(
+    () =>
+      EMPTY_CANVAS_MESSAGES[
+        Math.floor(Math.random() * EMPTY_CANVAS_MESSAGES.length)
+      ],
+  );
+
+  return (
+    <div className="flex max-w-sm flex-col items-center gap-3 px-6 text-center">
+      <p className="text-base font-medium text-foreground">{message.title}</p>
+      <p className="text-sm text-muted-foreground">{message.body}</p>
+      <button
+        type="button"
+        onClick={onExpandAll}
+        className="mt-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+      >
+        bring it all back
+      </button>
+    </div>
+  );
 }
 
 function RailButton({

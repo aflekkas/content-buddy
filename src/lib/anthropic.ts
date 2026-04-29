@@ -52,12 +52,46 @@ Memory:
 - Use status=ready only when both the hook and script are fleshed out.
 - Never set status=filmed. The user toggles that themselves.`;
 
+type ActiveVideoSummary = {
+  id: string;
+  title: string | null;
+  status: string;
+  hook: string | null;
+  script: string | null;
+};
+
 type UserContext = {
   memoryFiles: MemoryFileRow[];
   assistantName?: string | null;
   assistantPersona?: string | null;
   creatorProfile?: CreatorProfile | null;
+  activeVideos?: ActiveVideoSummary[];
 };
+
+function buildActiveVideosBlock(videos: ActiveVideoSummary[]): string {
+  const intro =
+    videos.length === 1
+      ? "The creator currently has this video open in their editor. Treat it as the focal context for this chat unless they say otherwise. Call the `get_video_details` tool if you need the full latest state."
+      : "The creator currently has multiple videos open in their editor. They may be switching between them in this conversation. Ask which video they want to focus on if it's ambiguous, or use `get_video_details` to fetch the full latest state of any of them.";
+
+  const blocks = videos.map((video) => {
+    const lines = [
+      `<active_video id="${video.id}" status="${video.status}">`,
+      `title: ${video.title ?? "(untitled)"}`,
+    ];
+    if (video.hook) lines.push(`hook: ${truncate(video.hook, 280)}`);
+    if (video.script) lines.push(`script_preview: ${truncate(video.script, 500)}`);
+    lines.push(`</active_video>`);
+    return lines.join("\n");
+  });
+
+  return `${intro}\n\n${blocks.join("\n\n")}`;
+}
+
+function truncate(value: string, max: number): string {
+  if (value.length <= max) return value;
+  return `${value.slice(0, max).trimEnd()}…`;
+}
 
 function buildPersonaBlock(
   name: string | null | undefined,
@@ -137,6 +171,13 @@ export function buildSystemMessages(user: UserContext): ModelMessage[] {
     messages.push({
       role: "system",
       content: personaBlock,
+    });
+  }
+
+  if (user.activeVideos && user.activeVideos.length > 0) {
+    messages.push({
+      role: "system",
+      content: buildActiveVideosBlock(user.activeVideos),
     });
   }
 
