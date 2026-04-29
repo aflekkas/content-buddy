@@ -2,6 +2,7 @@
 
 import { ChevronLeft, FileText, ListVideo, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { ColumnHeader } from "@/components/cockpit/column-header";
@@ -12,6 +13,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { EASE_OUT, useReducedMotionSafe } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -34,6 +36,10 @@ const MOBILE_PANELS = [
   icon: LucideIcon;
 }>;
 
+const MEMORY_PANEL_WIDTH = 420;
+const VIDEO_PANEL_WIDTH = 360;
+const RAIL_WIDTH = 56;
+
 export function CockpitShell({
   user,
   brandSlot,
@@ -45,6 +51,13 @@ export function CockpitShell({
   const [memoryCollapsed, setMemoryCollapsed] = useState(false);
   const [videoCollapsed, setVideoCollapsed] = useState(false);
   const hasCollapsedRail = memoryCollapsed || videoCollapsed;
+  const reducedMotion = useReducedMotionSafe();
+  const panelTransition = reducedMotion
+    ? { duration: 0 }
+    : { duration: 0.28, ease: EASE_OUT };
+  const railTransition = reducedMotion
+    ? { duration: 0 }
+    : { duration: 0.22, ease: EASE_OUT };
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
@@ -84,36 +97,67 @@ export function CockpitShell({
 
       <div className="min-h-0 flex-1 lg:flex lg:flex-row">
         <TooltipProvider>
-          <aside
+          <motion.aside
             aria-label="Collapsed workspace panels"
-            className={cn(
-              "hidden min-h-0 w-14 shrink-0 flex-col items-center gap-2 border-r bg-muted/50 px-2 py-3 lg:flex",
-              !hasCollapsedRail && "lg:hidden",
-            )}
+            initial={false}
+            animate={{
+              "--rail-width": `${hasCollapsedRail ? RAIL_WIDTH : 0}px`,
+              opacity: hasCollapsedRail ? 1 : 0,
+              borderRightWidth: hasCollapsedRail ? 1 : 0,
+            }}
+            transition={railTransition}
+            className="hidden min-h-0 shrink-0 overflow-hidden border-r bg-muted/50 lg:flex lg:w-[var(--rail-width)]"
           >
-            {memoryCollapsed ? (
-              <RailButton
-                label="Expand memory"
-                icon={FileText}
-                onClick={() => setMemoryCollapsed(false)}
-              />
-            ) : null}
-            {videoCollapsed ? (
-              <RailButton
-                label="Expand video queue"
-                icon={ListVideo}
-                onClick={() => setVideoCollapsed(false)}
-              />
-            ) : null}
-          </aside>
+            <div className="flex w-14 shrink-0 flex-col items-center gap-2 px-2 py-3">
+              <AnimatePresence initial={false} mode="popLayout">
+                {memoryCollapsed ? (
+                  <motion.div
+                    key="memory"
+                    layout
+                    initial={reducedMotion ? false : { opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
+                    transition={railTransition}
+                  >
+                    <RailButton
+                      label="Expand memory"
+                      icon={FileText}
+                      onClick={() => setMemoryCollapsed(false)}
+                    />
+                  </motion.div>
+                ) : null}
+                {videoCollapsed ? (
+                  <motion.div
+                    key="queue"
+                    layout
+                    initial={reducedMotion ? false : { opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
+                    transition={railTransition}
+                  >
+                    <RailButton
+                      label="Expand video queue"
+                      icon={ListVideo}
+                      onClick={() => setVideoCollapsed(false)}
+                    />
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
+          </motion.aside>
         </TooltipProvider>
 
-        <div
+        <motion.div
+          initial={false}
+          animate={{
+            "--memory-panel-width": `${memoryCollapsed ? 0 : MEMORY_PANEL_WIDTH}px`,
+          }}
+          transition={panelTransition}
           className={cn(
-            "relative min-h-0 flex-1 overflow-hidden transition-[width] duration-200 ease-out",
+            "relative min-h-0 flex-1 overflow-hidden",
             activePanel === "memory" ? "flex" : "hidden",
-            "lg:flex lg:h-full lg:flex-none",
-            memoryCollapsed ? "lg:w-0" : "lg:w-[420px] lg:border-r",
+            "lg:flex lg:h-full lg:w-[var(--memory-panel-width)] lg:flex-none lg:border-r",
+            memoryCollapsed && "lg:border-r-0",
           )}
         >
           <aside
@@ -135,14 +179,19 @@ export function CockpitShell({
               className={memoryCollapsed && "lg:hidden"}
             />
           </TooltipProvider>
-        </div>
+        </motion.div>
 
-        <div
+        <motion.div
+          initial={false}
+          animate={{
+            "--video-panel-width": `${videoCollapsed ? 0 : VIDEO_PANEL_WIDTH}px`,
+          }}
+          transition={panelTransition}
           className={cn(
-            "relative min-h-0 flex-1 overflow-hidden transition-[width] duration-200 ease-out",
+            "relative min-h-0 flex-1 overflow-hidden",
             activePanel === "queue" ? "flex" : "hidden",
-            "lg:flex lg:h-full lg:flex-none",
-            videoCollapsed ? "lg:w-0" : "lg:w-[360px] lg:border-r",
+            "lg:flex lg:h-full lg:w-[var(--video-panel-width)] lg:flex-none lg:border-r",
+            videoCollapsed && "lg:border-r-0",
           )}
         >
           <aside
@@ -164,7 +213,7 @@ export function CockpitShell({
               className={videoCollapsed && "lg:hidden"}
             />
           </TooltipProvider>
-        </div>
+        </motion.div>
 
         <div
           className={cn(
@@ -234,7 +283,7 @@ function PanelButton({
             aria-label={label}
             onClick={onClick}
             className={cn(
-              "absolute right-3 top-3 z-10 hidden size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground shadow-sm transition-colors hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 lg:flex",
+              "absolute right-3 top-3 z-10 hidden size-8 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 lg:flex",
               className,
             )}
           >
