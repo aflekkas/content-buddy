@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { isProviderId, PROVIDER_IDS, PROVIDERS } from "@/lib/providers";
 import {
   clearProviderKey,
-  getActiveModel,
   listProviderKeyMeta,
   setProviderKey,
 } from "@/lib/db/queries";
@@ -28,12 +27,7 @@ export async function GET() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const [keys, active] = await Promise.all([
-    listProviderKeyMeta(user.id),
-    getActiveModel(user.id),
-  ]);
-
-  return NextResponse.json({ keys, active });
+  return NextResponse.json(await listProviderKeyMeta(user.id));
 }
 
 export async function PUT(req: Request) {

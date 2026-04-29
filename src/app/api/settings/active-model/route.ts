@@ -2,12 +2,24 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { isProviderId, PROVIDER_IDS } from "@/lib/providers";
-import { setActiveModel } from "@/lib/db/queries";
+import { getActiveModel, setActiveModel } from "@/lib/db/queries";
 
 const PutBody = z.object({
   provider: z.enum(PROVIDER_IDS as [string, ...string[]]),
   model: z.string().min(1).max(120),
 });
+
+export async function GET() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  return NextResponse.json(await getActiveModel(user.id));
+}
 
 export async function PUT(req: Request) {
   const supabase = await createClient();
