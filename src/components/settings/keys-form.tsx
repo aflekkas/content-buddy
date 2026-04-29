@@ -175,7 +175,9 @@ function ProviderKeyCard({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        if (body?.error === "wrong_prefix") {
+        if (body?.error === "invalid_key") {
+          toast.error(body.message ?? "Provider rejected this key. Check it and try again.");
+        } else if (body?.error === "wrong_prefix") {
           toast.error(`Key should start with ${body.expected}`);
         } else {
           toast.error("Could not save key");
@@ -294,7 +296,7 @@ function ProviderKeyCard({
               onClick={() => void handleSave()}
               disabled={saving || !keyText.trim()}
             >
-              {saving ? "Saving…" : "Save"}
+              {saving ? "Verifying…" : "Save"}
             </Button>
             {meta && (
               <Button

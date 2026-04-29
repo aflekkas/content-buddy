@@ -8,6 +8,8 @@ import {
   ArrowRight,
   Check,
   ExternalLink,
+  Eye,
+  EyeOff,
   KeyRound,
   LogOut,
   Search,
@@ -842,6 +844,7 @@ function KeyStep({
   value: string;
   onChange: (next: string) => void;
 }) {
+  const [showPlain, setShowPlain] = useState(false);
   const looksValid = value.startsWith("sk-ant-") && value.length >= 30;
   return (
     <div>
@@ -854,7 +857,7 @@ function KeyStep({
         <div className="flex items-center gap-2 rounded-lg border bg-muted/30 px-3">
           <KeyRound className="size-4 text-muted-foreground" />
           <Input
-            type="password"
+            type={showPlain ? "text" : "password"}
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder="sk-ant-..."
@@ -863,6 +866,15 @@ function KeyStep({
             autoComplete="off"
             spellCheck={false}
           />
+          <Button
+            size="icon-sm"
+            variant="ghost"
+            type="button"
+            onClick={() => setShowPlain((v) => !v)}
+            aria-label={showPlain ? "Hide key" : "Show key"}
+          >
+            {showPlain ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+          </Button>
         </div>
         <div className="mt-3 flex items-center justify-between text-xs">
           <span
