@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Brain, Check, ChevronDown, Film, KeyRound } from "lucide-react";
+import { AlertTriangle, ArrowRight, Brain, Check, ChevronDown, Film, KeyRound, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSettingsDialog } from "@/components/settings/settings-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,6 +18,10 @@ import { EASE_OUT } from "@/lib/motion";
 import { type TokenUsage } from "@/lib/pricing";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
 import { cn } from "@/lib/utils";
+import {
+  type ProviderErrorPayload,
+  decodeProviderError,
+} from "@/lib/provider-errors";
 
 type Props = {
   chatId: string;
@@ -123,6 +127,8 @@ export function Chat({
   const viewportRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
   const [keyErrorFrom402, setKeyErrorFrom402] = useState(false);
+  const [providerError, setProviderError] =
+    useState<ProviderErrorPayload | null>(null);
   const missingKey = !hasActiveKey || keyErrorFrom402;
 
   const baseMessageIds = useMemo(
@@ -130,7 +136,7 @@ export function Chat({
     [initialMessages],
   );
 
-  const { messages, sendMessage, status, stop } = useChat({
+  const chat = useChat({
     id: chatId,
     messages: initialMessages,
     transport: new DefaultChatTransport({
@@ -148,10 +154,19 @@ export function Chat({
         return res;
       },
     }),
-    onError: () => {
-      // surfaced via banner; nothing else to do
+    onError: (error) => {
+      const parsed = decodeProviderError(error.message);
+      if (parsed) {
+        setProviderError(parsed);
+      }
+      // non-provider errors (network, etc.) surface generically via status
+    },
+    onFinish: () => {
+      // clear any provider error on a successful response
+      setProviderError(null);
     },
   });
+  const { messages, sendMessage, status, stop, clearError } = chat;
 
   const isStreaming = status === "submitted" || status === "streaming";
 
@@ -301,9 +316,21 @@ export function Chat({
               <ArrowRight className="size-3.5" />
             </button>
           )}
+          {!missingKey && providerError && (
+            <ProviderErrorBanner
+              payload={providerError}
+              onDismiss={() => {
+                setProviderError(null);
+                clearError();
+              }}
+            />
+          )}
           <ChatInput
-            onSubmit={handleSubmit}
-            disabled={isStreaming || missingKey}
+            onSubmit={(text) => {
+              setProviderError(null);
+              handleSubmit(text);
+            }}
+            disabled={isStreaming || missingKey || !!providerError}
             isStreaming={isStreaming}
             onStop={() => stop()}
             autoFocus
@@ -326,6 +353,48 @@ function formatTokens(n: number): string {
   if (n < 1000) return String(n);
   if (n < 1_000_000) return `${(n / 1000).toFixed(1)}K`;
   return `${(n / 1_000_000).toFixed(2)}M`;
+}
+
+function ProviderErrorBanner({
+  payload,
+  onDismiss,
+}: {
+  payload: ProviderErrorPayload;
+  onDismiss: () => void;
+}) {
+  const isExternal = payload.helpUrl?.startsWith("http");
+  const inner = (
+    <span className="flex items-center gap-2">
+      <AlertTriangle className="size-3.5 shrink-0" />
+      {payload.message}
+    </span>
+  );
+
+  return (
+    <div className="mb-2 flex w-full items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive dark:text-red-400">
+      {payload.helpUrl ? (
+        <a
+          href={payload.helpUrl}
+          target={isExternal ? "_blank" : undefined}
+          rel={isExternal ? "noopener noreferrer" : undefined}
+          className="flex min-w-0 flex-1 items-center gap-2 hover:underline"
+        >
+          {inner}
+          <ArrowRight className="ml-auto size-3.5 shrink-0" />
+        </a>
+      ) : (
+        <span className="flex min-w-0 flex-1 items-center gap-2">{inner}</span>
+      )}
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss error"
+        className="ml-1 shrink-0 opacity-70 hover:opacity-100"
+      >
+        <X className="size-3.5" />
+      </button>
+    </div>
+  );
 }
 
 function EmptyState({ onPick }: { onPick: (text: string) => void }) {
