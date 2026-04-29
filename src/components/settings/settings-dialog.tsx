@@ -118,7 +118,7 @@ export function SettingsDialogProvider({
     <SettingsDialogContext.Provider value={{ open: openDialog }}>
       {children}
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>
@@ -128,7 +128,7 @@ export function SettingsDialogProvider({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="max-h-[65vh] overflow-y-auto pr-1">
+          <div className="max-h-[65vh] overflow-y-auto px-1">
             {loading && keys === null && (
               <div className="flex items-center justify-center py-10">
                 <Loader variant="circular" size="md" />

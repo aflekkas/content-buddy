@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { ExternalLink, Eye, EyeOff, Trash2 } from "lucide-react";
+import { AlertCircle, ExternalLink, Eye, EyeOff, MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
+import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,11 +20,19 @@ import {
 import { SelectField } from "@/components/ui/select-field";
 import { ProviderIcon } from "@/components/ui/provider-icon";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   PROVIDER_IDS,
   PROVIDERS,
   type ProviderId,
 } from "@/lib/providers";
 import type { ProviderKeyMetaRow } from "@/lib/db/types";
+import { DUR_FAST, EASE_OUT, useReducedMotionSafe } from "@/lib/motion";
+import { cn } from "@/lib/utils";
 
 type Active = { provider: ProviderId; model: string };
 
@@ -73,18 +82,10 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Active model */}
-      <section className="flex flex-col gap-3">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Active model
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Changes save immediately.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {/* Active model card */}
+      <div className="rounded-xl border bg-background p-4">
+        <p className="mb-3 text-sm font-medium">Active model</p>
+        <div className="grid grid-cols-1 gap-2 px-px sm:grid-cols-2">
           <SelectField
             id="active-provider"
             label="Provider"
@@ -97,7 +98,6 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
               icon: <ProviderIcon provider={p} size={14} />,
             }))}
           />
-
           <SelectField
             id="active-model"
             label="Model"
@@ -110,22 +110,16 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
             }))}
           />
         </div>
-
         {!activeProviderHasKey && (
-          <p className="text-xs text-amber-700 dark:text-amber-400">
-            No key saved for {PROVIDERS[active.provider].label}. Add one below
-            or chats will fail until you do.
+          <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <AlertCircle className="size-3.5 shrink-0" />
+            No key saved for {PROVIDERS[active.provider].label}. Add one below.
           </p>
         )}
-      </section>
+      </div>
 
-      <hr className="border-border" />
-
-      {/* API keys */}
-      <section className="flex flex-col gap-0">
-        <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          API keys
-        </p>
+      {/* API keys list */}
+      <div className="divide-y divide-border rounded-xl border bg-background">
         {PROVIDER_IDS.map((p) => (
           <ProviderKeyRow
             key={p}
@@ -141,7 +135,7 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
             }
           />
         ))}
-      </section>
+      </div>
     </div>
   );
 }
@@ -168,8 +162,9 @@ function ProviderKeyRow({
   onCleared: () => void;
 }) {
   const router = useRouter();
+  const reducedMotion = useReducedMotionSafe();
   const info = PROVIDERS[provider];
-  const [editing, setEditing] = useState(!meta);
+  const [editing, setEditing] = useState(false);
   const [showPlain, setShowPlain] = useState(false);
   const [removing, setRemoving] = useState(false);
 
@@ -224,7 +219,8 @@ function ProviderKeyRow({
       });
       if (!res.ok) throw new Error("delete_failed");
       onCleared();
-      setEditing(true);
+      setEditing(false);
+      form.reset();
       router.refresh();
       toast.success(`${info.label} key removed`);
     } catch {
@@ -234,125 +230,150 @@ function ProviderKeyRow({
     }
   }
 
+  function cancelEdit() {
+    form.reset();
+    setShowPlain(false);
+    setEditing(false);
+  }
+
   return (
-    <div className="border-b border-border py-2.5 last:border-b-0">
-      {meta && !editing ? (
-        /* Saved state: single row */
-        <div className="flex items-center gap-3">
-          <ProviderIcon provider={provider} size={18} className="shrink-0" />
-          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span className="text-sm font-medium">{info.label}</span>
-            <a
-              href={info.consoleUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex w-fit items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              Get key <ExternalLink className="size-3" />
-            </a>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <span className="font-mono text-xs text-muted-foreground">
-              ...{meta.last4}
-            </span>
-            <span className="text-xs text-emerald-600 dark:text-emerald-400">
-              Saved
-            </span>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setEditing(true)}
-              disabled={removing}
-            >
-              Replace
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => void handleRemove()}
-              disabled={removing}
-              className="text-destructive hover:text-destructive"
-            >
-              <Trash2 />
-              Remove
-            </Button>
-          </div>
+    <div className="px-4 py-3 first:rounded-t-xl last:rounded-b-xl">
+      {/* Static row — always visible */}
+      <div className="flex items-center gap-3">
+        <ProviderIcon provider={provider} size={18} className="shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium">{info.label}</p>
+          {meta ? (
+            <p className="font-mono text-xs text-muted-foreground">
+              Connected ····{meta.last4}
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Not connected</p>
+          )}
         </div>
-      ) : (
-        /* Editing state: label row + input row */
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <ProviderIcon provider={provider} size={18} className="shrink-0" />
-            <span className="text-sm font-medium">{info.label}</span>
-            <a
-              href={info.consoleUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="ml-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-            >
-              Get key <ExternalLink className="size-3" />
-            </a>
-          </div>
-
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="flex flex-col gap-1.5"
-            >
-              <FormField
-                control={form.control}
-                name="key"
-                render={({ field }) => (
-                  <FormItem className="space-y-1">
-                    <FormControl>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          {...field}
-                          type={showPlain ? "text" : "password"}
-                          placeholder={`${info.keyPrefix}...`}
-                          className="flex-1 bg-background font-mono text-sm"
-                          spellCheck={false}
-                          autoComplete="off"
-                        />
-                        <Button
-                          size="icon-sm"
-                          variant="ghost"
-                          type="button"
-                          onClick={() => setShowPlain((v) => !v)}
-                          aria-label={showPlain ? "Hide key" : "Show key"}
-                        >
-                          {showPlain ? <EyeOff /> : <Eye />}
-                        </Button>
-                      </div>
-                    </FormControl>
-                    <FormMessage className="text-xs" />
-                  </FormItem>
-                )}
+        <div className="shrink-0">
+          {meta ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="Manage key"
+                    disabled={removing}
+                  >
+                    <MoreHorizontal className="size-4" />
+                  </Button>
+                }
               />
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  onClick={() => {
+                    form.reset();
+                    setShowPlain(false);
+                    setEditing(true);
+                  }}
+                >
+                  Replace
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => void handleRemove()}
+                  disabled={removing}
+                >
+                  Remove
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                form.reset();
+                setShowPlain(false);
+                setEditing(true);
+              }}
+            >
+              Add
+            </Button>
+          )}
+        </div>
+      </div>
 
-              <div className="flex items-center gap-2">
-                <Button size="sm" type="submit" disabled={saving}>
-                  {saving ? "Verifying..." : "Save"}
-                </Button>
-                {meta && (
+      {/* Inline editor — expands below the row */}
+      <AnimatePresence initial={false}>
+        {editing && (
+          <motion.div
+            key="editor"
+            initial={reducedMotion ? false : { opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: DUR_FAST, ease: EASE_OUT }}
+            className={cn("overflow-hidden")}
+          >
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="mt-3 flex flex-col gap-2"
+              >
+                <FormField
+                  control={form.control}
+                  name="key"
+                  render={({ field }) => (
+                    <FormItem className="space-y-1">
+                      <FormControl>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            {...field}
+                            type={showPlain ? "text" : "password"}
+                            placeholder={`${info.keyPrefix}...`}
+                            className="flex-1 font-mono text-sm"
+                            spellCheck={false}
+                            autoComplete="off"
+                          />
+                          <Button
+                            size="icon-sm"
+                            variant="ghost"
+                            type="button"
+                            onClick={() => setShowPlain((v) => !v)}
+                            aria-label={showPlain ? "Hide key" : "Show key"}
+                          >
+                            {showPlain ? <EyeOff /> : <Eye />}
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex items-center gap-2">
+                  <Button size="sm" type="submit" disabled={saving}>
+                    {saving ? "Verifying..." : "Save"}
+                  </Button>
                   <Button
                     size="sm"
                     variant="ghost"
                     type="button"
-                    onClick={() => {
-                      form.reset();
-                      setEditing(false);
-                    }}
+                    onClick={cancelEdit}
                     disabled={saving}
                   >
                     Cancel
                   </Button>
-                )}
-              </div>
-            </form>
-          </Form>
-        </div>
-      )}
+                  <a
+                    href={info.consoleUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-auto inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    Get key <ExternalLink className="size-3" />
+                  </a>
+                </div>
+              </form>
+            </Form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
