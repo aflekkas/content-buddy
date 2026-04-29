@@ -40,6 +40,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# lockfiles (npm is canonical per CLAUDE.md)
+bun.lock
+
+# dead prototype scratchpad
+/prototypes/
+
 # playwright mcp artifacts
 .playwright-mcp/
 
