@@ -18,6 +18,10 @@ export default function DashboardError({
     <ErrorScreen
       variant="embedded"
       digest={error.digest}
+      errorMessage={error.message}
+      errorStack={
+        process.env.NODE_ENV === "development" ? error.stack : undefined
+      }
       onRetry={unstable_retry}
     />
   );

@@ -131,10 +131,32 @@ export default function GlobalError({
             </button>
           </div>
 
+          {error.message ? (
+            <pre
+              style={{
+                marginTop: 24,
+                padding: 12,
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.12)",
+                background: "rgba(255,255,255,0.04)",
+                fontFamily:
+                  'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                fontSize: 11,
+                color: "rgba(255,255,255,0.7)",
+                textAlign: "left",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                overflowX: "auto",
+              }}
+            >
+              {error.message}
+            </pre>
+          ) : null}
+
           {error.digest ? (
             <p
               style={{
-                marginTop: 24,
+                marginTop: 16,
                 fontFamily:
                   'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
                 fontSize: 11,

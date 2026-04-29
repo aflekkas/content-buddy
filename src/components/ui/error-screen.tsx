@@ -11,6 +11,8 @@ type ErrorScreenProps = {
   title?: string;
   description?: string;
   digest?: string;
+  errorMessage?: string;
+  errorStack?: string;
   onRetry: () => void;
 };
 
@@ -19,6 +21,8 @@ export function ErrorScreen({
   title = "This page couldn't load",
   description = "Reload to try again, or go back.",
   digest,
+  errorMessage,
+  errorStack,
   onRetry,
 }: ErrorScreenProps) {
   const router = useRouter();
@@ -57,6 +61,24 @@ export function ErrorScreen({
             Back
           </Button>
         </div>
+
+        {errorMessage ? (
+          <div className="mt-6 w-full max-w-xl text-left">
+            <pre className="overflow-x-auto rounded-md border border-border bg-muted/40 p-3 font-mono text-[11px] text-muted-foreground whitespace-pre-wrap break-words">
+              {errorMessage}
+            </pre>
+            {errorStack ? (
+              <details className="mt-2">
+                <summary className="cursor-pointer text-[11px] text-muted-foreground/70 hover:text-muted-foreground">
+                  Stack trace
+                </summary>
+                <pre className="mt-2 overflow-x-auto rounded-md border border-border bg-muted/40 p-3 font-mono text-[11px] text-muted-foreground whitespace-pre-wrap break-words">
+                  {errorStack}
+                </pre>
+              </details>
+            ) : null}
+          </div>
+        ) : null}
 
         {digest ? (
           <p className="mt-6 font-mono text-[11px] text-muted-foreground/70">
