@@ -273,13 +273,13 @@ export function OnboardingFlow() {
 function Header({ step, totalSteps }: { step: number; totalSteps: number }) {
   const pct = Math.min(100, (step / totalSteps) * 100);
   return (
-    <header className="relative border-b border-border/60 bg-background/70 backdrop-blur-xl">
+    <header className="relative bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
-        <span className="grid place-items-center size-9 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
-          <LogoMark className="size-5" />
+        <span className="grid place-items-center size-7 shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
+          <LogoMark className="size-4" />
         </span>
 
-        <div className="flex items-baseline gap-1.5 text-[15px] leading-none">
+        <div className="flex items-baseline gap-1.5 text-sm leading-none">
           <span className="font-semibold tracking-tight">{BRAND_LEAD}</span>
           {BRAND_TAIL && (
             <span className="font-medium tracking-tight text-foreground/90">
@@ -288,23 +288,18 @@ function Header({ step, totalSteps }: { step: number; totalSteps: number }) {
           )}
         </div>
 
-        <span className="ml-2 hidden text-xs text-muted-foreground sm:inline">
-          setup
+        <span className="ml-auto text-xs tabular-nums text-muted-foreground">
+          {Math.min(step, totalSteps)} / {totalSteps}
         </span>
+      </div>
 
-        <div className="ml-auto flex items-center gap-3">
-          <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">
-            {Math.min(step, totalSteps)} / {totalSteps}
-          </span>
-          <div className="h-1 w-32 overflow-hidden rounded-full bg-muted/70 sm:w-44">
-            <motion.div
-              className="h-full rounded-full bg-primary"
-              initial={false}
-              animate={{ width: `${pct}%` }}
-              transition={{ duration: DUR_NORMAL, ease: EASE_OUT }}
-            />
-          </div>
-        </div>
+      <div className="h-px w-full bg-muted/70">
+        <motion.div
+          className="h-px bg-primary"
+          initial={false}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: DUR_NORMAL, ease: EASE_OUT }}
+        />
       </div>
     </header>
   );
@@ -326,19 +321,18 @@ function Footer({
   if (step === 7) return null;
   return (
     <footer className="relative border-t border-border/60 bg-background/70 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
+      <div className="mx-auto flex w-full max-w-3xl items-center justify-end gap-2 px-4 py-4 sm:px-6">
         <Button
-          variant="ghost"
-          size="lg"
+          variant="outline"
+          size="default"
           onClick={onBack}
           disabled={step === 0 || submitting}
-          className="rounded-full px-3 text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft />
+          <ArrowLeft className="size-4" />
           Back
         </Button>
         <Button
-          size="lg"
+          size="default"
           onClick={onNext}
           disabled={!canAdvance || submitting}
         >
