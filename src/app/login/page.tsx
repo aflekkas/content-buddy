@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AuthForm } from "@/components/auth/auth-form";
+import { Button } from "@/components/ui/button";
 
 function isSafeNext(value: string | undefined): value is string {
   if (!value) return false;
@@ -24,5 +27,19 @@ export default async function LoginPage({
     redirect(next);
   }
 
-  return <AuthForm />;
+  return (
+    <div className="relative">
+      <div className="absolute top-4 left-4 md:top-6 md:left-6 z-10">
+        <Button asChild variant="ghost" size="sm" className="group">
+          <Link href="/">
+            <span className="transition-transform duration-200 ease-out group-hover:-translate-x-0.5">
+              <ArrowLeft className="h-4 w-4" />
+            </span>
+            Home
+          </Link>
+        </Button>
+      </div>
+      <AuthForm />
+    </div>
+  );
 }
