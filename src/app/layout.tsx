@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import NextTopLoader from "nextjs-toploader";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { BRAND_NAME } from "@/lib/brand";
@@ -20,6 +21,12 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="h-svh overflow-hidden flex flex-col font-sans">
+        <NextTopLoader
+          color="oklch(0.685 0.169 237.323)"
+          height={2}
+          showSpinner={false}
+          shadow={false}
+        />
         {children}
         <Toaster />
       </body>
