@@ -8,12 +8,12 @@ import {
   Heading2,
   Italic,
   List,
-  Loader2,
   MessageSquare,
   Quote,
   Trash2,
   X,
 } from "lucide-react";
+import { CircularLoader } from "@/components/ui/loader";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -214,7 +214,7 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
 
       {saveState === "loading" ? (
         <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
-          <Loader2 className="size-5 animate-spin" aria-label="Opening video" />
+          <CircularLoader size="md" />
         </div>
       ) : !video ? (
         <div

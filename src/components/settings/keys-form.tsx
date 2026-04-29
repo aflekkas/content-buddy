@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/form";
 import { SelectField } from "@/components/ui/select-field";
 import { ProviderIcon } from "@/components/ui/provider-icon";
+import { CircularLoader } from "@/components/ui/loader";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -347,7 +348,14 @@ function ProviderKeyRow({
                 />
                 <div className="flex items-center gap-2">
                   <Button size="sm" type="submit" disabled={saving}>
-                    {saving ? "Verifying..." : "Save"}
+                    {saving ? (
+                      <>
+                        <CircularLoader size="sm" />
+                        Verifying...
+                      </>
+                    ) : (
+                      "Save"
+                    )}
                   </Button>
                   <Button
                     size="sm"

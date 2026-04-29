@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { CircularLoader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -135,7 +136,14 @@ export function PersonaForm({ initialName, initialPersona }: Props) {
           <span className="text-xs text-muted-foreground">Unsaved changes</span>
         )}
         <Button onClick={() => void onSave()} disabled={saving || !dirty}>
-          {saving ? "Saving..." : "Save"}
+          {saving ? (
+            <>
+              <CircularLoader size="sm" />
+              Saving...
+            </>
+          ) : (
+            "Save"
+          )}
         </Button>
       </div>
     </div>
