@@ -26,11 +26,21 @@ const CHAT_RATE_LIMIT_RULES: RateLimitRule[] = [
   { scope: "chat:hour", limit: 200, windowSeconds: 60 * 60 },
 ];
 
-export async function checkChatRateLimit(): Promise<RateLimitDecision> {
+const SEARCH_RATE_LIMIT_RULES: RateLimitRule[] = [
+  { scope: "search:minute", limit: 30, windowSeconds: 60 },
+];
+
+const ONBOARDING_SEED_RATE_LIMIT_RULES: RateLimitRule[] = [
+  { scope: "onboarding_seed:hour", limit: 5, windowSeconds: 60 * 60 },
+];
+
+export async function checkRateLimit(
+  rules: RateLimitRule[],
+): Promise<RateLimitDecision> {
   const supabase = await createClient();
   let lastDecision: RateLimitDecision | null = null;
 
-  for (const rule of CHAT_RATE_LIMIT_RULES) {
+  for (const rule of rules) {
     const { data, error } = await supabase
       .rpc("check_rate_limit", {
         p_scope: rule.scope,
@@ -49,13 +59,27 @@ export async function checkChatRateLimit(): Promise<RateLimitDecision> {
     }
   }
 
-  return lastDecision ?? {
-    allowed: true,
-    limit: CHAT_RATE_LIMIT_RULES[0].limit,
-    remaining: CHAT_RATE_LIMIT_RULES[0].limit,
-    resetAt: new Date(Date.now() + 60_000).toISOString(),
-    retryAfter: 0,
-  };
+  return (
+    lastDecision ?? {
+      allowed: true,
+      limit: rules[0].limit,
+      remaining: rules[0].limit,
+      resetAt: new Date(Date.now() + 60_000).toISOString(),
+      retryAfter: 0,
+    }
+  );
+}
+
+export function checkChatRateLimit(): Promise<RateLimitDecision> {
+  return checkRateLimit(CHAT_RATE_LIMIT_RULES);
+}
+
+export function checkSearchRateLimit(): Promise<RateLimitDecision> {
+  return checkRateLimit(SEARCH_RATE_LIMIT_RULES);
+}
+
+export function checkOnboardingSeedRateLimit(): Promise<RateLimitDecision> {
+  return checkRateLimit(ONBOARDING_SEED_RATE_LIMIT_RULES);
 }
 
 export function buildRateLimitHeaders(
