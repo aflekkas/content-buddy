@@ -1,7 +1,6 @@
 @import url("https://api.fontshare.com/v2/css?f[]=open-sauce-sans@300,400,500,600,700&f[]=sentient@300,301,400,401,500,501,700,701&display=swap");
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "shadcn/tailwind.css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
