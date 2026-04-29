@@ -8,6 +8,7 @@ import {
   listProviderKeyMeta,
   setProviderKey,
 } from "@/lib/db/queries";
+import { validateProviderKey } from "@/lib/provider-validate";
 
 const PutBody = z.object({
   provider: z.enum(PROVIDER_IDS as [string, ...string[]]),
@@ -61,6 +62,23 @@ export async function PUT(req: Request) {
         expected: expectedPrefix,
       },
       { status: 400 },
+    );
+  }
+
+  const validation = await validateProviderKey(provider, key);
+  if (!validation.ok && validation.reason === "auth") {
+    return NextResponse.json(
+      {
+        error: "invalid_key",
+        message: "Provider rejected this key. Check it and try again.",
+      },
+      { status: 400 },
+    );
+  }
+  if (!validation.ok && validation.reason === "network") {
+    // Network/timeout — log and continue, don't block the user.
+    console.warn(
+      `[provider-validate] Network error validating ${provider} key — storing anyway`,
     );
   }
 
