@@ -1,24 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextRequest } from "next/server";
+import { errorResponse, requireAuth } from "@/lib/api";
 import { listVideos } from "@/lib/db/queries";
 import { buildVideoExport, isVideoExportFormat } from "@/lib/video-export";
 
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
 
   const format = req.nextUrl.searchParams.get("format");
   if (!isVideoExportFormat(format)) {
-    return NextResponse.json({ error: "invalid_format" }, { status: 400 });
+    return errorResponse("invalid_format", 400);
   }
 
-  const videos = await listVideos(user.id);
+  const videos = await listVideos(auth.user.id);
   const payload = buildVideoExport(videos, format);
 
   return new Response(payload.body, {

@@ -1,6 +1,10 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import {
+  errorResponse,
+  jsonResponse,
+  parseBody,
+  requireAuth,
+} from "@/lib/api";
 import { isProviderId, PROVIDER_IDS, PROVIDERS } from "@/lib/providers";
 import {
   clearProviderKey,
@@ -19,80 +23,50 @@ const DeleteBody = z.object({
 });
 
 export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
 
-  return NextResponse.json(await listProviderKeyMeta(user.id));
+  return jsonResponse(await listProviderKeyMeta(auth.user.id));
 }
 
 export async function PUT(req: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
 
-  const parsed = PutBody.safeParse(await req.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, PutBody);
+  if (!parsed.ok) return parsed.response;
   const { provider, key } = parsed.data;
   if (!isProviderId(provider)) {
-    return NextResponse.json({ error: "unknown_provider" }, { status: 400 });
+    return errorResponse("unknown_provider", 400);
   }
 
   const expectedPrefix = PROVIDERS[provider].keyPrefix;
   if (!key.trim().startsWith(expectedPrefix)) {
-    return NextResponse.json(
-      {
-        error: "wrong_prefix",
-        expected: expectedPrefix,
-      },
-      { status: 400 },
-    );
+    return errorResponse("wrong_prefix", 400, { expected: expectedPrefix });
   }
 
   const validation = await validateProviderKey(provider, key);
   if (!validation.ok && validation.reason === "auth") {
-    return NextResponse.json(
-      {
-        error: "invalid_key",
-        message: "Provider rejected this key. Check it and try again.",
-      },
-      { status: 400 },
-    );
+    return errorResponse("invalid_key", 400, {
+      message: "Provider rejected this key. Check it and try again.",
+    });
   }
-  // Network/timeout: continue — we can't disprove the key is valid, don't block the user.
 
-  const meta = await setProviderKey(user.id, provider, key);
-  return NextResponse.json(meta);
+  const meta = await setProviderKey(auth.user.id, provider, key);
+  return jsonResponse(meta);
 }
 
 export async function DELETE(req: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
 
-  const parsed = DeleteBody.safeParse(await req.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, DeleteBody);
+  if (!parsed.ok) return parsed.response;
   const { provider } = parsed.data;
   if (!isProviderId(provider)) {
-    return NextResponse.json({ error: "unknown_provider" }, { status: 400 });
+    return errorResponse("unknown_provider", 400);
   }
 
-  await clearProviderKey(user.id, provider);
-  return NextResponse.json({ ok: true });
+  await clearProviderKey(auth.user.id, provider);
+  return jsonResponse({ ok: true });
 }

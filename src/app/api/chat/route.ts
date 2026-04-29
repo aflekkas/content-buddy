@@ -8,23 +8,32 @@ import {
 } from "ai";
 import { z } from "zod";
 import { revalidateTag } from "next/cache";
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import {
+  errorResponse,
+  notFound,
+  requireAuth,
+  requireProviderKey,
+} from "@/lib/api";
 import { buildSystemMessages } from "@/lib/anthropic";
 import { getModel } from "@/lib/model-dispatch";
+import { providerSupportsImages } from "@/lib/providers";
 import {
   addChatUsage,
-  addUserFact,
-  appendMessage,
+  appendMemoryFile,
+  appendMessageWithParts,
+  createHook,
   createVideo,
+  ensureStarterMemoryFiles,
+  getMemoryFileByPath,
   getActiveModel,
   getChat,
-  getDecryptedProviderKey,
-  getUserProfile,
-  listUserFacts,
   setChatTitleIfEmpty,
+  summarizeMemoryFiles,
   updateVideo,
+  upsertMemoryFile,
 } from "@/lib/db/queries";
+import { MAX_MEMORY_CONTENT_LENGTH } from "@/lib/memory";
+import { extractText, filterPersistableParts } from "@/lib/message-parts";
 import { encodeProviderError, mapProviderError } from "@/lib/provider-errors";
 import { buildRateLimitHeaders, checkChatRateLimit } from "@/lib/rate-limit";
 
@@ -36,52 +45,49 @@ type ChatRequestBody = {
 };
 
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
 
   const rateLimit = await checkChatRateLimit();
   const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
   if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: "rate_limited", retryAfter: rateLimit.retryAfter },
-      { status: 429, headers: rateLimitHeaders },
+    return errorResponse(
+      "rate_limited",
+      429,
+      { retryAfter: rateLimit.retryAfter },
+      { headers: rateLimitHeaders },
     );
   }
 
   const { id: chatId, messages }: ChatRequestBody = await req.json();
 
   const chat = await getChat(chatId, user.id);
-  if (!chat) {
-    return NextResponse.json({ error: "chat_not_found" }, { status: 404 });
-  }
+  if (!chat) return notFound();
 
   const { provider, model } = await getActiveModel(user.id);
-  const apiKey = await getDecryptedProviderKey(user.id, provider);
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "missing_key", provider },
-      { status: 402 },
-    );
+  const keyResult = await requireProviderKey(user.id, provider);
+  if (!keyResult.ok) return keyResult.response;
+  const { apiKey } = keyResult;
+
+  const hasFileParts = messages.some((m) =>
+    m.parts.some((p) => p.type === "file"),
+  );
+  if (hasFileParts && !providerSupportsImages(provider)) {
+    return errorResponse("image_not_supported", 415, { provider });
   }
 
-  const [profile, facts] = await Promise.all([
-    getUserProfile(user.id),
-    listUserFacts(user.id),
-  ]);
+  const memoryFiles = await ensureStarterMemoryFiles(user.id);
+  const autoloadMemoryFiles = memoryFiles.filter((file) => file.autoload);
 
   const lastMessage = messages[messages.length - 1];
   if (lastMessage?.role === "user") {
-    const text = extractText(lastMessage);
-    if (text) {
-      await appendMessage(chatId, "user", text);
+    const persistableParts = filterPersistableParts(lastMessage.parts);
+    if (persistableParts.length > 0) {
+      await appendMessageWithParts(chatId, "user", persistableParts);
       revalidateTag(`chat:${chatId}:messages`, "max");
-      if (!chat.title) {
+      const text = extractText(lastMessage);
+      if (text && !chat.title) {
         generateChatTitle(chatId, text, provider, model, apiKey).catch((err) =>
           console.error("[chat] title generation failed", err),
         );
@@ -90,50 +96,109 @@ export async function POST(req: Request) {
   }
 
   const modelMessages = await convertToModelMessages(messages);
-  const knownFacts = new Set(facts.map((f) => f.content.toLowerCase().trim()));
   const userId = user.id;
 
   const result = streamText({
     model: getModel(provider, model, apiKey),
     messages: [
       ...buildSystemMessages({
-        bio: profile?.bio ?? "",
-        facts: facts.map((f) => f.content),
-        profile: profile
-          ? {
-              platforms: profile.platforms ?? [],
-              niche_primary: profile.niche_primary ?? null,
-              niche_secondary: profile.niche_secondary ?? [],
-              channel_pitch: profile.channel_pitch ?? null,
-              audience_stage: profile.audience_stage ?? null,
-              primary_goal: profile.primary_goal ?? null,
-            }
-          : null,
+        memoryFiles: autoloadMemoryFiles,
       }),
       ...modelMessages,
     ],
     stopWhen: stepCountIs(5),
     tools: {
-      remember_user_fact: tool({
+      list_memory_files: tool({
         description:
-          "Store a stable fact about the creator (niche, platforms, audience, goals, constraints, brand voice) for future conversations. Do not use for ephemeral state.",
+          "List the creator's markdown memory files so you can decide what deeper context to read or update.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const files = await ensureStarterMemoryFiles(userId);
+          return { files: summarizeMemoryFiles(files) };
+        },
+      }),
+      read_memory_file: tool({
+        description:
+          "Read a markdown memory file by exact path, for example identity.md, facts.md, or facts/audience.md.",
         inputSchema: z.object({
-          fact: z
+          path: z
             .string()
-            .min(3)
-            .max(300)
-            .describe(
-              "A single fact about the creator, phrased in third person (e.g., 'creator is a fitness coach targeting busy parents').",
-            ),
+            .min(1)
+            .max(180)
+            .describe("The exact markdown memory path to read."),
         }),
-        execute: async ({ fact }) => {
-          const normalized = fact.toLowerCase().trim();
-          if (knownFacts.has(normalized)) {
-            return { saved: false, reason: "duplicate" };
+        execute: async ({ path }) => {
+          const file =
+            (await getMemoryFileByPath(userId, path)) ??
+            (await ensureStarterMemoryFiles(userId)).find(
+              (memoryFile) => memoryFile.path === path,
+            );
+          if (!file) {
+            return { error: "not_found" as const };
           }
-          await addUserFact(userId, fact.trim());
-          knownFacts.add(normalized);
-          return { saved: true };
+          return {
+            path: file.path,
+            title: file.title,
+            content: file.content,
+            autoload: file.autoload,
+            updated_at: file.updated_at,
+          };
+        },
+      }),
+      upsert_memory_file: tool({
+        description:
+          "Create or replace a markdown memory file. Use for stable creator context. Organize detailed learned facts under facts/ and keep facts.md as an index.",
+        inputSchema: z.object({
+          path: z.string().min(1).max(180),
+          title: z.string().max(120).optional(),
+          content: z.string().min(1).max(MAX_MEMORY_CONTENT_LENGTH),
+          autoload: z.boolean().optional(),
+        }),
+        execute: async ({ path, title, content, autoload }) => {
+          try {
+            const file = await upsertMemoryFile(userId, {
+              path,
+              title,
+              content: content.trim(),
+              autoload,
+              source: "agent",
+            });
+            return {
+              path: file.path,
+              title: file.title,
+              autoload: file.autoload,
+              updated_at: file.updated_at,
+            };
+          } catch {
+            return { error: "memory_unavailable" as const, path };
+          }
+        },
+      }),
+      append_memory_file: tool({
+        description:
+          "Append markdown to an existing memory file, or create it if missing. Use this for adding one stable fact or a short section without rewriting the whole file.",
+        inputSchema: z.object({
+          path: z.string().min(1).max(180),
+          content: z.string().min(1).max(4000),
+          autoload: z.boolean().optional(),
+        }),
+        execute: async ({ path, content, autoload }) => {
+          try {
+            const file = await appendMemoryFile(userId, {
+              path,
+              content: content.trim(),
+              autoload,
+              source: "agent",
+            });
+            return {
+              path: file.path,
+              title: file.title,
+              autoload: file.autoload,
+              updated_at: file.updated_at,
+            };
+          } catch {
+            return { error: "memory_unavailable" as const, path };
+          }
         },
       }),
       create_video: tool({
@@ -155,7 +220,45 @@ export async function POST(req: Request) {
           return {
             id: video.id,
             title: video.title,
+            hook: video.hook,
             status: video.status,
+            chat_id: video.chat_id,
+            updated_at: video.updated_at,
+          };
+        },
+      }),
+      save_hook: tool({
+        description:
+          "Save a reusable opening line / hook to the creator's swipe file. Use when the conversation lands on a punchy hook the creator may want to reuse beyond a single video.",
+        inputSchema: z.object({
+          text: z
+            .string()
+            .min(10)
+            .max(500)
+            .describe("The hook line itself. 10-500 characters."),
+          notes: z
+            .string()
+            .max(1000)
+            .optional()
+            .describe("Optional context, why it works, or a usage tip."),
+          tags: z
+            .array(z.string().min(1).max(40))
+            .max(10)
+            .optional()
+            .describe("Optional short tags such as 'curiosity', 'list', 'contrarian'."),
+        }),
+        execute: async ({ text, notes, tags }) => {
+          const hook = await createHook(userId, {
+            text: text.trim(),
+            notes: notes?.trim(),
+            tags: tags?.map((t) => t.trim()).filter(Boolean),
+            source: "chat",
+            sourceChatId: chatId,
+          });
+          return {
+            id: hook.id,
+            text: hook.text,
+            tags: hook.tags,
           };
         },
       }),
@@ -177,7 +280,15 @@ export async function POST(req: Request) {
             status: patch.status,
           });
 
-          return video ?? { error: "not_found" as const };
+          if (!video) return { error: "not_found" as const };
+          return {
+            id: video.id,
+            title: video.title,
+            hook: video.hook,
+            status: video.status,
+            chat_id: video.chat_id,
+            updated_at: video.updated_at,
+          };
         },
       }),
     },
@@ -207,9 +318,13 @@ export async function POST(req: Request) {
     onFinish: async ({ messages: finalMessages }) => {
       const assistantMsg = finalMessages[finalMessages.length - 1];
       if (assistantMsg?.role === "assistant") {
-        const text = extractText(assistantMsg);
-        if (text) {
-          await appendMessage(chatId, "assistant", text);
+        const persistableParts = filterPersistableParts(assistantMsg.parts);
+        if (persistableParts.length > 0) {
+          await appendMessageWithParts(
+            chatId,
+            "assistant",
+            persistableParts,
+          );
           revalidateTag(`chat:${chatId}:messages`, "max");
         }
       }
@@ -224,19 +339,10 @@ export async function POST(req: Request) {
           cacheCreationTokens: total.inputTokenDetails?.cacheWriteTokens ?? 0,
         });
       } catch (err) {
-        // usage tracking is best-effort; don't fail the response
         console.error("[chat] addChatUsage failed", err);
       }
     },
   });
-}
-
-function extractText(message: UIMessage): string {
-  return message.parts
-    .filter((p): p is { type: "text"; text: string } => p.type === "text")
-    .map((p) => p.text)
-    .join("")
-    .trim();
 }
 
 async function generateChatTitle(

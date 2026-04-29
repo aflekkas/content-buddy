@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
-import { deleteVideo, updateVideo } from "@/lib/db/queries";
+import {
+  jsonResponse,
+  notFound,
+  parseBody,
+  requireAuth,
+} from "@/lib/api";
+import { deleteVideo, getVideo, updateVideo } from "@/lib/db/queries";
 
 const PatchBody = z
   .object({
@@ -14,53 +18,50 @@ const PatchBody = z
     message: "Patch must include at least one field",
   });
 
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+
+  const { id } = await params;
+  const video = await getVideo(auth.user.id, id);
+  if (!video) return notFound();
+
+  return jsonResponse(video);
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
 
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const parsed = PatchBody.safeParse(await req.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
-  }
+  const parsed = await parseBody(req, PatchBody);
+  if (!parsed.ok) return parsed.response;
 
   const { id } = await params;
-  const video = await updateVideo(user.id, id, {
+  const video = await updateVideo(auth.user.id, id, {
     title: parsed.data.title?.trim(),
     hook: parsed.data.hook?.trim(),
     script: parsed.data.script?.trim(),
     status: parsed.data.status,
   });
 
-  if (!video) {
-    return NextResponse.json({ error: "not_found" }, { status: 404 });
-  }
-
-  return NextResponse.json(video);
+  if (!video) return notFound();
+  return jsonResponse(video);
 }
 
 export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
 
   const { id } = await params;
-  await deleteVideo(user.id, id);
+  await deleteVideo(auth.user.id, id);
   return new Response(null, { status: 204 });
 }

@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { jsonResponse, parseBody, requireAuth } from "@/lib/api";
 import {
   getUserProfile,
   listUserFacts,
@@ -12,41 +11,27 @@ const PatchBody = z.object({
 });
 
 export async function GET() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
 
   const [profile, facts] = await Promise.all([
-    getUserProfile(user.id),
-    listUserFacts(user.id),
+    getUserProfile(auth.user.id),
+    listUserFacts(auth.user.id),
   ]);
 
-  return NextResponse.json({
+  return jsonResponse({
     bio: profile?.bio ?? "",
     facts,
   });
 }
 
 export async function PATCH(req: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
 
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const parsed = await parseBody(req, PatchBody);
+  if (!parsed.ok) return parsed.response;
 
-  const parsed = PatchBody.safeParse(await req.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
-  }
-
-  const profile = await upsertUserProfile(user.id, parsed.data.bio);
-  return NextResponse.json({ bio: profile.bio });
+  const profile = await upsertUserProfile(auth.user.id, parsed.data.bio);
+  return jsonResponse({ bio: profile.bio });
 }

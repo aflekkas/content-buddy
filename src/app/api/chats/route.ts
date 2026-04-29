@@ -1,17 +1,10 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { jsonResponse, requireAuth } from "@/lib/api";
 import { createChat } from "@/lib/db/queries";
 
 export async function POST() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
 
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const chat = await createChat(user.id);
-  return NextResponse.json(chat, { status: 201 });
+  const chat = await createChat(auth.user.id);
+  return jsonResponse(chat, { status: 201 });
 }

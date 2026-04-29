@@ -1,6 +1,5 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { jsonResponse, parseBody, requireAuth } from "@/lib/api";
 import { createVideo } from "@/lib/db/queries";
 
 const PostBody = z.object({
@@ -11,26 +10,18 @@ const PostBody = z.object({
 });
 
 export async function POST(req: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
 
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const parsed = await parseBody(req, PostBody);
+  if (!parsed.ok) return parsed.response;
 
-  const parsed = PostBody.safeParse(await req.json());
-  if (!parsed.success) {
-    return NextResponse.json({ error: "invalid_body" }, { status: 400 });
-  }
-
-  const video = await createVideo(user.id, {
+  const video = await createVideo(auth.user.id, {
     chatId: parsed.data.chat_id,
     title: parsed.data.title.trim(),
     hook: parsed.data.hook?.trim(),
     script: parsed.data.script?.trim(),
   });
 
-  return NextResponse.json(video);
+  return jsonResponse(video);
 }
