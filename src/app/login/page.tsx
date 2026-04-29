@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { AuthForm } from "@/components/auth/auth-form";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 function isSafeNext(value: string | undefined): value is string {
   if (!value) return false;
@@ -30,14 +31,16 @@ export default async function LoginPage({
   return (
     <div className="relative">
       <div className="absolute top-4 left-4 md:top-6 md:left-6 z-10">
-        <Button asChild variant="ghost" size="sm" className="group">
-          <Link href="/">
-            <span className="transition-transform duration-200 ease-out group-hover:-translate-x-0.5">
-              <ArrowLeft className="h-4 w-4" />
-            </span>
-            Home
-          </Link>
-        </Button>
+        <Link
+          href="/"
+          className={cn(
+            buttonVariants({ variant: "ghost", size: "sm" }),
+            "group"
+          )}
+        >
+          <ArrowLeft className="size-3.5 transition-transform duration-200 ease-out group-hover:-translate-x-0.5" />
+          Home
+        </Link>
       </div>
       <AuthForm />
     </div>
