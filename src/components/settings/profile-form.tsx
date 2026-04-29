@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,18 +39,48 @@ const GOAL_OPTIONS: { value: PrimaryGoal; label: string }[] = [
   { value: "experiment", label: "Experiment" },
 ];
 
+function snapshotKey(state: {
+  platforms: string[];
+  niche: string;
+  pitch: string;
+  audience: string;
+  goal: string;
+}) {
+  return [
+    [...state.platforms].sort().join(","),
+    state.niche,
+    state.pitch.trim(),
+    state.audience,
+    state.goal,
+  ].join("|");
+}
+
 export function ProfileForm({ profile }: Props) {
-  const router = useRouter();
-  const [platforms, setPlatforms] = useState<OnboardingPlatform[]>(
-    (profile.platforms ?? []) as OnboardingPlatform[],
+  const initialPlatforms = (profile.platforms ?? []) as OnboardingPlatform[];
+  const initialNiche = profile.niche_primary ?? "";
+  const initialPitch = profile.channel_pitch ?? "";
+  const initialAudience = profile.audience_stage ?? "";
+  const initialGoal = profile.primary_goal ?? "";
+
+  const [platforms, setPlatforms] =
+    useState<OnboardingPlatform[]>(initialPlatforms);
+  const [niche, setNiche] = useState(initialNiche);
+  const [pitch, setPitch] = useState(initialPitch);
+  const [audience, setAudience] = useState<AudienceStage | "">(initialAudience);
+  const [goal, setGoal] = useState<PrimaryGoal | "">(initialGoal);
+  const [savedKey, setSavedKey] = useState(() =>
+    snapshotKey({
+      platforms: initialPlatforms,
+      niche: initialNiche,
+      pitch: initialPitch,
+      audience: initialAudience,
+      goal: initialGoal,
+    }),
   );
-  const [niche, setNiche] = useState(profile.niche_primary ?? "");
-  const [pitch, setPitch] = useState(profile.channel_pitch ?? "");
-  const [audience, setAudience] = useState<AudienceStage | "">(
-    profile.audience_stage ?? "",
-  );
-  const [goal, setGoal] = useState<PrimaryGoal | "">(profile.primary_goal ?? "");
   const [saving, setSaving] = useState(false);
+
+  const currentKey = snapshotKey({ platforms, niche, pitch, audience, goal });
+  const dirty = currentKey !== savedKey;
 
   function togglePlatform(id: OnboardingPlatform) {
     setPlatforms((prev) =>
@@ -76,8 +105,8 @@ export function ProfileForm({ profile }: Props) {
         }),
       });
       if (!res.ok) throw new Error("save_failed");
+      setSavedKey(currentKey);
       toast.success("Profile updated");
-      router.refresh();
     } catch {
       toast.error("Could not save profile");
     } finally {
@@ -86,10 +115,10 @@ export function ProfileForm({ profile }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <Label>Platforms</Label>
-        <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-col gap-6">
+      <section className="flex flex-col gap-2">
+        <Label className="text-sm font-medium">Platforms</Label>
+        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
           {ONBOARDING_PLATFORMS.map((p) => {
             const active = platforms.includes(p.id);
             return (
@@ -98,9 +127,9 @@ export function ProfileForm({ profile }: Props) {
                 type="button"
                 onClick={() => togglePlatform(p.id)}
                 className={cn(
-                  "rounded-md border px-2.5 py-1 text-xs transition-colors",
+                  "rounded-lg border px-3 py-2 text-sm transition-colors",
                   active
-                    ? "border-primary bg-primary/10 text-foreground"
+                    ? "border-primary bg-primary/5 text-foreground"
                     : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
                 )}
               >
@@ -109,9 +138,9 @@ export function ProfileForm({ profile }: Props) {
             );
           })}
         </div>
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <SelectField
           id="profile-niche"
           label="Primary niche"
@@ -129,32 +158,41 @@ export function ProfileForm({ profile }: Props) {
           onValueChange={(v) => setAudience(v as AudienceStage)}
           options={AUDIENCE_OPTIONS}
         />
-      </div>
+        <div className="sm:col-span-2">
+          <SelectField
+            id="profile-goal"
+            label="Primary goal"
+            value={goal}
+            onValueChange={(v) => setGoal(v as PrimaryGoal)}
+            options={GOAL_OPTIONS}
+          />
+        </div>
+      </section>
 
-      <SelectField
-        id="profile-goal"
-        label="Primary goal"
-        value={goal}
-        onValueChange={(v) => setGoal(v as PrimaryGoal)}
-        options={GOAL_OPTIONS}
-      />
-
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="profile-pitch">Channel pitch</Label>
+      <section className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="profile-pitch" className="text-sm font-medium">
+            Channel pitch
+          </Label>
+          <span className="text-xs text-muted-foreground">
+            {pitch.length}/{PITCH_MAX}
+          </span>
+        </div>
         <Textarea
           id="profile-pitch"
           value={pitch}
           onChange={(e) => setPitch(e.target.value.slice(0, PITCH_MAX))}
           placeholder="One sentence on what your channel is and who it's for"
           rows={3}
+          className="leading-relaxed"
         />
-        <p className="text-right text-xs text-muted-foreground">
-          {pitch.length}/{PITCH_MAX}
-        </p>
-      </div>
+      </section>
 
-      <div className="flex items-center gap-2">
-        <Button onClick={() => void onSave()} disabled={saving} size="sm">
+      <div className="flex items-center justify-end gap-3 border-t pt-4">
+        {dirty && !saving && (
+          <span className="text-xs text-muted-foreground">Unsaved changes</span>
+        )}
+        <Button onClick={() => void onSave()} disabled={saving || !dirty}>
           {saving ? "Saving..." : "Save"}
         </Button>
       </div>

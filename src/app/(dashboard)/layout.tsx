@@ -42,7 +42,6 @@ export default async function DashboardLayout({
       profile={profile}
       initialFacts={facts}
       initialMemoryFiles={memoryFiles}
-      email={user.email ?? ""}
     >
       <div className="h-svh overflow-hidden flex flex-col">{children}</div>
     </SettingsDialogProvider>

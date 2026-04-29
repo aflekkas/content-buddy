@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import {
   Dialog,
   DialogContent,
@@ -20,8 +21,8 @@ import { SectionHeader } from "@/components/settings/section-header";
 import { PersonaForm } from "@/components/settings/persona-form";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { MemorySection } from "@/components/settings/memory-section";
-import { AccountSection } from "@/components/settings/account-section";
 import { isProviderId } from "@/lib/providers";
+import { useReducedMotionSafe } from "@/lib/motion";
 import type {
   ActiveModel as Active,
   MemoryFileRow,
@@ -36,8 +37,7 @@ export type SettingsView =
   | "keys"
   | "persona"
   | "profile"
-  | "memory"
-  | "account";
+  | "memory";
 
 type SettingsDialogContextValue = {
   open: () => void;
@@ -63,7 +63,6 @@ type ProviderProps = {
   profile: UserProfileRow | null;
   initialFacts: UserFactRow[];
   initialMemoryFiles: MemoryFileRow[];
-  email: string;
 };
 
 const SECTION_TITLES: Record<
@@ -88,9 +87,6 @@ const SECTION_TITLES: Record<
     title: "Memory",
     subtitle: "Facts the bot has remembered and the knowledge files it loads.",
   },
-  account: {
-    title: "Account",
-  },
 };
 
 export function SettingsDialogProvider({
@@ -100,7 +96,6 @@ export function SettingsDialogProvider({
   profile,
   initialFacts,
   initialMemoryFiles,
-  email,
 }: ProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [view, setView] = useState<SettingsView>("home");
@@ -131,22 +126,101 @@ export function SettingsDialogProvider({
       {children}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="sm:max-w-2xl">
-          {view === "home" ? (
-            <DialogHeader>
-              <DialogTitle>Settings</DialogTitle>
-              <DialogDescription>
-                Configure how the bot behaves, your profile, keys, and memory.
-              </DialogDescription>
-            </DialogHeader>
-          ) : (
-            <SectionHeader
-              title={SECTION_TITLES[view].title}
-              subtitle={SECTION_TITLES[view].subtitle}
-              onBack={() => setView("home")}
-            />
-          )}
+          <SettingsBody
+            view={view}
+            setView={setView}
+            initialKeys={initialKeys}
+            active={active}
+            profile={profile}
+            initialFacts={initialFacts}
+            initialMemoryFiles={initialMemoryFiles}
+          />
+        </DialogContent>
+      </Dialog>
+    </SettingsDialogContext.Provider>
+  );
+}
 
-          <div className="max-h-[65vh] overflow-y-auto px-1">
+type BodyProps = {
+  view: SettingsView;
+  setView: (v: SettingsView) => void;
+  initialKeys: ProviderKeyMetaRow[];
+  active: Active;
+  profile: UserProfileRow | null;
+  initialFacts: UserFactRow[];
+  initialMemoryFiles: MemoryFileRow[];
+};
+
+function SettingsBody({
+  view,
+  setView,
+  initialKeys,
+  active,
+  profile,
+  initialFacts,
+  initialMemoryFiles,
+}: BodyProps) {
+  const reducedMotion = useReducedMotionSafe();
+  // Apple-style "ease-out-quint" curve — fast start, gentle settle, no spring overshoot.
+  const APPLE_EASE = [0.32, 0.72, 0, 1] as const;
+  const sizeTransition = { duration: 0.32, ease: APPLE_EASE };
+  const fadeTransition = { duration: 0.18, ease: APPLE_EASE };
+
+  return (
+    <motion.div
+      layout={reducedMotion ? false : true}
+      transition={sizeTransition}
+      className="flex flex-col gap-4 overflow-hidden"
+    >
+      <motion.div layout="position" transition={sizeTransition}>
+        <AnimatePresence mode="popLayout" initial={false}>
+          {view === "home" ? (
+            <motion.div
+              key="header-home"
+              initial={reducedMotion ? false : { opacity: 0, y: -2 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -2 }}
+              transition={fadeTransition}
+            >
+              <DialogHeader>
+                <DialogTitle>Settings</DialogTitle>
+                <DialogDescription>
+                  Configure how the bot behaves, your profile, keys, and memory.
+                </DialogDescription>
+              </DialogHeader>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={`header-${view}`}
+              initial={reducedMotion ? false : { opacity: 0, y: -2 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -2 }}
+              transition={fadeTransition}
+            >
+              <SectionHeader
+                title={SECTION_TITLES[view].title}
+                subtitle={SECTION_TITLES[view].subtitle}
+                onBack={() => setView("home")}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+
+      <motion.div
+        layout={reducedMotion ? false : true}
+        transition={sizeTransition}
+        className="max-h-[65vh] overflow-y-auto px-1"
+      >
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={view}
+            initial={reducedMotion ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6, position: "absolute" }}
+            transition={fadeTransition}
+            className="w-full"
+          >
             {view === "home" && <SettingsHome onSelect={setView} />}
             {view === "keys" && (
               <KeysForm initialKeys={initialKeys} initialActive={active} />
@@ -164,10 +238,9 @@ export function SettingsDialogProvider({
                 initialMemoryFiles={initialMemoryFiles}
               />
             )}
-            {view === "account" && <AccountSection email={email} />}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </SettingsDialogContext.Provider>
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
   );
 }

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Brain,
-  ChevronRight,
-  KeyRound,
-  Sparkles,
-  User,
-  UserCircle,
-} from "lucide-react";
+import { Bot, Brain, ChevronRight, KeyRound, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Stagger, StaggerItem } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
@@ -31,7 +24,7 @@ const CARDS: Card[] = [
     view: "persona",
     title: "Bot persona",
     subtitle: "Name your assistant and shape its voice",
-    icon: Sparkles,
+    icon: Bot,
   },
   {
     view: "profile",
@@ -45,12 +38,6 @@ const CARDS: Card[] = [
     subtitle: "Remembered facts and knowledge files",
     icon: Brain,
   },
-  {
-    view: "account",
-    title: "Account",
-    subtitle: "Email and sign out",
-    icon: UserCircle,
-  },
 ];
 
 type Props = {
@@ -59,14 +46,14 @@ type Props = {
 
 export function SettingsHome({ onSelect }: Props) {
   return (
-    <Stagger className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <Stagger className="grid auto-rows-fr grid-cols-1 gap-2 sm:grid-cols-2">
       {CARDS.map((card) => (
-        <StaggerItem key={card.view}>
+        <StaggerItem key={card.view} className="h-full">
           <button
             type="button"
             onClick={() => onSelect(card.view)}
             className={cn(
-              "group flex w-full items-center gap-3 rounded-xl border bg-background p-4 text-left transition-colors",
+              "group flex h-full w-full items-center gap-3 rounded-xl border bg-background p-4 text-left transition-colors",
               "hover:bg-muted/50 focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
             )}
           >
