@@ -3,17 +3,27 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  FileText,
   ListVideo,
   MessageSquarePlus,
   Search,
   Sparkles,
-  UserRound,
 } from "lucide-react";
+import { ColumnHeader } from "@/components/cockpit/column-header";
+import {
+  CockpitFrame,
+  CockpitTopBarFrame,
+  cockpitDashedPanelClass,
+  cockpitIconButtonClass,
+  cockpitInputClass,
+  cockpitSoftPanelClass,
+} from "@/components/cockpit/cockpit-primitives";
 import { CircularLoader } from "@/components/ui/loader";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { SkeletonBar } from "@/components/ui/skeleton-bar";
-import { BRAND_NAME } from "@/lib/brand";
+import { LogoLockup } from "@/components/logo";
 import { cn } from "@/lib/utils";
+import { VIDEO_STATUS_BY_KEY } from "@/lib/video-status";
 import type { DemoPhase } from "./demo-types";
 
 type FactRow = { id: string; content: string };
@@ -64,18 +74,9 @@ const VIDEOS: VideoRow[] = [
 ];
 
 const STATUS_CHIP: Record<StatusKey, { label: string; chip: string }> = {
-  idea: {
-    label: "Idea",
-    chip: "bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300",
-  },
-  ready: {
-    label: "Ready to film",
-    chip: "bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300",
-  },
-  filmed: {
-    label: "Filmed",
-    chip: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300",
-  },
+  idea: { label: VIDEO_STATUS_BY_KEY.idea.label, chip: VIDEO_STATUS_BY_KEY.idea.chip },
+  ready: { label: VIDEO_STATUS_BY_KEY.ready.label, chip: VIDEO_STATUS_BY_KEY.ready.chip },
+  filmed: { label: VIDEO_STATUS_BY_KEY.filmed.label, chip: VIDEO_STATUS_BY_KEY.filmed.chip },
 };
 
 const FILTERS: { key: "all" | StatusKey; label: string; count: number }[] = [
@@ -130,7 +131,7 @@ export function CockpitMockup({
   overlaySlot = null,
 }: Props) {
   return (
-    <div className="relative mx-auto flex w-full max-w-6xl flex-col overflow-hidden rounded-2xl border bg-background shadow-2xl shadow-primary/5 lg:aspect-video">
+    <CockpitFrame variant="preview">
       <BorderBeam
         size={220}
         duration={9}
@@ -156,7 +157,7 @@ export function CockpitMockup({
       </div>
 
       {overlaySlot}
-    </div>
+    </CockpitFrame>
   );
 }
 
@@ -172,8 +173,8 @@ function FakeTopBar({ phase }: { phase: DemoPhase }) {
   }, [phase]);
 
   return (
-    <div className="flex h-12 shrink-0 items-center justify-between border-b bg-background px-4">
-      <span className="text-sm font-medium tracking-tight">{BRAND_NAME}</span>
+    <CockpitTopBarFrame>
+      <LogoLockup iconClassName="size-[18px]" textClassName="hidden sm:inline" />
       <div className="flex items-center gap-3">
         <AnimatePresence mode="wait">
           {phase === "running" ? (
@@ -213,36 +214,7 @@ function FakeTopBar({ phase }: { phase: DemoPhase }) {
         </AnimatePresence>
         <span className="size-7 rounded-full bg-muted" aria-hidden />
       </div>
-    </div>
-  );
-}
-
-function FakeColumnHeader({
-  Icon,
-  title,
-  description,
-  trailing,
-}: {
-  Icon: React.ComponentType<{ className?: string }>;
-  title: React.ReactNode;
-  description?: string;
-  trailing?: React.ReactNode;
-}) {
-  return (
-    <div className="flex h-12 shrink-0 items-center gap-2.5 border-b bg-muted/50 px-3">
-      <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
-        <Icon className="size-3.5" />
-      </span>
-      <div className="min-w-0 flex-1 leading-tight">
-        <p className="truncate text-xs font-medium text-foreground">{title}</p>
-        {description ? (
-          <p className="truncate text-[11px] text-muted-foreground">
-            {description}
-          </p>
-        ) : null}
-      </div>
-      {trailing}
-    </div>
+    </CockpitTopBarFrame>
   );
 }
 
@@ -267,17 +239,17 @@ function FakeBrandPanel({ phase }: { phase: DemoPhase }) {
 
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r">
-      <FakeColumnHeader
-        Icon={UserRound}
-        title="About you"
-        description="Who you are and who it's for."
+      <ColumnHeader
+        icon={FileText}
+        title="Memory"
+        description="Files the agent can read."
       />
       <div className="flex-1 space-y-4 overflow-hidden p-3">
         <div>
           <label className="mb-1.5 block text-[11px] font-medium text-muted-foreground">
             Bio
           </label>
-          <div className="space-y-1.5 rounded-md border bg-muted/40 p-2.5">
+          <div className={cn("space-y-1.5 p-2.5", cockpitSoftPanelClass)}>
             <SkeletonBar className="h-2.5 w-11/12" />
             <SkeletonBar className="h-2.5 w-full" />
             <SkeletonBar className="h-2.5 w-3/4" />
@@ -304,7 +276,7 @@ function FakeBrandPanel({ phase }: { phase: DemoPhase }) {
                     ease: EASE,
                     delay: FACT_DELAY + i * FACT_STAGGER,
                   }}
-                  className="rounded-md border bg-muted/30 px-2.5 py-1.5"
+                  className={cn("px-2.5 py-1.5", cockpitSoftPanelClass)}
                 >
                   <SkeletonBar
                     className={cn(
@@ -316,7 +288,7 @@ function FakeBrandPanel({ phase }: { phase: DemoPhase }) {
               ) : (
                 <li
                   key={f.id}
-                  className="rounded-md border border-dashed bg-muted/20 px-2.5 py-1.5"
+                  className={cn("px-2.5 py-1.5", cockpitDashedPanelClass)}
                 >
                   <SkeletonBar
                     className={cn(
@@ -339,15 +311,20 @@ function FakeVideoQueue({ phase }: { phase: DemoPhase }) {
 
   return (
     <aside className="flex w-80 shrink-0 flex-col border-r">
-      <FakeColumnHeader
-        Icon={ListVideo}
+      <ColumnHeader
+        icon={ListVideo}
         title="Video queue"
         description="What to make next."
       />
       <div className="space-y-2 border-b bg-background/80 px-3 py-2.5">
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <div className="h-8 w-full rounded-md border bg-background pr-2 pl-7 text-[11px] leading-8 text-muted-foreground">
+          <div
+            className={cn(
+              "h-8 w-full rounded-md pr-2 pl-7 text-[11px] leading-8 text-muted-foreground",
+              cockpitInputClass,
+            )}
+          >
             Search videos
           </div>
         </div>
@@ -391,7 +368,7 @@ function FakeVideoQueue({ phase }: { phase: DemoPhase }) {
                     ease: EASE,
                     delay: ROW_DELAY + i * ROW_STAGGER,
                   }}
-                  className="space-y-1.5 rounded-lg border bg-muted/20 p-2.5"
+                  className={cn("space-y-1.5 p-2.5", cockpitSoftPanelClass)}
                 >
                   <div className="flex items-center gap-1.5">
                     <span
@@ -414,7 +391,7 @@ function FakeVideoQueue({ phase }: { phase: DemoPhase }) {
           : VIDEOS.map((v) => (
               <li
                 key={v.id}
-                className="space-y-1.5 rounded-lg border border-dashed bg-muted/20 p-2.5"
+                className={cn("space-y-1.5 p-2.5", cockpitDashedPanelClass)}
               >
                 <SkeletonBar className="h-2 w-1/4" />
                 <SkeletonBar className="h-2.5 w-3/4" />
@@ -453,16 +430,16 @@ function FakeChat({
         compact && "h-full",
       )}
     >
-      <FakeColumnHeader
-        Icon={Sparkles}
-        title={
-          <span className="inline-flex items-center gap-1.5">
+      <ColumnHeader
+        icon={Sparkles}
+        titleSlot={
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground">
             {headerTitle}
             <span className="text-muted-foreground">▾</span>
           </span>
         }
-        trailing={
-          <span className="hidden size-7 items-center justify-center rounded-md border bg-background text-muted-foreground sm:inline-flex">
+        right={
+          <span className={cn("hidden sm:inline-flex", cockpitIconButtonClass)}>
             <MessageSquarePlus className="size-3.5" />
           </span>
         }

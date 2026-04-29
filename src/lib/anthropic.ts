@@ -1,23 +1,15 @@
 import type { ModelMessage } from "ai";
 import { getPatternLibrary } from "@/lib/patterns/library";
-import type { AudienceStage, PrimaryGoal } from "@/lib/db/types";
+import { AUDIENCE_LABEL, GOAL_LABEL } from "@/lib/labels";
+import type {
+  AudienceStage,
+  MemoryFileRow,
+  PrimaryGoal,
+} from "@/lib/db/types";
 
 export const MODEL_ID = "claude-sonnet-4-6";
 
-const AUDIENCE_LABEL: Record<AudienceStage, string> = {
-  starting: "just starting (0-1k followers)",
-  growing: "growing (1k-10k followers)",
-  established: "established (10k-100k followers)",
-  large: "large (100k+ followers)",
-};
-
-const GOAL_LABEL: Record<PrimaryGoal, string> = {
-  grow: "grow followers",
-  monetize: "monetize",
-  brand: "build personal brand",
-  traffic: "drive traffic to something off-platform",
-  experiment: "experiment without a fixed goal",
-};
+export const DEFAULT_ASSISTANT_NAME = "Shortform Studio";
 
 const CORE_INSTRUCTIONS = `You are Shortform Studio, an expert advisor for short-form video creators.
 
@@ -42,16 +34,46 @@ Platform shortcodes:
 - Use them naturally in prose (e.g. "post this on :linkedin: and :x:", ":tiktok: vs :instagram: retention"). Don't over-use, one per mention is enough.
 
 Memory:
-- You have a tool called remember_user_fact. Call it whenever the creator tells you something stable about themselves that you'd want to know next time: niche, platform(s), audience, business model, goals, what's worked or flopped, constraints, brand voice.
-- Do NOT save ephemeral chat state (what they're asking about right now, one-off questions).
-- Do NOT save duplicates. The facts you already know are in the "what you know about this creator" section below; skip anything that overlaps.
-- Save one fact per call, phrased in third person ("creator is a fitness coach", "posts primarily on Instagram Reels").
-- You do not need to tell the user you're remembering something; just do it and keep answering.
+- The creator's durable memory is organized as markdown files.
+- Autoloaded memory files are shown below every chat. Other files are available through memory tools.
+- Use list_memory_files and read_memory_file when the creator asks for advice that may depend on deeper context not already loaded.
+- When the creator tells you something stable about themselves, their audience, offer, platforms, content style, constraints, wins, or failures, store it with upsert_memory_file or append_memory_file.
+- Prefer organized markdown under facts/ for learned details. Keep facts.md as a short index that points to deeper files.
+- Do NOT save ephemeral chat state, one-off questions, or duplicate information.
+- You do not need to ask permission before updating memory when the detail is clearly stable.
 - When the creator lands on a specific video idea, call create_video with a short working title and any hook/script language discussed so far.
 - As you refine the hook or full script with them, call update_video with the id.
 - Don't ask permission before saving a video idea. Save it and mention it briefly, for example "saved this to your queue."
 - Use status=ready only when both the hook and script are fleshed out.
 - Never set status=filmed. The user toggles that themselves.`;
+
+type UserContext = {
+  memoryFiles: MemoryFileRow[];
+  assistantName?: string | null;
+  assistantPersona?: string | null;
+};
+
+function buildPersonaBlock(
+  name: string | null | undefined,
+  persona: string | null | undefined,
+): string | null {
+  const trimmedName = name?.trim();
+  const trimmedPersona = persona?.trim();
+  if (!trimmedName && !trimmedPersona) return null;
+
+  const lines: string[] = [];
+  if (trimmedName) {
+    lines.push(
+      `The creator has named you "${trimmedName}". Refer to yourself by that name when self-referential ("I'm ${trimmedName}", signing off, etc.). It overrides the default "Shortform Studio" identity.`,
+    );
+  }
+  if (trimmedPersona) {
+    lines.push(
+      `Adopt this personality and voice in every reply. Stay in character without being theatrical:\n${trimmedPersona}`,
+    );
+  }
+  return lines.join("\n\n");
+}
 
 type CreatorProfile = {
   platforms: string[];
@@ -60,12 +82,6 @@ type CreatorProfile = {
   channel_pitch: string | null;
   audience_stage: AudienceStage | null;
   primary_goal: PrimaryGoal | null;
-};
-
-type UserContext = {
-  bio: string;
-  facts: string[];
-  profile?: CreatorProfile | null;
 };
 
 export function buildCreatorProfileBlock(profile: CreatorProfile): string {
@@ -91,18 +107,6 @@ export function buildCreatorProfileBlock(profile: CreatorProfile): string {
   return `<creator_profile>\n${lines.join("\n")}\n</creator_profile>`;
 }
 
-function hasAnyProfileContent(profile: CreatorProfile | null | undefined): boolean {
-  if (!profile) return false;
-  return (
-    profile.platforms.length > 0 ||
-    profile.niche_secondary.length > 0 ||
-    Boolean(profile.niche_primary) ||
-    Boolean(profile.channel_pitch) ||
-    Boolean(profile.audience_stage) ||
-    Boolean(profile.primary_goal)
-  );
-}
-
 export function buildSystemMessages(user: UserContext): ModelMessage[] {
   const messages: ModelMessage[] = [
     {
@@ -115,30 +119,25 @@ export function buildSystemMessages(user: UserContext): ModelMessage[] {
     },
   ];
 
-  const hasBio = user.bio.trim().length > 0;
-  const hasFacts = user.facts.length > 0;
-  const hasProfile = hasAnyProfileContent(user.profile);
-
-  if (hasBio || hasFacts || hasProfile) {
-    const sections: string[] = ["What you know about this creator:"];
-    if (hasProfile && user.profile) {
-      sections.push(
-        `\nCreator profile (from onboarding):\n${buildCreatorProfileBlock(user.profile)}`,
-      );
-    }
-    if (hasBio) {
-      sections.push(`\nBio (self-described):\n${user.bio.trim()}`);
-    }
-    if (hasFacts) {
-      sections.push(
-        `\nFacts you've learned:\n${user.facts
-          .map((f) => `- ${f}`)
-          .join("\n")}`,
-      );
-    }
+  const personaBlock = buildPersonaBlock(user.assistantName, user.assistantPersona);
+  if (personaBlock) {
     messages.push({
       role: "system",
-      content: sections.join("\n"),
+      content: personaBlock,
+    });
+  }
+
+  if (user.memoryFiles.length > 0) {
+    messages.push({
+      role: "system",
+      content: [
+        "Autoloaded creator memory files:",
+        "",
+        ...user.memoryFiles.map(
+          (file) =>
+            `<memory_file path="${file.path}" title="${file.title}">\n${file.content.trim()}\n</memory_file>`,
+        ),
+      ].join("\n"),
     });
   }
 

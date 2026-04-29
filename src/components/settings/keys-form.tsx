@@ -30,11 +30,9 @@ import {
   PROVIDERS,
   type ProviderId,
 } from "@/lib/providers";
-import type { ProviderKeyMetaRow } from "@/lib/db/types";
+import type { ActiveModel as Active, ProviderKeyMetaRow } from "@/lib/db/types";
 import { DUR_FAST, EASE_OUT, useReducedMotionSafe } from "@/lib/motion";
 import { cn } from "@/lib/utils";
-
-type Active = { provider: ProviderId; model: string };
 
 type Props = {
   initialKeys: ProviderKeyMetaRow[];

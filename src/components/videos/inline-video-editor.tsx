@@ -26,6 +26,11 @@ import {
 import { cn } from "@/lib/utils";
 import type { VideoRow, VideoStatus } from "@/lib/db/types";
 import { VIDEO_STATUS_OPTIONS } from "@/lib/video-status";
+import {
+  SAVE_DEBOUNCE_MS,
+  saveLabel,
+  type SaveState,
+} from "@/components/videos/save-status";
 
 type Props = {
   videoId: string;
@@ -33,7 +38,6 @@ type Props = {
   onOpenChat: (chatId: string) => void;
 };
 
-type SaveState = "idle" | "loading" | "saving" | "saved" | "error";
 const VIDEO_EVENT_NAME = "shortform-studio:video";
 
 const STATUS_OPTIONS = VIDEO_STATUS_OPTIONS.map((o) => ({
@@ -145,7 +149,7 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
         hook,
         script,
       });
-    }, 550);
+    }, SAVE_DEBOUNCE_MS);
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -374,15 +378,6 @@ function MarkdownButton({
       <Icon className="size-3.5" />
     </button>
   );
-}
-
-function saveLabel(state: SaveState, dirty: boolean) {
-  if (state === "loading") return "Opening...";
-  if (state === "saving") return "Saving...";
-  if (state === "error") return "Save failed";
-  if (dirty) return "Unsaved";
-  if (state === "saved") return "Saved";
-  return "Markdown script editor";
 }
 
 function formatMarkdown(
