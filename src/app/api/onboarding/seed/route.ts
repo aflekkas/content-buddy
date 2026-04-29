@@ -1,7 +1,6 @@
 import { revalidateTag } from "next/cache";
-import { NextResponse } from "next/server";
 import { generateText } from "ai";
-import { createClient } from "@/lib/supabase/server";
+import { errorResponse, jsonResponse, requireAuth } from "@/lib/api";
 import { buildCreatorProfileBlock } from "@/lib/anthropic";
 import {
   addChatUsage,
@@ -48,25 +47,22 @@ Output STRICT markdown in this shape (no preamble, no closing remarks):
 Tailor everything to the <creator_profile> block in the user message. Use vocabulary the creator will recognize. Be concrete and specific — no "do a talking head".`;
 
 export async function POST() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const auth = await requireAuth();
+  if (!auth.ok) return auth.response;
+  const { user } = auth;
 
   const rateLimit = await checkOnboardingSeedRateLimit();
   if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: "rate_limited", retryAfter: rateLimit.retryAfter },
-      { status: 429, headers: buildRateLimitHeaders(rateLimit) },
+    return errorResponse(
+      "rate_limited",
+      429,
+      { retryAfter: rateLimit.retryAfter },
+      { headers: buildRateLimitHeaders(rateLimit) },
     );
   }
 
   if (!(await hasCompletedOnboarding(user.id))) {
-    return NextResponse.json({ error: "key_required" }, { status: 409 });
+    return errorResponse("key_required", 409);
   }
 
   const profile = await getUserProfile(user.id);
@@ -76,19 +72,13 @@ export async function POST() {
     Boolean(profile?.platforms?.length);
 
   if (!hasProfile) {
-    return NextResponse.json(
-      { error: "insufficient_profile" },
-      { status: 400 },
-    );
+    return errorResponse("insufficient_profile", 400);
   }
 
   const { provider, model } = await getActiveModel(user.id);
   const apiKey = await getDecryptedProviderKey(user.id, provider);
   if (!apiKey) {
-    return NextResponse.json(
-      { error: "missing_key", provider },
-      { status: 402 },
-    );
+    return errorResponse("missing_key", 402, { provider });
   }
 
   const profileBlock = buildCreatorProfileBlock({
@@ -113,20 +103,15 @@ export async function POST() {
     artifact = result.text.trim();
     usage = result.usage;
   } catch {
-    return NextResponse.json(
-      {
-        error: "generation_failed",
-        message: "Couldn't generate your starter script. Try again in a moment.",
-      },
-      { status: 502 },
-    );
+    return errorResponse("generation_failed", 502, {
+      message: "Couldn't generate your starter script. Try again in a moment.",
+    });
   }
 
   if (!artifact) {
-    return NextResponse.json(
-      { error: "empty_artifact", message: "Got an empty response. Try again." },
-      { status: 502 },
-    );
+    return errorResponse("empty_artifact", 502, {
+      message: "Got an empty response. Try again.",
+    });
   }
 
   const chat = await createChat(user.id);
@@ -147,7 +132,7 @@ export async function POST() {
     });
   }
 
-  return NextResponse.json({ chatId: chat.id });
+  return jsonResponse({ chatId: chat.id });
 }
 
 function extractTitle(markdown: string): string | null {
