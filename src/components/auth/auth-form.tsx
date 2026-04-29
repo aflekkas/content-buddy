@@ -3,25 +3,23 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import { CircularLoader } from "@/components/ui/loader";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { LogoMark } from "@/components/logo";
 import { EASE_OUT } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from "@/components/ui/field";
 
 type Mode = "signin" | "signup";
-
-const EASE = [0.22, 1, 0.36, 1] as const;
 
 function isSafeNext(value: string | null): value is string {
   if (!value) return false;
@@ -67,20 +65,18 @@ export function AuthForm() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: EASE }}
-      className="w-full max-w-sm"
-    >
-      <div className="mb-6 flex flex-col items-center text-center">
-        <span className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
-          <LogoMark className="size-7" />
-        </span>
-      </div>
+    <div className="grid min-h-svh w-full lg:grid-cols-2">
+      {/* Left column: form */}
+      <div className="flex flex-col items-center justify-center p-6 md:p-10">
+        <div className="w-full max-w-sm">
+          {/* LogoMark badge */}
+          <div className="mb-6 flex flex-col items-center text-center">
+            <span className="grid size-14 place-items-center rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
+              <LogoMark className="size-7" />
+            </span>
+          </div>
 
-      <Card className="ring-1 ring-foreground/10">
-        <CardHeader className="text-center">
+          {/* Animated title + description */}
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
               key={mode}
@@ -88,78 +84,82 @@ export function AuthForm() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.18, ease: EASE_OUT }}
-              className="flex flex-col items-center gap-1.5"
+              className="mb-6 flex flex-col items-center gap-1.5 text-center"
             >
-              <CardTitle className="text-balance text-xl tracking-tight">
+              <h1 className="text-xl font-semibold tracking-tight">
                 {mode === "signup" ? "Create your account" : "Welcome back"}
-              </CardTitle>
-              <CardDescription className="text-balance">
+              </h1>
+              <p className="text-sm text-muted-foreground">
                 {mode === "signup"
                   ? "Two fields and you're filming."
                   : "Sign in to keep building."}
-              </CardDescription>
+              </p>
             </motion.div>
           </AnimatePresence>
-        </CardHeader>
 
-        <CardContent className="pb-4">
+          {/* Form */}
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoFocus
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  id="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   required
-                  minLength={8}
-                  autoComplete={
-                    mode === "signup" ? "new-password" : "current-password"
-                  }
-                  className="pr-9"
+                  autoFocus
+                  autoComplete="email"
                 />
-                <Button
-                  variant="ghost"
-                  size="icon-xs"
-                  type="button"
-                  tabIndex={-1}
-                  onClick={() => setShowPassword((s) => !s)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? (
-                    <EyeOff className="size-3.5" />
-                  ) : (
-                    <Eye className="size-3.5" />
-                  )}
-                </Button>
-              </div>
-            </div>
+              </Field>
+
+              <Field>
+                <FieldLabel htmlFor="password">Password</FieldLabel>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={8}
+                    autoComplete={
+                      mode === "signup" ? "new-password" : "current-password"
+                    }
+                    className="pr-9"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowPassword((s) => !s)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="size-3.5" />
+                    ) : (
+                      <Eye className="size-3.5" />
+                    )}
+                  </Button>
+                </div>
+                {mode === "signup" && (
+                  <FieldDescription>8 character minimum.</FieldDescription>
+                )}
+              </Field>
+            </FieldGroup>
 
             <Button
               type="submit"
               size="lg"
               disabled={loading || !email || !password}
-              className="mt-1 w-full"
+              className="w-full"
             >
               {loading ? (
-                <Loader2 className="size-4 animate-spin" />
+                <CircularLoader size="sm" />
               ) : (
                 <>
                   {mode === "signup" ? "Create account" : "Sign in"}
@@ -167,39 +167,59 @@ export function AuthForm() {
                 </>
               )}
             </Button>
-          </form>
-        </CardContent>
-      </Card>
 
-      <p className="mt-4 text-center text-sm text-muted-foreground">
-        {mode === "signin" ? (
-          <>
-            No account?{" "}
-            <Button
-              variant="link"
-              size="sm"
-              type="button"
-              onClick={() => setMode("signup")}
-              className="font-medium"
-            >
-              Sign up
-            </Button>
-          </>
-        ) : (
-          <>
-            Already have an account?{" "}
-            <Button
-              variant="link"
-              size="sm"
-              type="button"
-              onClick={() => setMode("signin")}
-              className="font-medium"
-            >
-              Sign in
-            </Button>
-          </>
-        )}
-      </p>
-    </motion.div>
+            <FieldSeparator />
+
+            <FieldDescription className="text-center">
+              {mode === "signin" ? (
+                <>
+                  No account?{" "}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    type="button"
+                    onClick={() => setMode("signup")}
+                    className="h-auto px-1 py-0 font-medium"
+                  >
+                    Sign up
+                  </Button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <Button
+                    variant="link"
+                    size="sm"
+                    type="button"
+                    onClick={() => setMode("signin")}
+                    className="h-auto px-1 py-0 font-medium"
+                  >
+                    Sign in
+                  </Button>
+                </>
+              )}
+            </FieldDescription>
+          </form>
+        </div>
+      </div>
+
+      {/* Right column: brand panel — hidden below lg */}
+      <div className="relative hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-primary/15 via-background to-background border-l border-border/60">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: EASE_OUT }}
+          className="flex flex-col items-center gap-4 text-center"
+        >
+          <span className="grid size-16 place-items-center rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
+            <LogoMark className="size-8" />
+          </span>
+          <div className="flex flex-col gap-1">
+            <p className="text-2xl font-medium tracking-tight">Content Buddy</p>
+            <p className="text-muted-foreground">Short-form cockpit.</p>
+          </div>
+        </motion.div>
+      </div>
+    </div>
   );
 }
