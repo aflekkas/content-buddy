@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Eye, EyeOff } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Layers, Sparkles, Zap } from "lucide-react";
 import { CircularLoader } from "@/components/ui/loader";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { LogoMark } from "@/components/logo";
-import { EASE_OUT } from "@/lib/motion";
+import { EASE_OUT, useReducedMotionSafe } from "@/lib/motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,8 +18,28 @@ import {
   FieldLabel,
   FieldSeparator,
 } from "@/components/ui/field";
+import { DotPattern } from "@/components/ui/dot-pattern";
+import { ProviderIcon } from "@/components/ui/provider-icon";
+import { PROVIDER_IDS } from "@/lib/providers";
 
 type Mode = "signin" | "signup";
+
+const FEATURES = [
+  { icon: Sparkles, label: "AI-powered script generation" },
+  { icon: Zap, label: "Hooks, titles, and captions in seconds" },
+  { icon: Layers, label: "One cockpit for your whole content stack" },
+] as const;
+
+const panelVariants = {
+  container: {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.09, delayChildren: 0.15 } },
+  },
+  item: {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0 },
+  },
+} as const;
 
 function isSafeNext(value: string | null): value is string {
   if (!value) return false;
@@ -204,22 +224,88 @@ export function AuthForm() {
       </div>
 
       {/* Right column: brand panel — hidden below lg */}
-      <div className="relative hidden lg:flex flex-col items-center justify-center p-12 bg-gradient-to-br from-primary/15 via-background to-background border-l border-border/60">
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: EASE_OUT }}
-          className="flex flex-col items-center gap-4 text-center"
-        >
-          <span className="grid size-16 place-items-center rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
-            <LogoMark className="size-8" />
-          </span>
-          <div className="flex flex-col gap-1">
-            <p className="text-2xl font-medium tracking-tight">Content Buddy</p>
-            <p className="text-muted-foreground">Short-form cockpit.</p>
-          </div>
-        </motion.div>
+      <div className="relative hidden lg:flex flex-col items-center justify-center overflow-hidden p-12 bg-gradient-to-br from-primary/15 via-background to-background border-l border-border/60">
+        {/* Subtle dot pattern masked radially */}
+        <DotPattern
+          width={20}
+          height={20}
+          cr={1}
+          className="text-foreground/15 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]"
+        />
+
+        <BrandPanel />
       </div>
     </div>
+  );
+}
+
+function BrandPanel() {
+  const reduced = useReducedMotionSafe();
+  const transitionBase = { duration: 0.4, ease: EASE_OUT };
+
+  return (
+    <motion.div
+      variants={panelVariants.container}
+      initial={reduced ? "show" : "hidden"}
+      animate="show"
+      className="relative z-10 flex flex-col items-center gap-8 max-w-md text-center"
+    >
+      {/* Hero block */}
+      <motion.div
+        variants={panelVariants.item}
+        transition={transitionBase}
+        className="flex flex-col items-center gap-4"
+      >
+        <span className="grid size-16 place-items-center rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
+          <LogoMark className="size-8" />
+        </span>
+        <div className="flex flex-col gap-1.5">
+          <p className="text-2xl font-semibold tracking-tight">Content Buddy</p>
+          <p className="text-base text-muted-foreground leading-snug">
+            One cockpit. Every model.
+            <br />
+            Your script, ten times faster.
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Provider strip */}
+      <motion.div
+        variants={panelVariants.item}
+        transition={transitionBase}
+        className="flex flex-col items-center gap-3"
+      >
+        <p className="text-xs text-muted-foreground/70 uppercase tracking-wider">
+          Bring your own key. Pick any model.
+        </p>
+        <div className="flex items-center gap-4">
+          {PROVIDER_IDS.map((id) => (
+            <ProviderIcon
+              key={id}
+              provider={id}
+              size={22}
+              className={
+                "opacity-50 transition-opacity duration-150 hover:opacity-100" +
+                (id === "openai" || id === "xai" ? " dark:invert" : "")
+              }
+            />
+          ))}
+        </div>
+      </motion.div>
+
+      {/* Feature bullets */}
+      <motion.ul
+        variants={panelVariants.item}
+        transition={transitionBase}
+        className="flex flex-col items-center gap-2"
+      >
+        {FEATURES.map(({ icon: Icon, label }) => (
+          <li key={label} className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Icon className="size-3.5 shrink-0 text-primary/60" />
+            {label}
+          </li>
+        ))}
+      </motion.ul>
+    </motion.div>
   );
 }
