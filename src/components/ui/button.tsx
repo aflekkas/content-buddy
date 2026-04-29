@@ -35,7 +35,7 @@ const buttonVariants = cva(
       shape: {
         default: "",
         pill: "rounded-full",
-        card: "rounded-xl h-auto py-3 px-4 items-start justify-start text-left whitespace-normal",
+        card: "rounded-xl h-auto py-3 px-4 flex-col items-start justify-start text-left whitespace-normal",
       },
       withArrow: {
         true: "[&>svg:last-child]:transition-transform [&>svg:last-child]:duration-200 hover:[&>svg:last-child]:translate-x-0.5",

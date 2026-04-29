@@ -10,6 +10,26 @@ import React from "react"
 
 export type { OnboardingPlatform }
 
+export type VideoFormat =
+  | "talking_head"
+  | "voiceover"
+  | "tutorial"
+  | "story"
+  | "listicle"
+  | "reaction"
+  | "skit"
+  | "vlog"
+
+export type PostingCadence = "daily" | "few_per_week" | "weekly" | "occasional"
+
+export type VoiceTone =
+  | "casual"
+  | "expert"
+  | "hype"
+  | "calm"
+  | "dry_humor"
+  | "warm"
+
 export type OnboardingFlowState = {
   platforms: OnboardingPlatform[]
   nichePrimary: string | null
@@ -19,6 +39,10 @@ export type OnboardingFlowState = {
   primaryGoal: PrimaryGoal | null
   provider: ProviderId
   apiKey: string
+  videoFormats: VideoFormat[]
+  postingCadence: PostingCadence | null
+  voiceTone: VoiceTone[]
+  inspirations: string
 }
 
 export function StepHeading({
@@ -85,7 +109,7 @@ export function SelectableCard({
       className={cn(
         "group relative h-full w-full p-5 transition-colors",
         active
-          ? "border-primary bg-primary/5"
+          ? "border-primary ring-2 ring-primary/40 bg-primary/5"
           : "border-border hover:border-foreground/30",
         className,
       )}
