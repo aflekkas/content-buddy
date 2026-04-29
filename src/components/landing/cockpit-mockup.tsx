@@ -4,12 +4,12 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ListVideo,
-  Loader2,
   MessageSquarePlus,
   Search,
   Sparkles,
   UserRound,
 } from "lucide-react";
+import { CircularLoader } from "@/components/ui/loader";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { BRAND_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
@@ -184,7 +184,7 @@ function FakeTopBar({ phase }: { phase: DemoPhase }) {
               transition={{ duration: 0.25, ease: EASE }}
               className="inline-flex items-center gap-1.5 text-[11px] font-medium text-primary"
             >
-              <Loader2 className="size-3 animate-spin" />
+              <CircularLoader size="sm" className="size-3" />
               {STATUS_MESSAGES[statusIdx]?.label ?? "thinking…"}
             </motion.span>
           ) : phase === "done" ? (

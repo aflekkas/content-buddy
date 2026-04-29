@@ -9,10 +9,10 @@ import {
   Check,
   ExternalLink,
   KeyRound,
-  Loader2,
   Search,
   Sparkles,
 } from "lucide-react";
+import { CircularLoader } from "@/components/ui/loader";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { BRAND_NAME } from "@/lib/brand";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/niches";
 import type { AudienceStage, PrimaryGoal } from "@/lib/db/types";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -345,7 +346,7 @@ function Footer({
           disabled={!canAdvance || submitting}
         >
           {submitting ? (
-            <Loader2 className="size-4 animate-spin" />
+            <CircularLoader size="sm" />
           ) : (
             <>
               {step === 6 ? "Generate my first script" : "Next"}
@@ -648,7 +649,7 @@ function PitchStep({
         title="In one line, what's your channel?"
         subtitle="The way you'd say it to a friend. I'll quote you back to you sometimes."
       />
-      <div className="rounded-2xl border bg-muted/30 p-4">
+      <Card className="rounded-2xl border bg-muted/30 p-4 ring-0">
         <div className="flex items-start gap-3">
           <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-primary/15 via-background to-background ring-1 ring-border/80">
             <LogoMark className="size-5" />
@@ -673,7 +674,7 @@ function PitchStep({
             </div>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -927,7 +928,7 @@ function AhaStep({
               {complete ? (
                 <Check className="size-4 text-primary" />
               ) : active ? (
-                <Loader2 className="size-4 animate-spin text-primary" />
+                <CircularLoader size="sm" />
               ) : (
                 <span className="size-4 rounded-full border" />
               )}

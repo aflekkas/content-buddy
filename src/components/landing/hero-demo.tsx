@@ -92,14 +92,17 @@ export function HeroDemo({ isAuthed = false }: { isAuthed?: boolean }) {
                   try
                 </span>
                 {SUGGESTIONS.map((s) => (
-                  <button
+                  <Button
                     key={s}
                     type="button"
+                    variant="outline"
+                    size="sm"
+                    shape="pill"
                     onClick={() => setPrompt(s)}
-                    className="rounded-full border bg-background/60 px-3 py-1 text-[12px] text-muted-foreground transition-colors hover:border-primary/40 hover:bg-background hover:text-foreground"
+                    className="bg-background/60 text-[12px] text-muted-foreground hover:border-primary/40 hover:bg-background hover:text-foreground"
                   >
                     {s}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </motion.div>

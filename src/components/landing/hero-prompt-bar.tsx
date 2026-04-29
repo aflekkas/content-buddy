@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import {
+  PromptInput,
+  PromptInputTextarea,
+} from "@/components/ui/prompt-input";
 
 type Variant = "large" | "compact";
 
@@ -22,14 +26,6 @@ export function HeroPromptBar({
 }) {
   const large = variant === "large";
   const canSubmit = !disabled && value.trim().length >= 3;
-  const taRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    if (!large || !taRef.current) return;
-    const el = taRef.current;
-    el.style.height = "0px";
-    el.style.height = `${Math.min(el.scrollHeight, 280)}px`;
-  }, [value, large]);
 
   return (
     <motion.form
@@ -49,43 +45,40 @@ export function HeroPromptBar({
     >
       {large ? (
         <>
-          <textarea
-            ref={taRef}
+          <PromptInput
             value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-                e.preventDefault();
-                if (canSubmit) onSubmit();
-              }
-            }}
-            placeholder="describe what you want to make videos about…"
+            onValueChange={onChange}
+            onSubmit={() => { if (canSubmit) onSubmit(); }}
+            maxHeight={280}
             disabled={disabled}
-            rows={3}
-            autoFocus
-            autoComplete="off"
-            spellCheck={false}
-            aria-label="Describe what you want to make videos about"
-            className={cn(
-              "min-h-[110px] w-full resize-none bg-transparent px-5 pt-5 pb-2 text-[15px] leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/70 sm:text-base",
-            )}
-          />
+            className="border-0 bg-transparent p-0 rounded-none shadow-none hover:ring-0 focus-within:ring-0"
+          >
+            <PromptInputTextarea
+              placeholder="describe what you want to make videos about…"
+              rows={3}
+              autoFocus
+              autoComplete="off"
+              spellCheck={false}
+              aria-label="Describe what you want to make videos about"
+              className="min-h-[110px] px-5 pt-5 pb-2 text-[15px] leading-relaxed sm:text-base placeholder:text-muted-foreground/70"
+            />
+          </PromptInput>
           <div className="flex items-center justify-between gap-3 px-3 pb-3">
             <span className="inline-flex items-center gap-1.5 pl-2 text-[11px] text-muted-foreground/80">
               <Sparkles className="size-3 text-primary" />
               <span className="hidden sm:inline">
-                ⌘ + enter to send · we&apos;ll plan five videos from it
+                enter to send · we&apos;ll plan five videos from it
               </span>
               <span className="sm:hidden">we&apos;ll plan five videos from it</span>
             </span>
-            <button
+            <Button
               type="submit"
               disabled={!canSubmit}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-sm transition-opacity disabled:opacity-40"
+              className="rounded-xl px-4"
             >
               Try it
               <ArrowRight className="size-3.5" />
-            </button>
+            </Button>
           </div>
         </>
       ) : (

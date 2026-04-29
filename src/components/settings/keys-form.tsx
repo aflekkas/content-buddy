@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, ExternalLink, Eye, EyeOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProviderIcon } from "@/components/ui/provider-icon";
@@ -63,7 +64,7 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section className="rounded-xl border bg-card p-4">
+      <Card className="border p-4 ring-0">
         <h2 className="text-sm font-medium">Active model</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Which provider and model your chats use. Changing this saves
@@ -116,7 +117,7 @@ export function KeysForm({ initialKeys, initialActive }: Props) {
             or chats will fail until you do.
           </p>
         )}
-      </section>
+      </Card>
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">API keys</h2>
@@ -213,7 +214,7 @@ function ProviderKeyCard({
   }
 
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <Card className="border p-4 ring-0">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <ProviderIcon provider={provider} size={28} />
@@ -311,7 +312,7 @@ function ProviderKeyCard({
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
