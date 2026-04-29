@@ -26,6 +26,7 @@ import {
   updateVideo,
 } from "@/lib/db/queries";
 import { encodeProviderError, mapProviderError } from "@/lib/provider-errors";
+import { buildRateLimitHeaders, checkChatRateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 60;
 
@@ -42,6 +43,15 @@ export async function POST(req: Request) {
 
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const rateLimit = await checkChatRateLimit();
+  const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "rate_limited", retryAfter: rateLimit.retryAfter },
+      { status: 429, headers: rateLimitHeaders },
+    );
   }
 
   const { id: chatId, messages }: ChatRequestBody = await req.json();
@@ -174,6 +184,7 @@ export async function POST(req: Request) {
   });
 
   return result.toUIMessageStreamResponse({
+    headers: rateLimitHeaders,
     originalMessages: messages,
     onError: (error) => {
       console.error("[chat] streamText error", error);

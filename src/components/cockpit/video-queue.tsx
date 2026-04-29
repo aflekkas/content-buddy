@@ -4,6 +4,9 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
+  Download,
+  FileText,
+  FileSpreadsheet,
   ListVideo,
   MessageSquare,
   MoreHorizontal,
@@ -34,6 +37,7 @@ import { Input } from "@/components/ui/input";
 import { ColumnHeader } from "@/components/cockpit/column-header";
 import { cn } from "@/lib/utils";
 import type { VideoRow, VideoStatus } from "@/lib/db/types";
+import type { VideoExportFormat } from "@/lib/video-export";
 
 type Props = {
   videos: VideoRow[];
@@ -70,6 +74,8 @@ export function VideoQueue({ videos }: Props) {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [pendingDelete, setPendingDelete] = useState<VideoRow | null>(null);
+  const [exportingFormat, setExportingFormat] =
+    useState<VideoExportFormat | null>(null);
 
   const counts = useMemo(() => {
     const base = { all: items.length, idea: 0, ready: 0, filmed: 0 };
@@ -123,6 +129,32 @@ export function VideoQueue({ videos }: Props) {
     }
   }
 
+  async function exportQueue(format: VideoExportFormat) {
+    setExportingFormat(format);
+    try {
+      const res = await fetch(`/api/videos/export?format=${format}`);
+      if (!res.ok) throw new Error("export_failed");
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = getDownloadFilename(
+        res.headers.get("Content-Disposition"),
+        `shortform-videos.${format === "markdown" ? "md" : "csv"}`,
+      );
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success("Export downloaded");
+    } catch {
+      toast.error("Could not export videos");
+    } finally {
+      setExportingFormat(null);
+    }
+  }
+
   const hasAnyVideos = items.length > 0;
   const hasVisible = visibleItems.length > 0;
 
@@ -132,6 +164,57 @@ export function VideoQueue({ videos }: Props) {
         icon={ListVideo}
         title="Video queue"
         description="Keep track of what to make next."
+        right={
+          hasAnyVideos ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label="Export videos"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <Download />
+                  </Button>
+                }
+              />
+              <DropdownMenuContent align="end" className="w-44 p-1">
+                <DropdownMenuLabel>Export</DropdownMenuLabel>
+                <DropdownMenuItem
+                  disabled={exportingFormat !== null}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void exportQueue("csv");
+                  }}
+                >
+                  <FileSpreadsheet className="mr-2 size-4" />
+                  CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={exportingFormat !== null}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void exportQueue("markdown");
+                  }}
+                >
+                  <FileText className="mr-2 size-4" />
+                  Markdown
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={exportingFormat !== null}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void exportQueue("notion");
+                  }}
+                >
+                  <FileSpreadsheet className="mr-2 size-4" />
+                  Notion CSV
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null
+        }
       />
 
       {hasAnyVideos && (
@@ -267,6 +350,14 @@ export function VideoQueue({ videos }: Props) {
       </Dialog>
     </div>
   );
+}
+
+function getDownloadFilename(
+  contentDisposition: string | null,
+  fallback: string,
+) {
+  const match = contentDisposition?.match(/filename="([^"]+)"/);
+  return match?.[1] ?? fallback;
 }
 
 type VideoCardProps = {
