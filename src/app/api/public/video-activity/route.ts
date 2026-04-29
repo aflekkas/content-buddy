@@ -9,6 +9,7 @@ type VideoActivityEvent = {
   maskedEmail: string;
   providerLabel: string;
   providerLogo: string;
+  providerKey: ProviderId;
   action: string;
   countryName: string | null;
   countryFlag: string | null;
@@ -41,7 +42,7 @@ async function listPublicVideoActivityEvents({
   after?: string;
 }): Promise<VideoActivityEvent[]> {
   const supabase = createAdminClient();
-  const limit = 8;
+  const limit = 12;
 
   async function fetchVideoRows(recentOnly = false) {
     let query = supabase
@@ -66,10 +67,10 @@ async function listPublicVideoActivityEvents({
   if (!after && videoRows.length === 0) videoRows = await fetchVideoRows(false);
 
   const realEvents = await buildRealActivityEvents(supabase, videoRows);
-  if (realEvents.length > 0) return realEvents;
-
   if (after) return [];
-  return listSeedActivityEvents(supabase, limit);
+
+  const seedEvents = await listSeedActivityEvents(supabase, limit);
+  return diversifyEvents([...realEvents, ...seedEvents]).slice(0, limit);
 }
 
 async function buildRealActivityEvents(
@@ -121,6 +122,7 @@ async function buildRealActivityEvents(
       maskedEmail: maskEmailForPublicActivity(email),
       providerLabel: providerMeta.label,
       providerLogo: providerMeta.logo,
+      providerKey: provider,
       action: "generated a video",
       countryName: null,
       countryFlag: null,
@@ -157,12 +159,43 @@ async function listSeedActivityEvents(
         maskedEmail: row.masked_email,
         providerLabel: providerMeta.label,
         providerLogo: providerMeta.logo,
+        providerKey: provider,
         action: row.action,
         countryName: row.country_name,
         countryFlag: row.country_flag,
         occurredAt: row.occurred_at,
       };
     });
+}
+
+function diversifyEvents(events: VideoActivityEvent[]): VideoActivityEvent[] {
+  const unique = Array.from(
+    new Map(events.map((event) => [event.id, event])).values(),
+  ).sort(
+    (a, b) =>
+      new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+  );
+
+  const result: VideoActivityEvent[] = [];
+  const remaining = [...unique];
+
+  while (remaining.length > 0) {
+    const last = result.at(-1);
+    const nextIndex = Math.max(
+      remaining.findIndex(
+        (event) =>
+          !last ||
+          (event.maskedEmail !== last.maskedEmail &&
+            event.providerKey !== last.providerKey &&
+            event.action !== last.action),
+      ),
+      0,
+    );
+    const [next] = remaining.splice(nextIndex, 1);
+    result.push(next);
+  }
+
+  return result;
 }
 
 function maskEmailForPublicActivity(email: string): string {

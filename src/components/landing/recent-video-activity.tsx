@@ -124,12 +124,14 @@ function ActivityToast({
   reducedMotion: boolean;
 }) {
   return (
-    <motion.figure
+    <motion.a
+      href="/login"
+      aria-label="Sign in to generate videos"
       initial={reducedMotion ? false : { opacity: 0, y: 18, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={reducedMotion ? undefined : { opacity: 0, y: 10, scale: 0.98 }}
       transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-2xl border bg-background/90 p-3 shadow-xl shadow-primary/10 backdrop-blur-xl supports-[backdrop-filter]:bg-background/75"
+      className="pointer-events-auto relative block overflow-hidden rounded-2xl border bg-background/90 p-3 shadow-xl shadow-primary/10 backdrop-blur-xl transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 supports-[backdrop-filter]:bg-background/75"
     >
       <div className="absolute inset-x-6 -bottom-8 h-12 rounded-full bg-primary/15 blur-2xl" />
       <figcaption className="relative flex items-center gap-3">
@@ -168,7 +170,7 @@ function ActivityToast({
           </span>
         </span>
       </figcaption>
-    </motion.figure>
+    </motion.a>
   );
 }
 
