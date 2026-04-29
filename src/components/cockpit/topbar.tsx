@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion } from "motion/react";
 import { LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,13 @@ export function TopBar({ email }: Props) {
       transition={{ duration: 0.22, ease: EASE_OUT }}
     >
       <div className="flex min-w-0 items-center gap-3">
-        <LogoLockup iconClassName="size-5" textClassName="hidden sm:inline" />
+        <Link
+          href="/"
+          aria-label="Shortform Studio home"
+          className="inline-flex min-w-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <LogoLockup iconClassName="size-5" textClassName="hidden sm:inline" />
+        </Link>
       </div>
       <div className="flex shrink-0 items-center gap-3">
         <p className="hidden truncate text-sm text-muted-foreground sm:block">
