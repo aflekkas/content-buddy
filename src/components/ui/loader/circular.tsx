@@ -13,7 +13,7 @@ export function CircularLoader({
   return (
     <div
       className={cn(
-        "border-primary animate-spin rounded-full border-2 border-t-transparent",
+        "animate-spin rounded-full border-2 border-current border-t-transparent",
         ICON_SIZE[size],
         className
       )}
