@@ -9,12 +9,10 @@ import { VideoQueueSkeleton } from "@/components/cockpit/loaders/video-queue-ske
 import { ChatSwitcherLoader } from "@/components/cockpit/loaders/chat-switcher-loader";
 import { ChatSwitcherSkeleton } from "@/components/cockpit/loaders/chat-switcher-skeleton";
 
-export default async function ChatLayout({
+export default async function DashboardShellLayout({
   children,
-  params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ id: string }>;
 }) {
   const supabase = await createClient();
   const {
@@ -22,11 +20,6 @@ export default async function ChatLayout({
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/");
-
-  // Await params per Next.js 15 dynamic segment convention (matches page.tsx).
-  // activeChatId isn't needed server-side; the ChatSwitcherClient reads useParams
-  // so the active chat highlight stays reactive across sibling navigation.
-  await params;
 
   return (
     <CockpitShell
