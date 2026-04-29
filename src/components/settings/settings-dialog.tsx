@@ -4,10 +4,8 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useState,
 } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import {
   Dialog,
   DialogContent,
@@ -22,7 +20,6 @@ import { PersonaForm } from "@/components/settings/persona-form";
 import { ProfileForm } from "@/components/settings/profile-form";
 import { MemorySection } from "@/components/settings/memory-section";
 import { isProviderId } from "@/lib/providers";
-import { useReducedMotionSafe } from "@/lib/motion";
 import type {
   ActiveModel as Active,
   MemoryFileRow,
@@ -97,126 +94,111 @@ export function SettingsDialogProvider({
   initialFacts,
   initialMemoryFiles,
 }: ProviderProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [view, setView] = useState<SettingsView>("home");
-  const navigate = useCallback((next: SettingsView) => setView(next), []);
+  // "closed" = no dialog visible. Otherwise the value is which view is open.
+  const [view, setView] = useState<SettingsView | "closed">("closed");
 
   const provider: ProviderId = isProviderId(initialActive.provider)
     ? initialActive.provider
     : ("anthropic" as ProviderId);
   const active: Active = { provider, model: initialActive.model };
 
-  const open = useCallback(() => {
-    setView("home");
-    setIsOpen(true);
-  }, []);
-  const openTo = useCallback((next: SettingsView) => {
-    setView(next);
-    setIsOpen(true);
-  }, []);
+  const open = useCallback(() => setView("home"), []);
+  const openTo = useCallback((next: SettingsView) => setView(next), []);
+  const close = useCallback(() => setView("closed"), []);
 
-  useEffect(() => {
-    if (!isOpen) {
-      const t = window.setTimeout(() => setView("home"), 200);
-      return () => window.clearTimeout(t);
-    }
-  }, [isOpen]);
+  // Each view is its own dialog. Switching views = old dialog exits + new
+  // dialog enters via the base-ui Dialog primitive's built-in fade/scale.
+  function dialogOpen(target: SettingsView) {
+    return view === target;
+  }
+  function handleOpenChange(target: SettingsView) {
+    return (next: boolean) => {
+      if (!next && view === target) close();
+    };
+  }
 
   return (
-    <SettingsDialogContext.Provider value={{ open, openTo }}>
+    <SettingsDialogContext.Provider value={{ open: open, openTo }}>
       {children}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-2xl overflow-hidden">
-          <SettingsBody
-            view={view}
-            navigate={navigate}
-            initialKeys={initialKeys}
-            active={active}
-            profile={profile}
-            initialFacts={initialFacts}
-            initialMemoryFiles={initialMemoryFiles}
+
+      <Dialog open={dialogOpen("home")} onOpenChange={handleOpenChange("home")}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Settings</DialogTitle>
+            <DialogDescription>
+              Configure how the bot behaves, your profile, keys, and memory.
+            </DialogDescription>
+          </DialogHeader>
+          <SettingsHome onSelect={(v) => setView(v)} />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dialogOpen("keys")} onOpenChange={handleOpenChange("keys")}>
+        <DialogContent className="sm:max-w-2xl">
+          <SectionHeader
+            title={SECTION_TITLES.keys.title}
+            subtitle={SECTION_TITLES.keys.subtitle}
+            onBack={() => setView("home")}
           />
+          <div className="max-h-[65vh] overflow-y-auto px-1">
+            <KeysForm initialKeys={initialKeys} initialActive={active} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialogOpen("persona")}
+        onOpenChange={handleOpenChange("persona")}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <SectionHeader
+            title={SECTION_TITLES.persona.title}
+            subtitle={SECTION_TITLES.persona.subtitle}
+            onBack={() => setView("home")}
+          />
+          <div className="max-h-[65vh] overflow-y-auto px-1">
+            <PersonaForm
+              initialName={profile?.assistant_name ?? null}
+              initialPersona={profile?.assistant_persona ?? null}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialogOpen("profile")}
+        onOpenChange={handleOpenChange("profile")}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <SectionHeader
+            title={SECTION_TITLES.profile.title}
+            subtitle={SECTION_TITLES.profile.subtitle}
+            onBack={() => setView("home")}
+          />
+          <div className="max-h-[65vh] overflow-y-auto px-1">
+            {profile && <ProfileForm profile={profile} />}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialogOpen("memory")}
+        onOpenChange={handleOpenChange("memory")}
+      >
+        <DialogContent className="sm:max-w-2xl">
+          <SectionHeader
+            title={SECTION_TITLES.memory.title}
+            subtitle={SECTION_TITLES.memory.subtitle}
+            onBack={() => setView("home")}
+          />
+          <div className="max-h-[65vh] overflow-y-auto px-1">
+            <MemorySection
+              initialFacts={initialFacts}
+              initialMemoryFiles={initialMemoryFiles}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </SettingsDialogContext.Provider>
-  );
-}
-
-type BodyProps = {
-  view: SettingsView;
-  navigate: (v: SettingsView) => void;
-  initialKeys: ProviderKeyMetaRow[];
-  active: Active;
-  profile: UserProfileRow | null;
-  initialFacts: UserFactRow[];
-  initialMemoryFiles: MemoryFileRow[];
-};
-
-function SettingsBody({
-  view,
-  navigate,
-  initialKeys,
-  active,
-  profile,
-  initialFacts,
-  initialMemoryFiles,
-}: BodyProps) {
-  const reducedMotion = useReducedMotionSafe();
-  const fade = { duration: 0.16, ease: [0.32, 0.72, 0, 1] as const };
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="max-h-[65vh] overflow-y-auto px-1">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={view}
-            initial={reducedMotion ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={fade}
-            className="flex flex-col gap-4"
-          >
-            {view === "home" ? (
-              <>
-                <DialogHeader>
-                  <DialogTitle>Settings</DialogTitle>
-                  <DialogDescription>
-                    Configure how the bot behaves, your profile, keys, and
-                    memory.
-                  </DialogDescription>
-                </DialogHeader>
-                <SettingsHome onSelect={navigate} />
-              </>
-            ) : (
-              <>
-                <SectionHeader
-                  title={SECTION_TITLES[view].title}
-                  subtitle={SECTION_TITLES[view].subtitle}
-                  onBack={() => navigate("home")}
-                />
-                {view === "keys" && (
-                  <KeysForm initialKeys={initialKeys} initialActive={active} />
-                )}
-                {view === "persona" && (
-                  <PersonaForm
-                    initialName={profile?.assistant_name ?? null}
-                    initialPersona={profile?.assistant_persona ?? null}
-                  />
-                )}
-                {view === "profile" && profile && (
-                  <ProfileForm profile={profile} />
-                )}
-                {view === "memory" && (
-                  <MemorySection
-                    initialFacts={initialFacts}
-                    initialMemoryFiles={initialMemoryFiles}
-                  />
-                )}
-              </>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-    </div>
   );
 }
