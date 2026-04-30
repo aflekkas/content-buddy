@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Eye, EyeOff, Layers, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, KeyRound } from "lucide-react";
 import { CircularLoader } from "@/components/ui/loader";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -19,16 +19,8 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { DotPattern } from "@/components/ui/dot-pattern";
-import { ProviderIcon } from "@/components/ui/provider-icon";
-import { PROVIDER_IDS } from "@/lib/providers";
 
 type Mode = "signin" | "signup";
-
-const FEATURES = [
-  { icon: Sparkles, label: "AI-powered script generation" },
-  { icon: Zap, label: "Hooks, titles, and captions in seconds" },
-  { icon: Layers, label: "One cockpit for your whole content stack" },
-] as const;
 
 const panelVariants = {
   container: {
@@ -135,8 +127,8 @@ export function AuthForm() {
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   {mode === "signup"
-                    ? "Two fields and you're filming."
-                    : "Sign in to keep building."}
+                    ? "Two fields and you're ready to connect."
+                    : "Sign in to keep drafting."}
                 </p>
               </div>
 
@@ -284,49 +276,20 @@ function BrandPanel() {
           <LogoMark className="size-8" />
         </span>
         <p className="text-base text-muted-foreground leading-snug">
-          One cockpit. OpenAI powered.
+          X signal in. LinkedIn draft out.
           <br />
-          Your writing loop, faster.
+          Your voice, ready to copy.
         </p>
       </motion.div>
 
-      {/* Provider strip */}
       <motion.div
         variants={panelVariants.item}
         transition={transitionBase}
-        className="flex flex-col items-center gap-3"
+        className="flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1.5 text-xs text-muted-foreground"
       >
-        <p className="text-xs text-muted-foreground/70 uppercase tracking-wider">
-          Bring your own key. Pick any model.
-        </p>
-        <div className="flex items-center gap-4">
-          {PROVIDER_IDS.map((id) => (
-            <ProviderIcon
-              key={id}
-              provider={id}
-              size={22}
-              className={
-                "opacity-50 transition-opacity duration-150 hover:opacity-100" +
-                (id === "openai" ? " dark:invert" : "")
-              }
-            />
-          ))}
-        </div>
+        <KeyRound className="size-3.5 text-primary" />
+        You&apos;ll bring an OpenAI key and an Apify token. Both stay encrypted.
       </motion.div>
-
-      {/* Feature bullets */}
-      <motion.ul
-        variants={panelVariants.item}
-        transition={transitionBase}
-        className="flex flex-col items-center gap-2"
-      >
-        {FEATURES.map(({ icon: Icon, label }) => (
-          <li key={label} className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Icon className="size-3.5 shrink-0 text-primary/60" />
-            {label}
-          </li>
-        ))}
-      </motion.ul>
     </motion.div>
   );
 }

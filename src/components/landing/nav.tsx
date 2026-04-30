@@ -10,10 +10,9 @@ import { BRAND_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "#features", label: "Features" },
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#models", label: "Models" },
-  { href: "#security", label: "Security" },
+  { href: "#how", label: "How it works" },
+  { href: "#byok", label: "BYOK" },
+  { href: "#start", label: "Start" },
 ];
 
 const EASE = [0.22, 1, 0.36, 1] as const;

@@ -11,13 +11,13 @@ export function LandingFooter({ isAuthed = false }: { isAuthed?: boolean }) {
             {BRAND_NAME}
           </p>
           <p className="text-xs text-muted-foreground">
-            Tell me what you want, I&apos;ll tell you what to film.
+            Turn X signal into LinkedIn long-form.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <KeyRound className="size-3.5" />
-            BYO key, any provider
+            BYO OpenAI key + Apify token
           </span>
           <Link
             href={isAuthed ? "/dashboard" : "/login"}
