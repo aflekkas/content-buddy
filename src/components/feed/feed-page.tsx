@@ -2,13 +2,13 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FeedTabs } from "@/components/feed/feed-tabs";
 import { DraftCard, type FeedDraft } from "@/components/feed/draft-card";
 import { SignalCard, type FeedSignal } from "@/components/feed/signal-card";
 
 type Tab = "signals" | "drafts";
+const TAB_STORAGE_KEY = "shortform.feed.active-tab";
 
 type Props = {
   initialSignals: FeedSignal[];
@@ -17,7 +17,9 @@ type Props = {
 
 export function FeedPage({ initialSignals, initialDrafts }: Props) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("signals");
+  const [activeTab, setActiveTab] = useState<Tab>(() =>
+    getInitialTab(initialSignals.length, initialDrafts.length),
+  );
   const [signals, setSignals] = useState(initialSignals);
   const [drafts, setDrafts] = useState(initialDrafts);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -42,6 +44,12 @@ export function FeedPage({ initialSignals, initialDrafts }: Props) {
         ),
     [drafts],
   );
+  const empty = sortedSignals.length === 0 && sortedDrafts.length === 0;
+
+  function changeTab(tab: Tab) {
+    setActiveTab(tab);
+    window.localStorage.setItem(TAB_STORAGE_KEY, tab);
+  }
 
   async function handleDraft(signalId: string) {
     setBusyId(signalId);
@@ -97,7 +105,7 @@ export function FeedPage({ initialSignals, initialDrafts }: Props) {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <FeedTabs
             activeTab={activeTab}
-            onChange={setActiveTab}
+            onChange={changeTab}
             signalCount={sortedSignals.length}
             draftCount={sortedDrafts.length}
           />
@@ -105,7 +113,7 @@ export function FeedPage({ initialSignals, initialDrafts }: Props) {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setActiveTab("drafts")}
+            onClick={() => changeTab("drafts")}
           >
             Drafts
             <span className="ml-1 text-xs text-muted-foreground">
@@ -114,7 +122,9 @@ export function FeedPage({ initialSignals, initialDrafts }: Props) {
           </Button>
         </div>
 
-        {activeTab === "signals" ? (
+        {empty ? (
+          <EmptyFeed />
+        ) : activeTab === "signals" ? (
           sortedSignals.length > 0 ? (
             <div className="grid gap-3">
               {sortedSignals.map((signal) => (
@@ -153,23 +163,31 @@ export function FeedPage({ initialSignals, initialDrafts }: Props) {
   );
 }
 
+function getInitialTab(signalCount: number, draftCount: number): Tab {
+  if (signalCount === 0 && draftCount > 0) return "drafts";
+  if (signalCount > 0 && draftCount > 0 && typeof window !== "undefined") {
+    const stored = window.localStorage.getItem(TAB_STORAGE_KEY);
+    if (stored === "signals" || stored === "drafts") return stored;
+  }
+  return "signals";
+}
+
+function EmptyFeed() {
+  return (
+    <div className="rounded-2xl border bg-background p-8 text-center shadow-sm">
+      <p className="text-sm text-muted-foreground">
+        No signals yet. Polling runs daily; first poll triggered after onboarding.
+      </p>
+    </div>
+  );
+}
+
 function EmptySignals() {
   return (
     <div className="rounded-2xl border bg-background p-8 text-center shadow-sm">
       <p className="text-sm text-muted-foreground">
-        No signals yet. Run a poll or wait for the next cron.
+        No signals yet. New source posts will appear here after polling.
       </p>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled
-        className="mt-4"
-        title="Polling is currently cron-only because the endpoint requires the cron secret."
-      >
-        <RefreshCw className="size-3.5" />
-        Cron-only poll
-      </Button>
     </div>
   );
 }

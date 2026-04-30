@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Clipboard, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CircularLoader } from "@/components/ui/loader";
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelativeTime } from "@/lib/system-prompt";
 import { cn } from "@/lib/utils";
@@ -28,7 +29,9 @@ export function DraftEditor({ draft, sourceHandles }: Props) {
     "idle",
   );
   const [copied, setCopied] = useState(draft.status === "copied");
+  const [synthesisSlow, setSynthesisSlow] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const hasBody = body.trim().length > 0;
 
   useEffect(() => {
     if (body === lastSavedBody) return;
@@ -50,6 +53,16 @@ export function DraftEditor({ draft, sourceHandles }: Props) {
 
     return () => window.clearTimeout(timeout);
   }, [body, draft.id, lastSavedBody]);
+
+  useEffect(() => {
+    if (hasBody) {
+      setSynthesisSlow(false);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setSynthesisSlow(true), 30_000);
+    return () => window.clearTimeout(timeout);
+  }, [hasBody]);
 
   const charCount = useMemo(() => body.length, [body]);
 
@@ -108,11 +121,25 @@ export function DraftEditor({ draft, sourceHandles }: Props) {
         </div>
       </div>
 
-      <Textarea
-        value={body}
-        onChange={(event) => setBody(event.target.value)}
-        className="min-h-0 flex-1 resize-none rounded-none border-0 p-4 text-base leading-7 shadow-none focus-visible:ring-0 md:text-base"
-      />
+      {hasBody ? (
+        <Textarea
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
+          className="min-h-0 flex-1 resize-none rounded-none border-0 p-4 text-base leading-7 shadow-none focus-visible:ring-0 md:text-base"
+        />
+      ) : (
+        <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+          <div className="flex max-w-sm flex-col items-center gap-3 text-center">
+            <CircularLoader size="sm" />
+            <p className="text-sm font-medium">Synthesizing...</p>
+            {synthesisSlow ? (
+              <p className="text-sm leading-6 text-muted-foreground">
+                Synthesis taking longer than expected. Refresh to retry.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      )}
 
       <div className="flex shrink-0 items-center justify-between gap-3 border-t p-4">
         <span className="text-xs text-muted-foreground">
@@ -129,7 +156,7 @@ export function DraftEditor({ draft, sourceHandles }: Props) {
             <X className="size-3.5" />
             Dismiss
           </Button>
-          <Button type="button" onClick={() => void handleCopy()}>
+          <Button type="button" onClick={() => void handleCopy()} disabled={!hasBody}>
             {copied ? (
               <Check className="size-3.5" />
             ) : (

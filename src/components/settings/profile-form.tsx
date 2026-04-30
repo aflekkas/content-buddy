@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -58,6 +59,7 @@ export function ProfileForm({ profile }: Props) {
   const [sourceSaving, setSourceSaving] = useState(false);
   const [removingSourceId, setRemovingSourceId] = useState<string | null>(null);
   const [newHandle, setNewHandle] = useState("");
+  const [confirmingHandleChange, setConfirmingHandleChange] = useState(false);
 
   const ownSource = useMemo(
     () => sources.find((source) => source.kind === "x_self") ?? null,
@@ -107,7 +109,7 @@ export function ProfileForm({ profile }: Props) {
     };
   }, [initialNiche, initialVoiceNotes]);
 
-  async function onSave() {
+  async function onSave(confirmedHandleChange = false) {
     if (!handleValid) {
       toast.error("Enter a valid X handle");
       return;
@@ -119,8 +121,9 @@ export function ProfileForm({ profile }: Props) {
     if (
       ownSource &&
       normalizedOwnHandle !== savedOwnHandle &&
-      !window.confirm("Changing your X handle removes prior fetch history. Continue?")
+      !confirmedHandleChange
     ) {
+      setConfirmingHandleChange(true);
       return;
     }
 
@@ -234,6 +237,7 @@ export function ProfileForm({ profile }: Props) {
   }
 
   return (
+    <>
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
@@ -399,5 +403,14 @@ export function ProfileForm({ profile }: Props) {
         </Button>
       </div>
     </div>
+    <ConfirmDialog
+      open={confirmingHandleChange}
+      onOpenChange={setConfirmingHandleChange}
+      title="Changing your X handle removes prior fetch history."
+      description="The old source row will be deleted before the new handle is added."
+      confirmLabel="Change handle"
+      onConfirm={() => onSave(true)}
+    />
+    </>
   );
 }

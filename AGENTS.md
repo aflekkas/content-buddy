@@ -8,7 +8,7 @@ This repo uses Next.js 16. APIs, conventions, and file structure may differ from
 
 ## Project Structure & Module Organization
 
-Next.js 16 TypeScript app for Shortform Studio. App Router routes live in `src/app`, including dashboard pages under `src/app/(dashboard)` and API routes under `src/app/api`. Reusable feature components live in `src/components`, with shared UI primitives in `src/components/ui`. Server helpers, provider dispatch, crypto, pricing, and product logic live in `src/lib`; database access is centralized in `src/lib/db/queries.ts`, with row types in `src/lib/db/types.ts`. Supabase SQL migrations live in `supabase/migrations`. Static assets live in `public`, including provider logos. Prefer extending the existing structure over creating parallel folders or duplicate abstractions.
+Next.js 16 TypeScript app for Shortform Studio: an X -> LinkedIn synthesizer. The core loop is source -> signal -> draft -> copy. App Router routes live in `src/app`, including dashboard pages under `src/app/(dashboard)` and API routes under `src/app/api`. Reusable feature components live in `src/components`, with shared UI primitives in `src/components/ui`. Feed and draft surfaces live in `src/components/feed` and `src/components/drafts`; source fetching and synthesis live in `src/lib/sources` and `src/lib/synthesis.ts`. Database access is centralized in `src/lib/db/queries.ts`, with row types in `src/lib/db/types.ts`. Supabase SQL migrations live in `supabase/migrations`. Static assets live in `public`, including provider logos. Prefer extending the existing structure over creating parallel folders or duplicate abstractions.
 
 ## Build, Test, and Development Commands
 
@@ -60,11 +60,21 @@ Do not expose secret env vars to the client. Never use the admin client in brows
 
 Shortform Studio is a bring-your-own-key product. In Stage A, each user supplies their own OpenAI API key and picks an active OpenAI model in `/settings`; the app uses that key to drive their chats.
 
+- Users supply their own OpenAI API key and Apify token in onboarding/settings.
+- Onboarding is 4 steps: welcome, keys, profile, sources.
 - Surface BYOK in the UI subtly (footer note, landing CTA line, onboarding hint), not as the headline of the brand.
 - Server-side AI orchestration must use the **caller's** key, not a shared platform key. Pull the user's key via `getDecryptedProviderKey(userId, provider)` from `src/lib/db/queries.ts`.
+- Source fetching must use the caller's Apify token via `getDecryptedExternalCredential(userId, "apify")`.
 - Provider catalogue (supported providers and models) is the single source of truth in `src/lib/providers.ts`. Use `getModel(provider, model, apiKey)` from `src/lib/model-dispatch.ts` to instantiate the AI SDK model. Do not import provider SDKs directly in route or feature code.
 - Keys are stored encrypted at rest in `public.user_provider_keys` (AES-256-GCM, master key in `BYOK_ENCRYPTION_KEY`). Helpers in `src/lib/crypto.ts`. Never log, return, or expose the decrypted key to the client.
 - Missing/invalid user keys must surface as actionable UI ("add your key in settings"), not opaque 500s. The chat route returns `402 {error: "missing_key", provider}`; the chat client surfaces a banner linking to `/settings`.
+
+## Pipeline Invariants
+
+- `monitored_sources` stores `x_self` and `x_account` handles.
+- `/api/cron/poll-sources` runs daily with `CRON_SECRET`; onboarding may POST it with `?user_id=<uuid>` for the authenticated user only.
+- Polling writes `signals`, scores relevance, and synthesizes own-post drafts into `drafts`.
+- Draft chat is scoped to `/dashboard/drafts/[id]`; do not add a standalone dashboard chat route.
 
 ## Chat Invariants
 
@@ -73,11 +83,11 @@ When editing chat flows, preserve unless the user explicitly asks to change:
 - authenticated access to chat routes and APIs
 - persistence of user and assistant messages
 - chat title generation
-- remembered user facts
+- creator profile context (`niche` and `voice_notes`)
 - usage and token accounting (per-user, since each user pays for their own key)
 
 Keep server-side AI orchestration in route handlers and shared library files. Do not move provider secrets or model calls into client components.
 
 ## Security & Configuration Tips
 
-Local secrets belong in `.env.local`, never in commits. Required values include `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and `BYOK_ENCRYPTION_KEY`. User provider keys are encrypted and must never be logged, returned to the client, or handled outside server-side code.
+Local secrets belong in `.env.local`, never in commits. Required values include `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `BYOK_ENCRYPTION_KEY`, and `CRON_SECRET`. User provider keys and Apify tokens are encrypted and must never be logged, returned to the client, or handled outside server-side code.
