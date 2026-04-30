@@ -3,7 +3,7 @@
 import { Brain, ChevronLeft, ListVideo, Sparkles } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { ColumnHeader } from "@/components/cockpit/column-header";
@@ -19,17 +19,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { InlineVideoEditor } from "@/components/videos/inline-video-editor";
-import {
-  ACTIVE_VIDEOS_PARAM,
-  parseActiveVideoIds,
-  writeActiveVideoIds,
-} from "@/lib/active-videos";
+import { useActiveVideos } from "@/components/cockpit/active-videos-context";
 import { EASE_OUT, useReducedMotionSafe } from "@/lib/motion";
 import { cn } from "@/lib/utils";
 
 type Props = {
   user: { id: string; email: string };
-  brandSlot: ReactNode;
+  brandSlot?: ReactNode;
   videoSlot: ReactNode;
   chatSwitcherSlot: ReactNode;
   children: ReactNode;
@@ -60,6 +56,8 @@ const HEADER_ICON_BUTTON_CLASS =
 
 const PANEL_TRANSITION = { duration: 0.28, ease: EASE_OUT } as const;
 const RAIL_TRANSITION = { duration: 0.22, ease: EASE_OUT } as const;
+const VIDEO_TAB_TRANSITION = { duration: 0.18, ease: EASE_OUT } as const;
+const VIDEO_TAB_WIDTH = 440;
 const REDUCED_TRANSITION = { duration: 0 } as const;
 
 type StoredPanelState = {
@@ -82,8 +80,12 @@ export function CockpitShell({
   children,
 }: Props) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const {
+    activeVideoIds,
+    closeVideo,
+    reorderVideos,
+    closeAllVideos,
+  } = useActiveVideos();
   const [activePanel, setActivePanel] = useState<MobilePanel>("chat");
   const [memoryCollapsed, setMemoryCollapsed] = useState<boolean>(
     DEFAULT_PANEL_STATE.memoryCollapsed,
@@ -94,6 +96,10 @@ export function CockpitShell({
   const [chatCollapsed, setChatCollapsed] = useState<boolean>(
     DEFAULT_PANEL_STATE.chatCollapsed,
   );
+  const [dragSourceIndex, setDragSourceIndex] = useState<number | null>(null);
+  const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
     const stored = getStoredPanelState();
@@ -102,7 +108,6 @@ export function CockpitShell({
     setVideoCollapsed(stored.videoCollapsed);
     setChatCollapsed(stored.chatCollapsed);
   }, []);
-  const activeVideoIds = parseActiveVideoIds(searchParams);
   const hasActiveVideos = activeVideoIds.length > 0;
   const hasCollapsedRail = memoryCollapsed || videoCollapsed || chatCollapsed;
   const showEmptyCanvas =
@@ -110,6 +115,9 @@ export function CockpitShell({
   const reducedMotion = useReducedMotionSafe();
   const panelTransition = reducedMotion ? REDUCED_TRANSITION : PANEL_TRANSITION;
   const railTransition = reducedMotion ? REDUCED_TRANSITION : RAIL_TRANSITION;
+  const videoTabTransition = reducedMotion
+    ? REDUCED_TRANSITION
+    : VIDEO_TAB_TRANSITION;
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -119,41 +127,16 @@ export function CockpitShell({
   }, [chatCollapsed, memoryCollapsed, videoCollapsed]);
 
   function closeActiveVideo(videoId: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    const next = parseActiveVideoIds(params).filter((id) => id !== videoId);
-    writeActiveVideoIds(params, next);
-    const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    closeVideo(videoId);
   }
 
   function reorderActiveVideos(fromIndex: number, toIndex: number) {
-    const params = new URLSearchParams(searchParams.toString());
-    const current = parseActiveVideoIds(params);
-    if (
-      fromIndex < 0 ||
-      fromIndex >= current.length ||
-      toIndex < 0 ||
-      toIndex >= current.length ||
-      fromIndex === toIndex
-    ) {
-      return;
-    }
-    const next = [...current];
-    const [moved] = next.splice(fromIndex, 1);
-    next.splice(toIndex, 0, moved);
-    writeActiveVideoIds(params, next);
-    const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    reorderVideos(fromIndex, toIndex);
   }
 
   function openChat(chatId: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete(ACTIVE_VIDEOS_PARAM);
-    const query = params.toString();
-    router.push(
-      query ? `/dashboard/chat/${chatId}?${query}` : `/dashboard/chat/${chatId}`,
-      { scroll: false },
-    );
+    closeAllVideos();
+    router.push(`/dashboard/chat/${chatId}`, { scroll: false });
   }
 
   function expandMemoryPanel() {
@@ -342,43 +325,106 @@ export function CockpitShell({
           />
         </motion.div>
 
-        {activeVideoIds.map((videoId, idx) => (
-          <div
-            key={videoId}
-            onDragOver={(e) => {
-              if (e.dataTransfer.types.includes("application/x-video-tab")) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-              }
-            }}
-            onDrop={(e) => {
-              const raw = e.dataTransfer.getData("application/x-video-tab");
-              if (!raw) return;
-              e.preventDefault();
-              const from = Number(raw);
-              if (Number.isFinite(from)) reorderActiveVideos(from, idx);
-            }}
-            className="relative hidden min-h-0 overflow-hidden lg:flex lg:h-full lg:w-[440px] lg:flex-none lg:flex-col lg:border-r"
-          >
-            <div
-              aria-label="Reorder video tab"
-              title="Drag to reorder"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData("application/x-video-tab", String(idx));
-                e.dataTransfer.effectAllowed = "move";
-              }}
-              className="absolute inset-x-0 top-0 z-20 h-1.5 cursor-grab bg-transparent transition-colors hover:bg-violet-500/40 active:cursor-grabbing"
-            />
-            <aside className="flex min-h-0 flex-1 flex-col">
-              <InlineVideoEditor
-                videoId={videoId}
-                onClose={() => closeActiveVideo(videoId)}
-                onOpenChat={openChat}
-              />
-            </aside>
-          </div>
-        ))}
+        <AnimatePresence initial={false}>
+          {activeVideoIds.map((videoId, idx) => {
+            const isDragging = dragSourceIndex === idx;
+            const showLeftIndicator = dropIndicatorIndex === idx;
+            const showRightIndicator =
+              dropIndicatorIndex === idx + 1 &&
+              idx === activeVideoIds.length - 1;
+            return (
+              <motion.div
+                key={videoId}
+                initial={reducedMotion ? false : { width: 0, opacity: 0 }}
+                animate={{
+                  width: VIDEO_TAB_WIDTH,
+                  opacity: isDragging ? 0.4 : 1,
+                }}
+                exit={
+                  reducedMotion ? { opacity: 0 } : { width: 0, opacity: 0 }
+                }
+                transition={videoTabTransition}
+                className="group relative hidden min-h-0 overflow-hidden lg:flex lg:h-full lg:flex-none lg:flex-col lg:border-r"
+              >
+                {showLeftIndicator && (
+                  <span className="pointer-events-none absolute inset-y-0 left-0 z-30 w-0.5 bg-violet-500" />
+                )}
+                {showRightIndicator && (
+                  <span className="pointer-events-none absolute inset-y-0 right-0 z-30 w-0.5 bg-violet-500" />
+                )}
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (
+                      target.closest(
+                        "[data-no-drag],input,textarea,button,a,select,[contenteditable='true']",
+                      )
+                    ) {
+                      e.preventDefault();
+                      return;
+                    }
+                    e.dataTransfer.setData(
+                      "application/x-video-tab",
+                      String(idx),
+                    );
+                    e.dataTransfer.effectAllowed = "move";
+                    setDragSourceIndex(idx);
+                  }}
+                  onDragEnd={() => {
+                    setDragSourceIndex(null);
+                    setDropIndicatorIndex(null);
+                  }}
+                  onDragOver={(e) => {
+                    if (
+                      !e.dataTransfer.types.includes("application/x-video-tab")
+                    ) {
+                      return;
+                    }
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = "move";
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const insertAfter =
+                      e.clientX - rect.left > rect.width / 2;
+                    setDropIndicatorIndex(insertAfter ? idx + 1 : idx);
+                  }}
+                  onDragLeave={(e) => {
+                    const next = e.relatedTarget as Node | null;
+                    if (next && e.currentTarget.contains(next)) return;
+                    setDropIndicatorIndex((current) =>
+                      current === idx || current === idx + 1 ? null : current,
+                    );
+                  }}
+                  onDrop={(e) => {
+                    const raw = e.dataTransfer.getData(
+                      "application/x-video-tab",
+                    );
+                    setDropIndicatorIndex(null);
+                    if (!raw) return;
+                    e.preventDefault();
+                    const from = Number(raw);
+                    if (!Number.isFinite(from)) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const insertAfter =
+                      e.clientX - rect.left > rect.width / 2;
+                    let to = insertAfter ? idx + 1 : idx;
+                    if (from < to) to -= 1;
+                    reorderActiveVideos(from, to);
+                  }}
+                  className="flex h-full min-h-0 w-[440px] cursor-grab flex-col active:cursor-grabbing"
+                >
+                  <aside className="flex min-h-0 flex-1 flex-col">
+                    <InlineVideoEditor
+                      videoId={videoId}
+                      onClose={() => closeActiveVideo(videoId)}
+                      onOpenChat={openChat}
+                    />
+                  </aside>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
 
         <motion.div
           initial={false}

@@ -9,6 +9,7 @@ import {
   listUserFacts,
 } from "@/lib/db/queries";
 import { SettingsDialogProvider } from "@/components/settings/settings-dialog";
+import { ActiveVideosProvider } from "@/components/cockpit/active-videos-context";
 
 export default async function DashboardLayout({
   children,
@@ -43,7 +44,9 @@ export default async function DashboardLayout({
       initialFacts={facts}
       initialMemoryFiles={memoryFiles}
     >
-      <div className="h-svh overflow-hidden flex flex-col">{children}</div>
+      <ActiveVideosProvider>
+        <div className="h-svh overflow-hidden flex flex-col">{children}</div>
+      </ActiveVideosProvider>
     </SettingsDialogProvider>
   );
 }

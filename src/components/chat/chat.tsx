@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { AnimatePresence, motion } from "motion/react";
@@ -33,15 +32,7 @@ import { Loader } from "@/components/ui/loader";
 import { FadeIn, Stagger, StaggerItem, StreamText } from "@/components/ui/motion";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { ChatInput, type ChatInputActiveVideo } from "./chat-input";
-import { parseActiveVideoIds, writeActiveVideoIds } from "@/lib/active-videos";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useActiveVideos } from "@/components/cockpit/active-videos-context";
 import { ChatImage } from "./chat-image";
 import { EASE_OUT, useReducedMotionSafe } from "@/lib/motion";
 import { estimateCostUsd, type TokenUsage } from "@/lib/pricing";
@@ -319,13 +310,7 @@ export function Chat({
     useState<ProviderErrorPayload | null>(null);
   const missingKey = !hasActiveKey || keyErrorFrom402;
 
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const activeVideoIds = useMemo(
-    () => parseActiveVideoIds(searchParams),
-    [searchParams],
-  );
+  const { activeVideoIds, closeVideo, getCached } = useActiveVideos();
   const activeVideoIdsRef = useRef(activeVideoIds);
   useEffect(() => {
     activeVideoIdsRef.current = activeVideoIds;
@@ -337,7 +322,9 @@ export function Chat({
 
   useEffect(() => {
     if (activeVideoIds.length === 0) return;
-    const missing = activeVideoIds.filter((id) => !(id in videoTitles));
+    const missing = activeVideoIds.filter(
+      (id) => !(id in videoTitles) && !getCached(id),
+    );
     if (missing.length === 0) return;
     let cancelled = false;
     void Promise.all(
@@ -362,47 +349,19 @@ export function Chat({
     return () => {
       cancelled = true;
     };
-  }, [activeVideoIds, videoTitles]);
+  }, [activeVideoIds, videoTitles, getCached]);
 
   const activeVideos: ChatInputActiveVideo[] = useMemo(
     () =>
       activeVideoIds.map((id) => ({
         id,
-        title: videoTitles[id] ?? null,
+        title: videoTitles[id] ?? getCached(id)?.title ?? null,
       })),
-    [activeVideoIds, videoTitles],
+    [activeVideoIds, videoTitles, getCached],
   );
 
   function removeActiveVideo(videoId: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    const next = parseActiveVideoIds(params).filter((id) => id !== videoId);
-    writeActiveVideoIds(params, next);
-    const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  }
-
-  const [multiVideoDialogOpen, setMultiVideoDialogOpen] = useState(false);
-  const multiVideoDismissedRef = useRef<boolean>(false);
-  useEffect(() => {
-    multiVideoDismissedRef.current =
-      window.localStorage.getItem("shortform-studio:multi-video-warning") ===
-      "dismissed";
-  }, []);
-  useEffect(() => {
-    if (activeVideoIds.length > 1 && !multiVideoDismissedRef.current) {
-      setMultiVideoDialogOpen(true);
-    }
-  }, [activeVideoIds.length]);
-
-  function dismissMultiVideoDialog(persistDismiss: boolean) {
-    if (persistDismiss) {
-      multiVideoDismissedRef.current = true;
-      window.localStorage.setItem(
-        "shortform-studio:multi-video-warning",
-        "dismissed",
-      );
-    }
-    setMultiVideoDialogOpen(false);
+    closeVideo(videoId);
   }
 
   const [baseMessageIds] = useState(
@@ -790,39 +749,6 @@ export function Chat({
           )}
         </div>
       </div>
-      <Dialog
-        open={multiVideoDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) setMultiVideoDialogOpen(false);
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Heads up: multi-video chat is messy</DialogTitle>
-            <DialogDescription>
-              Chatting with the AI while multiple videos are open works, but
-              it gets confused about which video you mean. You&apos;ll get
-              sharper answers with a single video focused. Close the ones you
-              don&apos;t need from the rail.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => dismissMultiVideoDialog(true)}
-            >
-              Don&apos;t show again
-            </Button>
-            <Button
-              type="button"
-              onClick={() => dismissMultiVideoDialog(false)}
-            >
-              Got it
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

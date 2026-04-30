@@ -8,7 +8,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
   Download,
@@ -47,10 +47,7 @@ import {
   cockpitSoftPanelClass,
 } from "@/components/cockpit/cockpit-primitives";
 import { createClient } from "@/lib/supabase/client";
-import {
-  parseActiveVideoIds,
-  writeActiveVideoIds,
-} from "@/lib/active-videos";
+import { useActiveVideos } from "@/components/cockpit/active-videos-context";
 import { cn } from "@/lib/utils";
 import type { VideoRow, VideoStatus } from "@/lib/db/types";
 import type { VideoExportFormat } from "@/lib/video-export";
@@ -137,7 +134,7 @@ type VideoQueueEvent =
 export function VideoQueue({ userId, videos }: Props) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { openVideo, primeCache } = useActiveVideos();
   const [items, setItems] = useState(() => sortVideos(videos));
   const [storedQuery, setStoredQuery] = useLocalStorageString(
     QUERY_STORAGE_KEY,
@@ -230,6 +227,10 @@ export function VideoQueue({ userId, videos }: Props) {
     return () => window.removeEventListener(VIDEO_EVENT_NAME, handleVideoEvent);
   }, [userId]);
 
+  useEffect(() => {
+    primeCache(items);
+  }, [items, primeCache]);
+
   const counts = useMemo(() => {
     const base = { all: items.length, idea: 0, ready: 0, filmed: 0 };
     for (const video of items) base[video.status] += 1;
@@ -307,14 +308,10 @@ export function VideoQueue({ userId, videos }: Props) {
   }
 
   function openVideoScript(videoId: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    const current = parseActiveVideoIds(params);
-    const next = current.includes(videoId) ? current : [...current, videoId];
-    writeActiveVideoIds(params, next);
-    const targetPath = pathname.startsWith("/dashboard/chat/")
-      ? pathname
-      : "/dashboard/chat/new";
-    router.push(`${targetPath}?${params.toString()}`, { scroll: false });
+    openVideo(videoId);
+    if (!pathname.startsWith("/dashboard/chat/")) {
+      router.push("/dashboard/chat/new", { scroll: false });
+    }
   }
 
   const hasAnyVideos = items.length > 0;

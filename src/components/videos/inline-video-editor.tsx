@@ -17,7 +17,9 @@ import { CircularLoader } from "@/components/ui/loader";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ColumnHeader } from "@/components/cockpit/column-header";
 import {
   cockpitDashedPanelClass,
@@ -32,6 +34,7 @@ import {
   saveLabel,
   type SaveState,
 } from "@/components/videos/save-status";
+import { useActiveVideos } from "@/components/cockpit/active-videos-context";
 
 type Props = {
   videoId: string;
@@ -49,18 +52,24 @@ const STATUS_OPTIONS = VIDEO_STATUS_OPTIONS.map((o) => ({
 }));
 
 export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
-  const [video, setVideo] = useState<VideoRow | null>(null);
-  const [title, setTitle] = useState("");
-  const [hook, setHook] = useState("");
-  const [script, setScript] = useState("");
-  const [status, setStatus] = useState<VideoStatus>("idea");
+  const { getCached } = useActiveVideos();
+  const cached = getCached(videoId);
+  const [video, setVideo] = useState<VideoRow | null>(cached ?? null);
+  const [title, setTitle] = useState(cached?.title ?? "");
+  const [hook, setHook] = useState(cached?.hook ?? "");
+  const [script, setScript] = useState(cached?.script ?? "");
+  const [status, setStatus] = useState<VideoStatus>(cached?.status ?? "idea");
   const [lastSaved, setLastSaved] = useState({
-    title: "",
-    hook: "",
-    script: "",
-    status: "idea" as VideoStatus,
+    title: cached?.title ?? "",
+    hook: cached?.hook ?? "",
+    script: cached?.script ?? "",
+    status: (cached?.status ?? "idea") as VideoStatus,
   });
-  const [saveState, setSaveState] = useState<SaveState>("loading");
+  const [saveState, setSaveState] = useState<SaveState>(
+    cached ? "idle" : "loading",
+  );
+  const [editingScript, setEditingScript] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const scriptRef = useRef<HTMLTextAreaElement | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -72,6 +81,13 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
 
   useEffect(() => {
     let active = true;
+
+    if (getCached(videoId)) {
+      return () => {
+        active = false;
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+      };
+    }
 
     async function loadVideo() {
       try {
@@ -105,7 +121,7 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
       active = false;
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [videoId]);
+  }, [videoId, getCached]);
 
   async function save(patch: Partial<VideoRow>) {
     setSaveState("saving");
@@ -162,7 +178,6 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
 
   async function deleteVideo() {
     if (!video) return;
-    if (!window.confirm(`Delete ${video.title || "this video"}?`)) return;
 
     try {
       const res = await fetch(`/api/videos/${video.id}`, { method: "DELETE" });
@@ -195,22 +210,24 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <ColumnHeader
-        icon={FileText}
-        iconTone="queue"
-        title={video?.title || "Video script"}
-        description={saveLabel(saveState, dirty)}
-        right={
-          <button
-            type="button"
-            aria-label="Close video editor"
-            onClick={onClose}
-            className={cockpitIconButtonClass}
-          >
-            <X className="size-4" />
-          </button>
-        }
-      />
+      <div data-no-drag>
+        <ColumnHeader
+          icon={FileText}
+          iconTone="queue"
+          title={video?.title || "Video script"}
+          description={saveLabel(saveState, dirty)}
+          right={
+            <button
+              type="button"
+              aria-label="Close video editor"
+              onClick={onClose}
+              className={cockpitIconButtonClass}
+            >
+              <X className="size-4" />
+            </button>
+          }
+        />
+      </div>
 
       {saveState === "loading" ? (
         <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
@@ -262,7 +279,7 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
                 size="icon-sm"
                 variant="ghost"
                 aria-label="Delete video"
-                onClick={() => void deleteVideo()}
+                onClick={() => setConfirmDelete(true)}
                 className="text-destructive hover:text-destructive"
               >
                 <Trash2 />
@@ -301,56 +318,115 @@ export function InlineVideoEditor({ videoId, onClose, onOpenChat }: Props) {
               <span className="text-xs font-medium text-muted-foreground">
                 Script
               </span>
-              <div className="flex items-center gap-1">
-                <MarkdownButton
-                  label="Heading"
-                  icon={Heading2}
-                  onClick={() => applyMarkdown("heading")}
-                />
-                <MarkdownButton
-                  label="Bold"
-                  icon={Bold}
-                  onClick={() => applyMarkdown("bold")}
-                />
-                <MarkdownButton
-                  label="Italic"
-                  icon={Italic}
-                  onClick={() => applyMarkdown("italic")}
-                />
-                <MarkdownButton
-                  label="List"
-                  icon={List}
-                  onClick={() => applyMarkdown("list")}
-                />
-                <MarkdownButton
-                  label="Quote"
-                  icon={Quote}
-                  onClick={() => applyMarkdown("quote")}
-                />
-                <MarkdownButton
-                  label="Code"
-                  icon={Code}
-                  onClick={() => applyMarkdown("code")}
-                />
-              </div>
-            </div>
-            <Textarea
-              ref={scriptRef}
-              value={script}
-              onChange={(event) => setScript(event.target.value)}
-              placeholder="Write the script in Markdown."
-              maxLength={4000}
-              className={cn(
-                "min-h-[22rem] flex-1 resize-none font-mono text-xs leading-5",
-                cockpitInputClass,
+              {editingScript ? (
+                <div className="flex items-center gap-1">
+                  <MarkdownButton
+                    label="Heading"
+                    icon={Heading2}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyMarkdown("heading");
+                    }}
+                  />
+                  <MarkdownButton
+                    label="Bold"
+                    icon={Bold}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyMarkdown("bold");
+                    }}
+                  />
+                  <MarkdownButton
+                    label="Italic"
+                    icon={Italic}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyMarkdown("italic");
+                    }}
+                  />
+                  <MarkdownButton
+                    label="List"
+                    icon={List}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyMarkdown("list");
+                    }}
+                  />
+                  <MarkdownButton
+                    label="Quote"
+                    icon={Quote}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyMarkdown("quote");
+                    }}
+                  />
+                  <MarkdownButton
+                    label="Code"
+                    icon={Code}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      applyMarkdown("code");
+                    }}
+                  />
+                </div>
+              ) : (
+                <span className="text-[11px] text-muted-foreground">
+                  Click to edit
+                </span>
               )}
-            />
+            </div>
+            {editingScript ? (
+              <Textarea
+                ref={scriptRef}
+                value={script}
+                onChange={(event) => setScript(event.target.value)}
+                onBlur={() => setEditingScript(false)}
+                autoFocus
+                placeholder="Write the script in Markdown."
+                maxLength={4000}
+                className={cn(
+                  "min-h-[22rem] flex-1 resize-none font-mono text-xs leading-5",
+                  cockpitInputClass,
+                )}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditingScript(true)}
+                className={cn(
+                  "min-h-[22rem] flex-1 cursor-text overflow-y-auto rounded-md border border-input bg-transparent px-3 py-2 text-left text-sm transition-colors hover:border-ring/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                )}
+              >
+                {script.trim() ? (
+                  <Markdown className="prose prose-sm max-w-none dark:prose-invert">
+                    {script}
+                  </Markdown>
+                ) : (
+                  <span className="text-muted-foreground">
+                    Write the script in Markdown.
+                  </span>
+                )}
+              </button>
+            )}
             <div className="text-right text-[11px] text-muted-foreground">
               {script.length}/4000
             </div>
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onOpenChange={setConfirmDelete}
+        title="Delete video?"
+        description={
+          video?.title
+            ? `"${video.title}" will be permanently deleted.`
+            : "This video will be permanently deleted."
+        }
+        confirmLabel="Delete"
+        onConfirm={deleteVideo}
+      />
     </div>
   );
 }
@@ -360,18 +436,18 @@ type MarkdownFormat = "heading" | "bold" | "italic" | "list" | "quote" | "code";
 function MarkdownButton({
   label,
   icon: Icon,
-  onClick,
+  onMouseDown,
 }: {
   label: string;
   icon: typeof Bold;
-  onClick: () => void;
+  onMouseDown: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }) {
   return (
     <button
       type="button"
       aria-label={label}
       title={label}
-      onClick={onClick}
+      onMouseDown={onMouseDown}
       className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
       <Icon className="size-3.5" />
