@@ -56,8 +56,8 @@ export function DraftEditor({ draft, sourceHandles }: Props) {
 
   useEffect(() => {
     if (hasBody) {
-      setSynthesisSlow(false);
-      return;
+      const timeout = window.setTimeout(() => setSynthesisSlow(false), 0);
+      return () => window.clearTimeout(timeout);
     }
 
     const timeout = window.setTimeout(() => setSynthesisSlow(true), 30_000);
