@@ -284,9 +284,9 @@ function BrandPanel() {
           <LogoMark className="size-8" />
         </span>
         <p className="text-base text-muted-foreground leading-snug">
-          One cockpit. Every model.
+          One cockpit. OpenAI powered.
           <br />
-          Your script, ten times faster.
+          Your writing loop, faster.
         </p>
       </motion.div>
 
@@ -307,7 +307,7 @@ function BrandPanel() {
               size={22}
               className={
                 "opacity-50 transition-opacity duration-150 hover:opacity-100" +
-                (id === "openai" || id === "xai" ? " dark:invert" : "")
+                (id === "openai" ? " dark:invert" : "")
               }
             />
           ))}

@@ -5,11 +5,9 @@ import {
   getChat,
   getCachedMessages,
   getDecryptedProviderKey,
-  getStarterPrompts,
 } from "@/lib/db/queries";
 import { toUIMessages } from "@/lib/chat-messages";
 import { Chat } from "@/components/chat/chat";
-import { FALLBACK_STARTER_PROMPTS } from "@/lib/starter-prompts";
 
 export default async function ChatPage({
   params,
@@ -25,9 +23,8 @@ export default async function ChatPage({
   if (!chat) notFound();
 
   const active = await getActiveModel(user.id);
-  const [page, starterPrompts, apiKey] = await Promise.all([
+  const [page, apiKey] = await Promise.all([
     getCachedMessages(id, { limit: 50 }),
-    getStarterPrompts(user.id),
     getDecryptedProviderKey(user.id, active.provider),
   ]);
   const initialMessages = toUIMessages(page.messages);
@@ -37,11 +34,6 @@ export default async function ChatPage({
       chatId={id}
       initialMessages={initialMessages}
       initialHasMore={page.hasMore}
-      initialStarterPrompts={
-        starterPrompts?.prompts.length === 6
-          ? starterPrompts.prompts
-          : FALLBACK_STARTER_PROMPTS
-      }
       initialUsage={{
         inputTokens: chat.input_tokens,
         outputTokens: chat.output_tokens,

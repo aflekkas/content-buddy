@@ -1,23 +1,23 @@
 "use client";
 
 import { motion } from "motion/react";
-import { ListVideo, Sparkles, UserRound } from "lucide-react";
+import { KeyRound, Sparkles, UserRound } from "lucide-react";
 
 const FEATURES = [
   {
     icon: UserRound,
-    title: "Brand panel that remembers",
-    body: "Drop your bio and the facts you keep repeating. The chat threads them in so you stop re-explaining yourself every session.",
+    title: "Simple creator context",
+    body: "Keep a niche and voice note attached to the chat without a file system to manage.",
   },
   {
-    icon: ListVideo,
-    title: "A queue, not a graveyard",
-    body: "Every idea worth keeping lands in a video queue with three states: idea, ready to film, filmed. Reorder, rename, ship.",
+    icon: KeyRound,
+    title: "OpenAI only",
+    body: "One provider path, one key flow, and a smaller model surface for the pivot.",
   },
   {
     icon: Sparkles,
-    title: "Chat that drafts, not just answers",
-    body: "Hooks, angles, a 30-second script — the chat knows what you make and writes things you would actually post.",
+    title: "Bare chat shell",
+    body: "A focused chat surface stays live while the X-news to LinkedIn workflow lands in later stages.",
   },
 ];
 
@@ -29,11 +29,11 @@ export function FeatureGrid() {
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Three panels. One workflow.
+            Stripped down for the pivot.
           </h2>
           <p className="mt-3 text-muted-foreground">
-            The cockpit is built around the loop short-form creators already
-            run, just with less tab-switching.
+            Stage A removes the old surfaces and keeps the product compiling
+            around the prerequisite OpenAI chat shell.
           </p>
         </div>
         <div className="mt-12 grid gap-4 md:grid-cols-3">

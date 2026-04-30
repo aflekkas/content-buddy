@@ -99,7 +99,7 @@ export function mapProviderError(
     };
   }
 
-  // --- model_not_found / org verification (OpenAI, Groq, xAI, etc.) ---
+  // --- model_not_found / org verification ---
   const errorCode = extractCode(body);
   const errorMessage = extractMessage(body) ?? message;
 
@@ -141,22 +141,14 @@ export function mapProviderError(
 
 function providerName(provider: ProviderId): string {
   const labels: Record<ProviderId, string> = {
-    anthropic: "Anthropic",
     openai: "OpenAI",
-    google: "Google Gemini",
-    xai: "xAI",
-    groq: "Groq",
   };
   return labels[provider] ?? provider;
 }
 
-// Loosely-typed body shapes across providers
 type ProviderBody = {
-  // OpenAI / Groq / xAI: { error: { type, code, message } }
   error?: ProviderErrorObject | string;
-  // Anthropic: { type: "error", error: { type, message } }
   type?: string;
-  // Google: { error: { code, message, status } }
 };
 
 type ProviderErrorDetails = {
@@ -227,10 +219,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isAuthError(body: ProviderBody | null, provider: ProviderId): boolean {
   if (!body) return false;
-  if (provider === "anthropic") {
-    return isProviderErrorObject(body.error) && body.error.type === "authentication_error";
-  }
-  // OpenAI / Groq / xAI
+  if (provider !== "openai") return false;
   const code = isProviderErrorObject(body.error) ? body.error.code : undefined;
   const type = isProviderErrorObject(body.error) ? body.error.type : undefined;
   return (

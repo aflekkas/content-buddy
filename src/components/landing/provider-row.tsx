@@ -118,15 +118,15 @@ export function ProviderRow() {
             Pick your model
           </span>
           <h2 className="mt-4 text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-            Whichever model you already pay for.
+            Bring your OpenAI key.
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Bring a key from any of these. Switch providers in settings, models
-            on a chat, and the rest of the cockpit stays put.
+            Stage A is locked to OpenAI while the new synthesis workflow is
+            being built.
           </p>
         </div>
 
-        <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+        <div className="mx-auto mt-12 grid max-w-sm grid-cols-1 gap-3">
           {PROVIDER_IDS.map((id, i) => (
             <ProviderTile key={id} id={id} index={i} />
           ))}

@@ -5,90 +5,33 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { SelectField } from "@/components/ui/select-field";
 import { CircularLoader } from "@/components/ui/loader";
-import {
-  NICHES,
-  ONBOARDING_PLATFORMS,
-  type OnboardingPlatform,
-} from "@/lib/niches";
-import { getPlatformLogo } from "@/components/brand/platform-logos";
-import type {
-  AudienceStage,
-  PrimaryGoal,
-  UserProfileRow,
-} from "@/lib/db/types";
-import { cn } from "@/lib/utils";
+import type { UserProfileRow } from "@/lib/db/types";
 
 type Props = {
   profile: UserProfileRow;
 };
 
-const PITCH_MAX = 500;
+const NICHE_MAX = 240;
+const VOICE_MAX = 1000;
 
-const AUDIENCE_OPTIONS: { value: AudienceStage; label: string }[] = [
-  { value: "starting", label: "Starting (0-1k)" },
-  { value: "growing", label: "Growing (1k-10k)" },
-  { value: "established", label: "Established (10k-100k)" },
-  { value: "large", label: "Large (100k+)" },
-];
-
-const GOAL_OPTIONS: { value: PrimaryGoal; label: string }[] = [
-  { value: "grow", label: "Grow followers" },
-  { value: "monetize", label: "Monetize" },
-  { value: "brand", label: "Build personal brand" },
-  { value: "traffic", label: "Drive off-platform traffic" },
-  { value: "experiment", label: "Experiment" },
-];
-
-function snapshotKey(state: {
-  platforms: string[];
-  niche: string;
-  pitch: string;
-  audience: string;
-  goal: string;
-}) {
-  return [
-    [...state.platforms].sort().join(","),
-    state.niche,
-    state.pitch.trim(),
-    state.audience,
-    state.goal,
-  ].join("|");
+function snapshotKey(state: { niche: string; voiceNotes: string }) {
+  return [state.niche.trim(), state.voiceNotes.trim()].join("|");
 }
 
 export function ProfileForm({ profile }: Props) {
-  const initialPlatforms = (profile.platforms ?? []) as OnboardingPlatform[];
-  const initialNiche = profile.niche_primary ?? "";
-  const initialPitch = profile.channel_pitch ?? "";
-  const initialAudience = profile.audience_stage ?? "";
-  const initialGoal = profile.primary_goal ?? "";
+  const initialNiche = profile.niche ?? "";
+  const initialVoiceNotes = profile.voice_notes ?? "";
 
-  const [platforms, setPlatforms] =
-    useState<OnboardingPlatform[]>(initialPlatforms);
   const [niche, setNiche] = useState(initialNiche);
-  const [pitch, setPitch] = useState(initialPitch);
-  const [audience, setAudience] = useState<AudienceStage | "">(initialAudience);
-  const [goal, setGoal] = useState<PrimaryGoal | "">(initialGoal);
+  const [voiceNotes, setVoiceNotes] = useState(initialVoiceNotes);
   const [savedKey, setSavedKey] = useState(() =>
-    snapshotKey({
-      platforms: initialPlatforms,
-      niche: initialNiche,
-      pitch: initialPitch,
-      audience: initialAudience,
-      goal: initialGoal,
-    }),
+    snapshotKey({ niche: initialNiche, voiceNotes: initialVoiceNotes }),
   );
   const [saving, setSaving] = useState(false);
 
-  const currentKey = snapshotKey({ platforms, niche, pitch, audience, goal });
+  const currentKey = snapshotKey({ niche, voiceNotes });
   const dirty = currentKey !== savedKey;
-
-  function togglePlatform(id: OnboardingPlatform) {
-    setPlatforms((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
-    );
-  }
 
   async function onSave() {
     setSaving(true);
@@ -98,11 +41,8 @@ export function ProfileForm({ profile }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           profile: {
-            platforms,
-            niche_primary: niche || null,
-            channel_pitch: pitch.trim() || undefined,
-            audience_stage: audience || null,
-            primary_goal: goal || null,
+            niche: niche.trim() || null,
+            voice_notes: voiceNotes.trim() || null,
           },
         }),
       });
@@ -119,76 +59,40 @@ export function ProfileForm({ profile }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
-        <Label className="text-sm font-medium">Platforms</Label>
-        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-          {ONBOARDING_PLATFORMS.map((p) => {
-            const active = platforms.includes(p.id);
-            const Logo = getPlatformLogo(p.id);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => togglePlatform(p.id)}
-                className={cn(
-                  "flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors",
-                  active
-                    ? "border-primary bg-primary/5 text-foreground"
-                    : "border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground",
-                )}
-              >
-                <Logo className="size-4 shrink-0" />
-                <span>{p.label}</span>
-              </button>
-            );
-          })}
+        <div className="flex items-center justify-between">
+          <Label htmlFor="profile-niche" className="text-sm font-medium">
+            Niche
+          </Label>
+          <span className="text-xs text-muted-foreground">
+            {niche.length}/{NICHE_MAX}
+          </span>
         </div>
-      </section>
-
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <SelectField
+        <Textarea
           id="profile-niche"
-          label="Primary niche"
           value={niche}
-          onValueChange={setNiche}
-          options={NICHES.map((n) => ({
-            value: n.id,
-            label: `${n.emoji} ${n.label}`,
-          }))}
+          onChange={(e) => setNiche(e.target.value.slice(0, NICHE_MAX))}
+          placeholder="The audience, market, or topic you write about"
+          rows={3}
+          className="leading-relaxed"
         />
-        <SelectField
-          id="profile-audience"
-          label="Audience stage"
-          value={audience}
-          onValueChange={(v) => setAudience(v as AudienceStage)}
-          options={AUDIENCE_OPTIONS}
-        />
-        <div className="sm:col-span-2">
-          <SelectField
-            id="profile-goal"
-            label="Primary goal"
-            value={goal}
-            onValueChange={(v) => setGoal(v as PrimaryGoal)}
-            options={GOAL_OPTIONS}
-          />
-        </div>
       </section>
 
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="profile-pitch" className="text-sm font-medium">
-            Channel pitch
+          <Label htmlFor="profile-voice" className="text-sm font-medium">
+            Voice notes
           </Label>
           <span className="text-xs text-muted-foreground">
-            {pitch.length}/{PITCH_MAX}
+            {voiceNotes.length}/{VOICE_MAX}
           </span>
         </div>
         <Textarea
-          id="profile-pitch"
-          value={pitch}
-          onChange={(e) => setPitch(e.target.value.slice(0, PITCH_MAX))}
-          placeholder="One sentence on what your channel is and who it's for"
-          rows={3}
-          className="leading-relaxed"
+          id="profile-voice"
+          value={voiceNotes}
+          onChange={(e) => setVoiceNotes(e.target.value.slice(0, VOICE_MAX))}
+          placeholder="Tone, phrasing, and style notes the assistant should preserve"
+          rows={5}
+          className="min-h-32 leading-relaxed"
         />
       </section>
 

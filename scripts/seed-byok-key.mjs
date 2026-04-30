@@ -1,10 +1,10 @@
-// Seed an encrypted Anthropic key into user_provider_keys for a target user.
+// Seed an encrypted OpenAI key into user_provider_keys for a target user.
 //
 // Usage: node scripts/seed-byok-key.mjs [email]
 //   email defaults to "aflekkas@gmail.com".
 //
 // Requires .env.local with: NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY,
-// BYOK_ENCRYPTION_KEY, ANTHROPIC_API_KEY.
+// BYOK_ENCRYPTION_KEY, OPENAI_API_KEY.
 
 import { readFileSync } from "node:fs";
 import { createCipheriv, randomBytes } from "node:crypto";
@@ -13,19 +13,19 @@ import { createClient } from "@supabase/supabase-js";
 loadDotEnvLocal();
 
 const TARGET_EMAIL = process.argv[2] ?? "aflekkas@gmail.com";
-const PROVIDER = "anthropic";
-const DEFAULT_MODEL = "claude-sonnet-4-6";
+const PROVIDER = "openai";
+const DEFAULT_MODEL = "gpt-4o-mini";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseSecret = process.env.SUPABASE_SECRET_KEY;
 const masterKeyB64 = process.env.BYOK_ENCRYPTION_KEY;
-const anthropicKey = process.env.ANTHROPIC_API_KEY;
+const openaiKey = process.env.OPENAI_API_KEY;
 
 if (!supabaseUrl || !supabaseSecret) {
   fail("missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY in env");
 }
 if (!masterKeyB64) fail("missing BYOK_ENCRYPTION_KEY in env");
-if (!anthropicKey) fail("missing ANTHROPIC_API_KEY in env");
+if (!openaiKey) fail("missing OPENAI_API_KEY in env");
 
 const masterKey = Buffer.from(masterKeyB64, "base64");
 if (masterKey.length !== 32) {
@@ -39,8 +39,8 @@ const supabase = createClient(supabaseUrl, supabaseSecret, {
 const userId = await findUserIdByEmail(TARGET_EMAIL);
 if (!userId) fail(`no user found with email ${TARGET_EMAIL}`);
 
-const blob = encrypt(anthropicKey.trim());
-const last4 = anthropicKey.trim().slice(-4);
+const blob = encrypt(openaiKey.trim());
+const last4 = openaiKey.trim().slice(-4);
 
 const { error: upsertErr } = await supabase
   .from("user_provider_keys")
@@ -66,7 +66,7 @@ const { error: profileErr } = await supabase
 if (profileErr) fail(`profile upsert failed: ${profileErr.message}`);
 
 console.log(
-  `seeded last4=…${last4} provider=${PROVIDER} model=${DEFAULT_MODEL} for ${TARGET_EMAIL}`,
+  `seeded last4=...${last4} provider=${PROVIDER} model=${DEFAULT_MODEL} for ${TARGET_EMAIL}`,
 );
 
 function encrypt(plaintext) {
@@ -120,14 +120,14 @@ function loadDotEnvLocal() {
       ) {
         value = value.slice(1, -1);
       }
-      if (process.env[key] === undefined) process.env[key] = value;
+      process.env[key] ??= value;
     }
   } catch {
-    // .env.local optional; rely on existing env vars
+    // .env.local is optional if variables are already exported.
   }
 }
 
-function fail(msg) {
-  console.error(`seed-byok-key: ${msg}`);
+function fail(message) {
+  console.error(message);
   process.exit(1);
 }

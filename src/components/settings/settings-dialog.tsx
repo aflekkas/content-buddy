@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useState,
-} from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -16,25 +11,16 @@ import {
 import { KeysForm } from "@/components/settings/keys-form";
 import { SettingsHome } from "@/components/settings/settings-home";
 import { SectionHeader } from "@/components/settings/section-header";
-import { PersonaForm } from "@/components/settings/persona-form";
 import { ProfileForm } from "@/components/settings/profile-form";
-import { MemorySection } from "@/components/settings/memory-section";
 import { isProviderId } from "@/lib/providers";
 import type {
   ActiveModel as Active,
-  MemoryFileRow,
   ProviderKeyMetaRow,
-  UserFactRow,
   UserProfileRow,
 } from "@/lib/db/types";
 import type { ProviderId } from "@/lib/providers";
 
-export type SettingsView =
-  | "home"
-  | "keys"
-  | "persona"
-  | "profile"
-  | "memory";
+export type SettingsView = "home" | "keys" | "profile";
 
 type SettingsDialogContextValue = {
   open: () => void;
@@ -58,8 +44,6 @@ type ProviderProps = {
   initialKeys: ProviderKeyMetaRow[];
   initialActive: { provider: string; model: string };
   profile: UserProfileRow | null;
-  initialFacts: UserFactRow[];
-  initialMemoryFiles: MemoryFileRow[];
 };
 
 const SECTION_TITLES: Record<
@@ -71,18 +55,9 @@ const SECTION_TITLES: Record<
     subtitle:
       "Bring your own API key. Keys are encrypted at rest and only used to call the provider on your behalf.",
   },
-  persona: {
-    title: "Bot persona",
-    subtitle: "Name your assistant and describe how it should sound.",
-  },
   profile: {
-    title: "Channel profile",
-    subtitle:
-      "Niche, platforms, and pitch the bot uses for every recommendation.",
-  },
-  memory: {
-    title: "Memory",
-    subtitle: "Facts the bot has remembered and the knowledge files it loads.",
+    title: "Creator profile",
+    subtitle: "Niche and voice notes used for every response.",
   },
 };
 
@@ -91,15 +66,13 @@ export function SettingsDialogProvider({
   initialKeys,
   initialActive,
   profile,
-  initialFacts,
-  initialMemoryFiles,
 }: ProviderProps) {
   // "closed" = no dialog visible. Otherwise the value is which view is open.
   const [view, setView] = useState<SettingsView | "closed">("closed");
 
   const provider: ProviderId = isProviderId(initialActive.provider)
     ? initialActive.provider
-    : ("anthropic" as ProviderId);
+    : "openai";
   const active: Active = { provider, model: initialActive.model };
 
   const open = useCallback(() => setView("home"), []);
@@ -126,7 +99,7 @@ export function SettingsDialogProvider({
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
             <DialogDescription>
-              Configure how the bot behaves, your profile, keys, and memory.
+              Configure your profile and OpenAI key.
             </DialogDescription>
           </DialogHeader>
           <SettingsHome onSelect={(v) => setView(v)} />
@@ -147,25 +120,6 @@ export function SettingsDialogProvider({
       </Dialog>
 
       <Dialog
-        open={dialogOpen("persona")}
-        onOpenChange={handleOpenChange("persona")}
-      >
-        <DialogContent className="sm:max-w-2xl">
-          <SectionHeader
-            title={SECTION_TITLES.persona.title}
-            subtitle={SECTION_TITLES.persona.subtitle}
-            onBack={() => setView("home")}
-          />
-          <div className="max-h-[65vh] overflow-y-auto px-1">
-            <PersonaForm
-              initialName={profile?.assistant_name ?? null}
-              initialPersona={profile?.assistant_persona ?? null}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
         open={dialogOpen("profile")}
         onOpenChange={handleOpenChange("profile")}
       >
@@ -177,25 +131,6 @@ export function SettingsDialogProvider({
           />
           <div className="max-h-[65vh] overflow-y-auto px-1">
             {profile && <ProfileForm profile={profile} />}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={dialogOpen("memory")}
-        onOpenChange={handleOpenChange("memory")}
-      >
-        <DialogContent className="sm:max-w-2xl">
-          <SectionHeader
-            title={SECTION_TITLES.memory.title}
-            subtitle={SECTION_TITLES.memory.subtitle}
-            onBack={() => setView("home")}
-          />
-          <div className="max-h-[65vh] overflow-y-auto px-1">
-            <MemorySection
-              initialFacts={initialFacts}
-              initialMemoryFiles={initialMemoryFiles}
-            />
           </div>
         </DialogContent>
       </Dialog>

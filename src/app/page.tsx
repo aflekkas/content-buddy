@@ -5,11 +5,9 @@ import { FeatureGrid } from "@/components/landing/feature-grid";
 import { EncryptionSection } from "@/components/landing/encryption-section";
 import { HowItWorks } from "@/components/landing/how-it-works";
 import { ProviderRow } from "@/components/landing/provider-row";
-import { PromptMarquee } from "@/components/landing/prompt-marquee";
 import { OpenSourceSection } from "@/components/landing/open-source";
 import { FinalCta } from "@/components/landing/final-cta";
 import { LandingFooter } from "@/components/landing/footer";
-import { RecentVideoActivity } from "@/components/landing/recent-video-activity";
 
 export default async function RootPage() {
   const supabase = await createClient();
@@ -21,14 +19,12 @@ export default async function RootPage() {
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto">
       <LandingNav isAuthed={isAuthed} />
-      <RecentVideoActivity />
       <main className="flex-1">
         <Hero isAuthed={isAuthed} />
         <FeatureGrid />
         <HowItWorks />
         <ProviderRow />
         <EncryptionSection />
-        <PromptMarquee />
         <FinalCta isAuthed={isAuthed} />
         <OpenSourceSection />
       </main>

@@ -2,7 +2,7 @@
 
 import { useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, Film, Paperclip, Square, X } from "lucide-react";
+import { ArrowUp, Paperclip, Square, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ChatImage } from "./chat-image";
@@ -21,11 +21,6 @@ export type ChatAttachment = {
   filename: string;
 };
 
-export type ChatInputActiveVideo = {
-  id: string;
-  title: string | null;
-};
-
 type Props = {
   onSubmit: (text: string, attachments: ChatAttachment[]) => void;
   disabled?: boolean;
@@ -34,8 +29,6 @@ type Props = {
   autoFocus?: boolean;
   attachmentsDisabled?: boolean;
   attachmentsDisabledReason?: string;
-  activeVideos?: ChatInputActiveVideo[];
-  onRemoveActiveVideo?: (videoId: string) => void;
 };
 
 export function ChatInput({
@@ -46,8 +39,6 @@ export function ChatInput({
   autoFocus,
   attachmentsDisabled,
   attachmentsDisabledReason,
-  activeVideos,
-  onRemoveActiveVideo,
 }: Props) {
   const [value, setValue] = useState("");
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
@@ -180,32 +171,6 @@ export function ChatInput({
         disabled={disabled}
         className="flex flex-col gap-2 rounded-xl border-border bg-background shadow-sm hover:ring-primary/20 focus-within:ring-primary/40"
       >
-        {activeVideos && activeVideos.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 px-2 pt-2">
-            {activeVideos.map((video) => (
-              <div
-                key={video.id}
-                className="group inline-flex items-center gap-1.5 rounded-full border border-violet-500/30 bg-violet-500/10 py-1 pl-2 pr-1 text-xs text-violet-700 dark:text-violet-200"
-                title={video.title ?? video.id}
-              >
-                <Film className="size-3.5 shrink-0" />
-                <span className="max-w-[180px] truncate">
-                  {video.title?.trim() || "Untitled video"}
-                </span>
-                {onRemoveActiveVideo ? (
-                  <button
-                    type="button"
-                    onClick={() => onRemoveActiveVideo(video.id)}
-                    aria-label={`Remove ${video.title ?? "video"} from chat context`}
-                    className="rounded-full p-0.5 text-violet-700/70 transition-colors hover:bg-violet-500/20 hover:text-violet-900 dark:text-violet-200/70 dark:hover:text-violet-50"
-                  >
-                    <X className="size-3" />
-                  </button>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        )}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 px-2 pt-2">
             {attachments.map((a) => (

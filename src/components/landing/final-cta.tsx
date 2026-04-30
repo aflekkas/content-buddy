@@ -23,8 +23,8 @@ export function FinalCta({ isAuthed = false }: { isAuthed?: boolean }) {
           </StaggerItem>
           <StaggerItem>
             <p className="mx-auto mt-4 max-w-xl text-balance text-muted-foreground">
-              Open Shortform Studio, paste in a key from any supported provider, and
-              start a chat. Your videos line up behind it.
+              Open Shortform Studio, paste in your OpenAI key, and use the
+              chat shell while the new synthesis workflow comes online.
             </p>
           </StaggerItem>
           <StaggerItem className="mt-8 flex flex-col items-center gap-3">
@@ -37,7 +37,7 @@ export function FinalCta({ isAuthed = false }: { isAuthed?: boolean }) {
             </Link>
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <KeyRound className="size-3.5" />
-              Bring your own key — Anthropic, OpenAI, Gemini, Grok, or Llama
+              Bring your own OpenAI key
             </span>
           </StaggerItem>
         </Stagger>

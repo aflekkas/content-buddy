@@ -58,12 +58,11 @@ Do not expose secret env vars to the client. Never use the admin client in brows
 
 ## Bring Your Own Key
 
-Shortform Studio is a bring-your-own-key product. Each user supplies their own provider API key (Anthropic, OpenAI, Google Gemini, xAI Grok, or Llama via Groq) and picks an active model in `/settings`; the app uses that key to drive their chats.
+Shortform Studio is a bring-your-own-key product. In Stage A, each user supplies their own OpenAI API key and picks an active OpenAI model in `/settings`; the app uses that key to drive their chats.
 
 - Surface BYOK in the UI subtly (footer note, landing CTA line, onboarding hint), not as the headline of the brand.
-- Server-side AI orchestration must use the **caller's** key, not a shared platform key. Never check a global env var like `ANTHROPIC_API_KEY` in production paths; pull the user's key via `getDecryptedProviderKey(userId, provider)` from `src/lib/db/queries.ts`.
-- Provider catalogue (supported providers and models) is the single source of truth in `src/lib/providers.ts`. Use `getModel(provider, model, apiKey)` from `src/lib/model-dispatch.ts` to instantiate the AI SDK model. Do not import `@ai-sdk/anthropic` (or any other provider SDK) directly in route or feature code.
-- Avoid Anthropic-specific `providerOptions` (`cacheControl`, `thinking`) in request paths since they error on other providers. If genuinely needed, branch on `provider === "anthropic"`.
+- Server-side AI orchestration must use the **caller's** key, not a shared platform key. Pull the user's key via `getDecryptedProviderKey(userId, provider)` from `src/lib/db/queries.ts`.
+- Provider catalogue (supported providers and models) is the single source of truth in `src/lib/providers.ts`. Use `getModel(provider, model, apiKey)` from `src/lib/model-dispatch.ts` to instantiate the AI SDK model. Do not import provider SDKs directly in route or feature code.
 - Keys are stored encrypted at rest in `public.user_provider_keys` (AES-256-GCM, master key in `BYOK_ENCRYPTION_KEY`). Helpers in `src/lib/crypto.ts`. Never log, return, or expose the decrypted key to the client.
 - Missing/invalid user keys must surface as actionable UI ("add your key in settings"), not opaque 500s. The chat route returns `402 {error: "missing_key", provider}`; the chat client surfaces a banner linking to `/settings`.
 

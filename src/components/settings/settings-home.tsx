@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, ChevronRight, KeyRound, NotebookText, User } from "lucide-react";
+import { ChevronRight, KeyRound, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Stagger, StaggerItem } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
@@ -17,26 +17,14 @@ const CARDS: Card[] = [
   {
     view: "keys",
     title: "Models & keys",
-    subtitle: "Active model and BYOK provider keys",
+    subtitle: "Active OpenAI model and API key",
     icon: KeyRound,
   },
   {
-    view: "persona",
-    title: "Bot persona",
-    subtitle: "Name your assistant and shape its voice",
-    icon: Bot,
-  },
-  {
     view: "profile",
-    title: "Channel profile",
-    subtitle: "Niche, platforms, and pitch",
+    title: "Creator profile",
+    subtitle: "Niche and voice notes",
     icon: User,
-  },
-  {
-    view: "memory",
-    title: "Memory",
-    subtitle: "Remembered facts and knowledge files",
-    icon: NotebookText,
   },
 ];
 

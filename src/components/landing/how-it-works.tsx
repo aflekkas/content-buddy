@@ -5,18 +5,18 @@ import { motion } from "motion/react";
 const STEPS = [
   {
     n: "01",
-    title: "Tell it about you",
-    body: "Bio, what you post, who it's for. Add facts you want remembered — those land in every chat without you pasting them.",
+    title: "Add your key",
+    body: "Connect OpenAI with your own encrypted API key.",
   },
   {
     n: "02",
-    title: "Chat your way to ideas",
-    body: "Riff on hooks, angles, drafts. The chat keeps a thread, the video queue keeps the keepers.",
+    title: "Set profile context",
+    body: "Save a niche and voice notes for the system prompt.",
   },
   {
     n: "03",
-    title: "Film, mark filmed, repeat",
-    body: "Move a video to ready, then to filmed. The next idea is already waiting in the queue.",
+    title: "Use the shell",
+    body: "Chat while the new synthesis surfaces are built in later stages.",
   },
 ];
 
@@ -34,7 +34,7 @@ export function HowItWorks() {
             How it works
           </h2>
           <p className="mt-3 text-muted-foreground">
-            No setup wizard. Open it, talk to it, ship.
+            The old product surface is gone; the new workflow starts from here.
           </p>
         </div>
         <ol className="mt-12 grid gap-6 md:grid-cols-3">

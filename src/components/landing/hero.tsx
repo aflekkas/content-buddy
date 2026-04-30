@@ -2,11 +2,12 @@ import { Sparkles } from "lucide-react";
 import { AnimatedShinyText } from "@/components/ui/animated-shiny-text";
 import { AuroraText } from "@/components/ui/aurora-text";
 import { DotPattern } from "@/components/ui/dot-pattern";
-import { HeroDemo } from "@/components/landing/hero-demo";
-import { FadeIn, Stagger, StaggerItem } from "@/components/ui/motion";
+import { Stagger, StaggerItem } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
 
 export function Hero({ isAuthed = false }: { isAuthed?: boolean }) {
+  void isAuthed;
+
   return (
     <section className="relative isolate overflow-hidden">
       <DotPattern
@@ -21,14 +22,14 @@ export function Hero({ isAuthed = false }: { isAuthed?: boolean }) {
             <span className="group inline-flex items-center gap-2 rounded-full border bg-background/60 px-3 py-1 text-xs backdrop-blur">
               <Sparkles className="size-3.5 text-primary" />
               <AnimatedShinyText className="!mx-0 !max-w-none">
-                Built for short-form creators
+                OpenAI chat shell
               </AnimatedShinyText>
             </span>
           </StaggerItem>
 
           <StaggerItem>
             <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
-              Tell me what you want,{" "}
+              Bring an idea,{" "}
               <AuroraText
                 speed={0.8}
                 colors={[
@@ -38,23 +39,18 @@ export function Hero({ isAuthed = false }: { isAuthed?: boolean }) {
                   "oklch(0.685 0.169 237.323)",
                 ]}
               >
-                I&apos;ll tell you what to film.
+                shape it into sharper writing.
               </AuroraText>
             </h1>
           </StaggerItem>
 
           <StaggerItem>
             <p className="mt-5 max-w-xl text-balance text-base text-muted-foreground sm:text-lg">
-              A chat that knows your voice, remembers what you&apos;re building,
-              and turns half-formed ideas into a queue of videos you can actually
-              film.
+              Stage A strips the product back to a focused OpenAI chat while
+              the new synthesis workflow is built.
             </p>
           </StaggerItem>
         </Stagger>
-
-        <FadeIn delay={0.2} y={24} className="mt-10 sm:mt-14">
-          <HeroDemo isAuthed={isAuthed} />
-        </FadeIn>
       </div>
     </section>
   );

@@ -1,12 +1,10 @@
 import {
   convertToModelMessages,
-  streamText,
   generateText,
   stepCountIs,
-  tool,
+  streamText,
   type UIMessage,
 } from "ai";
-import { z } from "zod";
 import { revalidateTag } from "next/cache";
 import {
   errorResponse,
@@ -14,27 +12,17 @@ import {
   requireAuth,
   requireProviderKey,
 } from "@/lib/api";
-import { buildSystemMessages } from "@/lib/anthropic";
+import { buildSystemMessages } from "@/lib/system-prompt";
 import { getModel } from "@/lib/model-dispatch";
 import { providerSupportsImages } from "@/lib/providers";
 import {
   addChatUsage,
-  appendMemoryFile,
   appendMessageWithParts,
-  createHook,
-  createVideo,
-  ensureStarterMemoryFiles,
-  getMemoryFileByPath,
   getActiveModel,
   getChat,
   getUserProfile,
-  getVideo,
   setChatTitleIfEmpty,
-  summarizeMemoryFiles,
-  updateVideo,
-  upsertMemoryFile,
 } from "@/lib/db/queries";
-import { MAX_MEMORY_CONTENT_LENGTH } from "@/lib/memory";
 import { extractText, filterPersistableParts } from "@/lib/message-parts";
 import { encodeProviderError, mapProviderError } from "@/lib/provider-errors";
 import { buildRateLimitHeaders, checkChatRateLimit } from "@/lib/rate-limit";
@@ -44,10 +32,7 @@ export const maxDuration = 60;
 type ChatRequestBody = {
   id: string;
   messages: UIMessage[];
-  activeVideoIds?: string[];
 };
-
-const MAX_ACTIVE_VIDEOS = 5;
 
 export async function POST(req: Request) {
   const auth = await requireAuth();
@@ -65,21 +50,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const {
-    id: chatId,
-    messages,
-    activeVideoIds: rawActiveVideoIds,
-  }: ChatRequestBody = await req.json();
-
-  const activeVideoIds = Array.isArray(rawActiveVideoIds)
-    ? Array.from(
-        new Set(
-          rawActiveVideoIds.filter(
-            (id): id is string => typeof id === "string" && id.length > 0,
-          ),
-        ),
-      ).slice(0, MAX_ACTIVE_VIDEOS)
-    : [];
+  const { id: chatId, messages }: ChatRequestBody = await req.json();
 
   const chat = await getChat(chatId, user.id);
   if (!chat) return notFound();
@@ -96,22 +67,7 @@ export async function POST(req: Request) {
     return errorResponse("image_not_supported", 415, { provider });
   }
 
-  const memoryFiles = await ensureStarterMemoryFiles(user.id);
-  const autoloadMemoryFiles = memoryFiles.filter((file) => file.autoload);
   const profile = await getUserProfile(user.id);
-
-  const activeVideos = (
-    await Promise.all(activeVideoIds.map((id) => getVideo(user.id, id)))
-  )
-    .filter((video): video is NonNullable<typeof video> => Boolean(video))
-    .map((video) => ({
-      id: video.id,
-      title: video.title,
-      status: video.status,
-      hook: video.hook,
-      script: video.script,
-    }));
-
   const lastMessage = messages[messages.length - 1];
   if (lastMessage?.role === "user") {
     const persistableParts = filterPersistableParts(lastMessage.parts);
@@ -128,236 +84,21 @@ export async function POST(req: Request) {
   }
 
   const modelMessages = await convertToModelMessages(messages);
-  const userId = user.id;
 
   const result = streamText({
     model: getModel(provider, model, apiKey),
     messages: [
       ...buildSystemMessages({
-        memoryFiles: autoloadMemoryFiles,
-        assistantName: profile?.assistant_name ?? null,
-        assistantPersona: profile?.assistant_persona ?? null,
         creatorProfile: profile
           ? {
-              platforms: profile.platforms ?? [],
-              niche_primary: profile.niche_primary,
-              niche_secondary: profile.niche_secondary ?? [],
-              channel_pitch: profile.channel_pitch,
-              audience_stage: profile.audience_stage,
-              primary_goal: profile.primary_goal,
+              niche: profile.niche,
+              voice_notes: profile.voice_notes,
             }
           : null,
-        activeVideos,
       }),
       ...modelMessages,
     ],
     stopWhen: stepCountIs(5),
-    tools: {
-      list_memory_files: tool({
-        description:
-          "List the creator's markdown memory files so you can decide what deeper context to read or update.",
-        inputSchema: z.object({}),
-        execute: async () => {
-          const files = await ensureStarterMemoryFiles(userId);
-          return { files: summarizeMemoryFiles(files) };
-        },
-      }),
-      read_memory_file: tool({
-        description:
-          "Read a markdown memory file by exact path, for example identity.md or facts.md.",
-        inputSchema: z.object({
-          path: z
-            .string()
-            .min(1)
-            .max(180)
-            .describe("The exact markdown memory path to read."),
-        }),
-        execute: async ({ path }) => {
-          const file =
-            (await getMemoryFileByPath(userId, path)) ??
-            (await ensureStarterMemoryFiles(userId)).find(
-              (memoryFile) => memoryFile.path === path,
-            );
-          if (!file) {
-            return { error: "not_found" as const };
-          }
-          return {
-            path: file.path,
-            title: file.title,
-            content: file.content,
-            autoload: file.autoload,
-            updated_at: file.updated_at,
-          };
-        },
-      }),
-      upsert_memory_file: tool({
-        description:
-          "Create or replace a markdown memory file. Use for stable creator context. Append new facts to facts.md; do not create a facts/ subfolder.",
-        inputSchema: z.object({
-          path: z.string().min(1).max(180),
-          title: z.string().max(120).optional(),
-          content: z.string().min(1).max(MAX_MEMORY_CONTENT_LENGTH),
-          autoload: z.boolean().optional(),
-        }),
-        execute: async ({ path, title, content, autoload }) => {
-          try {
-            const file = await upsertMemoryFile(userId, {
-              path,
-              title,
-              content: content.trim(),
-              autoload,
-              source: "agent",
-            });
-            return {
-              path: file.path,
-              title: file.title,
-              autoload: file.autoload,
-              updated_at: file.updated_at,
-            };
-          } catch {
-            return { error: "memory_unavailable" as const, path };
-          }
-        },
-      }),
-      append_memory_file: tool({
-        description:
-          "Append markdown to an existing memory file, or create it if missing. Use this for adding one stable fact or a short section without rewriting the whole file.",
-        inputSchema: z.object({
-          path: z.string().min(1).max(180),
-          content: z.string().min(1).max(4000),
-          autoload: z.boolean().optional(),
-        }),
-        execute: async ({ path, content, autoload }) => {
-          try {
-            const file = await appendMemoryFile(userId, {
-              path,
-              content: content.trim(),
-              autoload,
-              source: "agent",
-            });
-            return {
-              path: file.path,
-              title: file.title,
-              autoload: file.autoload,
-              updated_at: file.updated_at,
-            };
-          } catch {
-            return { error: "memory_unavailable" as const, path };
-          }
-        },
-      }),
-      create_video: tool({
-        description:
-          "Create a saved video idea when the conversation lands on a concrete concept, hook, or draft script.",
-        inputSchema: z.object({
-          title: z.string().min(3).max(120),
-          hook: z.string().max(500).optional(),
-          script: z.string().max(4000).optional(),
-        }),
-        execute: async ({ title, hook, script }) => {
-          const video = await createVideo(userId, {
-            chatId,
-            title: title.trim(),
-            hook: hook?.trim(),
-            script: script?.trim(),
-          });
-
-          return {
-            id: video.id,
-            title: video.title,
-            hook: video.hook,
-            status: video.status,
-            chat_id: video.chat_id,
-            updated_at: video.updated_at,
-          };
-        },
-      }),
-      save_hook: tool({
-        description:
-          "Save a reusable opening line / hook to the creator's swipe file. Use when the conversation lands on a punchy hook the creator may want to reuse beyond a single video.",
-        inputSchema: z.object({
-          text: z
-            .string()
-            .min(10)
-            .max(500)
-            .describe("The hook line itself. 10-500 characters."),
-          notes: z
-            .string()
-            .max(1000)
-            .optional()
-            .describe("Optional context, why it works, or a usage tip."),
-          tags: z
-            .array(z.string().min(1).max(40))
-            .max(10)
-            .optional()
-            .describe("Optional short tags such as 'curiosity', 'list', 'contrarian'."),
-        }),
-        execute: async ({ text, notes, tags }) => {
-          const hook = await createHook(userId, {
-            text: text.trim(),
-            notes: notes?.trim(),
-            tags: tags?.map((t) => t.trim()).filter(Boolean),
-            source: "chat",
-            sourceChatId: chatId,
-          });
-          return {
-            id: hook.id,
-            text: hook.text,
-            tags: hook.tags,
-          };
-        },
-      }),
-      get_video_details: tool({
-        description:
-          "Fetch the full latest details of a specific saved video by id. Use this when the creator references one of their open videos and you need its current title, hook, full script, status, or filmed_at to give a precise answer.",
-        inputSchema: z.object({
-          id: z.string().uuid(),
-        }),
-        execute: async ({ id }) => {
-          const video = await getVideo(userId, id);
-          if (!video) return { error: "not_found" as const };
-          return {
-            id: video.id,
-            title: video.title,
-            hook: video.hook,
-            script: video.script,
-            status: video.status,
-            chat_id: video.chat_id,
-            filmed_at: video.filmed_at,
-            updated_at: video.updated_at,
-          };
-        },
-      }),
-      update_video: tool({
-        description:
-          "Update an existing saved video with refined title, hook, script, or status.",
-        inputSchema: z.object({
-          id: z.string().uuid(),
-          title: z.string().min(3).max(120).optional(),
-          hook: z.string().max(500).optional(),
-          script: z.string().max(4000).optional(),
-          status: z.enum(["idea", "ready", "filmed"]).optional(),
-        }),
-        execute: async ({ id, ...patch }) => {
-          const video = await updateVideo(userId, id, {
-            title: patch.title?.trim(),
-            hook: patch.hook?.trim(),
-            script: patch.script?.trim(),
-            status: patch.status,
-          });
-
-          if (!video) return { error: "not_found" as const };
-          return {
-            id: video.id,
-            title: video.title,
-            hook: video.hook,
-            status: video.status,
-            chat_id: video.chat_id,
-            updated_at: video.updated_at,
-          };
-        },
-      }),
-    },
   });
 
   return result.toUIMessageStreamResponse({
@@ -386,11 +127,7 @@ export async function POST(req: Request) {
       if (assistantMsg?.role === "assistant") {
         const persistableParts = filterPersistableParts(assistantMsg.parts);
         if (persistableParts.length > 0) {
-          await appendMessageWithParts(
-            chatId,
-            "assistant",
-            persistableParts,
-          );
+          await appendMessageWithParts(chatId, "assistant", persistableParts);
           revalidateTag(`chat:${chatId}:messages`, "max");
         }
       }
@@ -398,8 +135,7 @@ export async function POST(req: Request) {
         const total = await result.totalUsage;
         const nonCacheInput = total.inputTokenDetails?.noCacheTokens;
         await addChatUsage(chatId, {
-          inputTokens:
-            nonCacheInput ?? Math.max(0, total.inputTokens ?? 0),
+          inputTokens: nonCacheInput ?? Math.max(0, total.inputTokens ?? 0),
           outputTokens: total.outputTokens ?? 0,
           cacheReadTokens: total.inputTokenDetails?.cacheReadTokens ?? 0,
           cacheCreationTokens: total.inputTokenDetails?.cacheWriteTokens ?? 0,

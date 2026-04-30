@@ -1,10 +1,6 @@
 import { z } from "zod";
 import { jsonResponse, parseBody, requireAuth } from "@/lib/api";
-import {
-  getUserProfile,
-  listUserFacts,
-  upsertUserProfile,
-} from "@/lib/db/queries";
+import { getUserProfile, upsertUserProfile } from "@/lib/db/queries";
 
 const PatchBody = z.object({
   bio: z.string().max(2000),
@@ -14,14 +10,10 @@ export async function GET() {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
 
-  const [profile, facts] = await Promise.all([
-    getUserProfile(auth.user.id),
-    listUserFacts(auth.user.id),
-  ]);
+  const profile = await getUserProfile(auth.user.id);
 
   return jsonResponse({
     bio: profile?.bio ?? "",
-    facts,
   });
 }
 
