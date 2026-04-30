@@ -9,7 +9,7 @@ import {
   getActiveModel,
   getDecryptedProviderKey,
   getUserProfile,
-  hasCompletedOnboarding,
+  markOnboarded,
   setChatTitle,
 } from "@/lib/db/queries";
 import { getModel } from "@/lib/model-dispatch";
@@ -59,10 +59,6 @@ export async function POST() {
       { retryAfter: rateLimit.retryAfter },
       { headers: buildRateLimitHeaders(rateLimit) },
     );
-  }
-
-  if (!(await hasCompletedOnboarding(user.id))) {
-    return errorResponse("key_required", 409);
   }
 
   const profile = await getUserProfile(user.id);
@@ -120,6 +116,7 @@ export async function POST() {
     `${profile?.niche_primary ?? "creator"} starter pack`;
   await setChatTitle(chat.id, title);
   await appendMessage(chat.id, "assistant", artifact);
+  await markOnboarded(user.id);
   revalidateTag(`chat:${chat.id}:messages`, "max");
 
   if (usage) {

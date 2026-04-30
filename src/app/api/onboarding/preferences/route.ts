@@ -4,9 +4,10 @@ import {
   jsonResponse,
   parseBody,
   requireAuth,
+  requireProviderKey,
 } from "@/lib/api";
 import {
-  hasCompletedOnboarding,
+  getActiveModel,
   upsertMemoryFile,
   upsertUserProfile,
 } from "@/lib/db/queries";
@@ -61,9 +62,9 @@ export async function POST(req: Request) {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
 
-  if (!(await hasCompletedOnboarding(auth.user.id))) {
-    return errorResponse("key_required", 409);
-  }
+  const { provider } = await getActiveModel(auth.user.id);
+  const key = await requireProviderKey(auth.user.id, provider);
+  if (!key.ok) return key.response;
 
   const parsed = await parseBody(req, PayloadSchema, {
     errorCode: "invalid_payload",

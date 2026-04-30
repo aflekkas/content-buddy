@@ -215,7 +215,7 @@ export function OnboardingFlow() {
 
   const handleSkipAll = () => {
     if (!keySubmitted) return;
-    router.push("/dashboard");
+    void completeWithBlankChat();
   };
 
   const submitSeed = async (): Promise<{ chatId: string } | null> => {
@@ -237,6 +237,31 @@ export function OnboardingFlow() {
     } catch {
       toast.error("Network error. Try again.");
       return null;
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const completeWithBlankChat = async (): Promise<void> => {
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/onboarding/complete", { method: "POST" });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          (body as { message?: string }).message ??
+          "Couldn't finish onboarding. Try again.";
+        toast.error(msg);
+        return;
+      }
+      const chatId = (body as { chatId?: string }).chatId;
+      if (!chatId) {
+        toast.error("Couldn't open your first chat. Try again.");
+        return;
+      }
+      router.replace(`/dashboard/chat/${chatId}`);
+    } catch {
+      toast.error("Network error. Try again.");
     } finally {
       setSubmitting(false);
     }
@@ -358,9 +383,9 @@ export function OnboardingFlow() {
                 state={state}
                 submit={submitSeed}
                 onDone={(chatId) =>
-                  router.push(`/dashboard/chat/${chatId}`)
+                  router.replace(`/dashboard/chat/${chatId}`)
                 }
-                onFallback={() => router.push("/dashboard")}
+                onFallback={() => void completeWithBlankChat()}
               />
             )}
           </motion.div>

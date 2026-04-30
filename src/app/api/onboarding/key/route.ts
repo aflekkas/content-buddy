@@ -6,11 +6,7 @@ import {
   requireAuth,
   requireProviderKey,
 } from "@/lib/api";
-import {
-  markOnboarded,
-  setActiveModel,
-  setProviderKey,
-} from "@/lib/db/queries";
+import { setActiveModel, setProviderKey } from "@/lib/db/queries";
 import { validateProviderKey } from "@/lib/provider-validate";
 import {
   PROVIDERS,
@@ -56,7 +52,6 @@ export async function POST(req: Request) {
   if (!stored.ok) return stored.response;
 
   await setActiveModel(auth.user.id, provider, defaultModel(provider));
-  await markOnboarded(auth.user.id);
 
   return jsonResponse({ ok: true });
 }

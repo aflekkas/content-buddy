@@ -50,6 +50,10 @@ export function AuthForm() {
   const searchParams = useSearchParams();
   const nextParam = searchParams.get("next");
   const next = isSafeNext(nextParam) ? nextParam : "/dashboard";
+  const emailRedirectTo =
+    typeof window === "undefined"
+      ? undefined
+      : `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`;
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -64,7 +68,11 @@ export function AuthForm() {
     const supabase = createClient();
     let result =
       mode === "signup"
-        ? await supabase.auth.signUp({ email, password })
+        ? await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo },
+          })
         : await supabase.auth.signInWithPassword({ email, password });
 
     // Existing account on signup: fall back to signin with same credentials.
