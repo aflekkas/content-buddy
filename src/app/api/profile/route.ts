@@ -3,7 +3,6 @@ import { jsonResponse, parseBody, requireAuth } from "@/lib/api";
 import { getUserProfile, upsertUserProfile } from "@/lib/db/queries";
 
 const PatchBody = z.object({
-  bio: z.string().max(2000).optional(),
   niche: z.string().trim().max(240).nullable().optional(),
   voice_notes: z.string().trim().max(1000).nullable().optional(),
 });
@@ -15,7 +14,6 @@ export async function GET() {
   const profile = await getUserProfile(auth.user.id);
 
   return jsonResponse({
-    bio: profile?.bio ?? "",
     niche: profile?.niche ?? null,
     voice_notes: profile?.voice_notes ?? null,
   });
@@ -30,7 +28,6 @@ export async function PATCH(req: Request) {
 
   const profile = await upsertUserProfile(auth.user.id, parsed.data);
   return jsonResponse({
-    bio: profile.bio,
     niche: profile.niche,
     voice_notes: profile.voice_notes,
   });

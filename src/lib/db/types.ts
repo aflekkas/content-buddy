@@ -38,7 +38,6 @@ export type MessageRow = {
 
 export type UserProfileRow = {
   user_id: string;
-  bio: string;
   updated_at: string;
   onboarded_at: string | null;
   active_provider: string;
@@ -97,22 +96,7 @@ export type DraftRow = {
   updated_at: string;
 };
 
-export type StarterPromptIcon =
-  | "target"
-  | "lightbulb"
-  | "flame"
-  | "users"
-  | "message"
-  | "sparkles"
-  | "zap";
-
-export type StarterPrompt = {
-  text: string;
-  icon: StarterPromptIcon;
-};
-
 export type OnboardingProfileInput = {
-  bio?: string;
   niche?: string | null;
   voice_notes?: string | null;
 };

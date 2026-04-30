@@ -268,17 +268,15 @@ export async function getUserProfileForCron(
 
 export async function upsertUserProfile(
   userId: string,
-  patch: string | OnboardingProfileInput,
+  patch: OnboardingProfileInput,
 ): Promise<UserProfileRow> {
   const supabase = await createClient();
-  const fields: Record<string, unknown> =
-    typeof patch === "string" ? { bio: patch } : { ...patch };
 
   const { data, error } = await supabase
     .from("user_profiles")
     .upsert({
       user_id: userId,
-      ...fields,
+      ...patch,
       updated_at: new Date().toISOString(),
     })
     .select()

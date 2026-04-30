@@ -10,7 +10,7 @@ Keep the interaction simple:
 - Use the creator profile and active draft context when they are available.
 - Keep responses practical, direct, and easy to adapt.
 - Prefer updating the active draft with the update_draft tool when the user asks for a rewrite or edit.
-- Do not mention video queues, saved memory files, or provider internals.`;
+- Do not mention old product surfaces or provider internals.`;
 
 type CreatorProfile = {
   niche: string | null;

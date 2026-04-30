@@ -1,4 +1,4 @@
-import { errorResponse, jsonResponse } from "@/lib/api";
+import { errorResponse, jsonResponse, requireAuth } from "@/lib/api";
 import {
   createDraft,
   getDecryptedExternalCredential,
@@ -60,10 +60,29 @@ function groupByUser(sources: MonitoredSourceRow[]) {
 }
 
 export async function GET(req: Request) {
-  const secret = process.env.CRON_SECRET;
-  const auth = req.headers.get("authorization");
-  if (!secret || auth !== `Bearer ${secret}`) {
-    return errorResponse("unauthorized", 401);
+  return handlePollSources(req);
+}
+
+export async function POST(req: Request) {
+  return handlePollSources(req);
+}
+
+async function handlePollSources(req: Request) {
+  const url = new URL(req.url);
+  const targetUserId = url.searchParams.get("user_id")?.trim() || null;
+
+  if (targetUserId) {
+    const auth = await requireAuth();
+    if (!auth.ok) return auth.response;
+    if (auth.user.id !== targetUserId) {
+      return errorResponse("unauthorized", 401);
+    }
+  } else {
+    const secret = process.env.CRON_SECRET;
+    const auth = req.headers.get("authorization");
+    if (!secret || auth !== `Bearer ${secret}`) {
+      return errorResponse("unauthorized", 401);
+    }
   }
 
   const summary: Summary = {
@@ -75,7 +94,10 @@ export async function GET(req: Request) {
   };
 
   const now = new Date();
-  const sources = await listAllSourcesForCron();
+  const allSources = await listAllSourcesForCron();
+  const sources = targetUserId
+    ? allSources.filter((source) => source.user_id === targetUserId)
+    : allSources;
 
   for (const [userId, userSources] of groupByUser(sources)) {
     summary.users_processed += 1;
