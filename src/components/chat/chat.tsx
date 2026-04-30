@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
+import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowDown, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   chatId: string;
+  draftId: string;
   initialMessages: UIMessage[];
   initialHasMore?: boolean;
   initialUsage: TokenUsage;
@@ -52,6 +54,7 @@ const CHAT_ROW_TRANSITION = {
 
 export function Chat({
   chatId,
+  draftId,
   initialMessages,
   initialHasMore = false,
   initialUsage,
@@ -59,6 +62,7 @@ export function Chat({
   activeProviderId,
   activeModelId,
 }: Props) {
+  const router = useRouter();
   const settingsDialog = useSettingsDialog();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
@@ -76,7 +80,7 @@ export function Chat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest: ({ id, messages }) => ({
-        body: { id, messages },
+        body: { id, messages, activeDraftId: draftId },
       }),
       fetch: async (input, init) => {
         const res = await fetch(input, init);
@@ -93,7 +97,10 @@ export function Chat({
       if (parsed) setProviderError(parsed);
     },
     onFinish: ({ isError }) => {
-      if (!isError) setProviderError(null);
+      if (!isError) {
+        setProviderError(null);
+        router.refresh();
+      }
     },
   });
 
@@ -341,9 +348,9 @@ export function Chat({
 
 function EmptyState({ onPick }: { onPick: (text: string) => void }) {
   const prompts = [
-    "Help me turn this idea into a sharper post",
-    "Draft a concise LinkedIn angle from my notes",
-    "Ask me the questions you need before drafting",
+    "Make this draft punchier",
+    "Shorten the intro and keep the hook",
+    "Read the source signal and tighten the argument",
   ];
 
   return (
@@ -352,9 +359,9 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
         <Sparkles className="size-5" />
       </div>
       <div>
-        <h1 className="text-lg font-semibold">OpenAI chat shell</h1>
+        <h1 className="text-lg font-semibold">Draft assistant</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Use this bare chat while the new synthesis surfaces are built.
+          Edit this draft in your voice.
         </p>
       </div>
       <div className="grid w-full gap-2">
@@ -419,10 +426,26 @@ function MessageRender({
             );
           }
 
+          if (part.type === "tool-update_draft") {
+            return <ToolChip key={index} label="Updated draft body" />;
+          }
+
+          if (part.type === "tool-read_signal") {
+            return <ToolChip key={index} label="Read signal" />;
+          }
+
           return null;
         })}
       </div>
     </Message>
+  );
+}
+
+function ToolChip({ label }: { label: string }) {
+  return (
+    <div className="my-2 inline-flex rounded-full border bg-muted px-2.5 py-1 text-xs text-muted-foreground">
+      {label}
+    </div>
   );
 }
 

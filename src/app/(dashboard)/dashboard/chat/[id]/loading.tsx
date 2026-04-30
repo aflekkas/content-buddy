@@ -1,9 +1,0 @@
-import { CircularLoader } from "@/components/ui/loader";
-
-export default function ChatLoading() {
-  return (
-    <div className="flex h-full min-h-0 items-center justify-center">
-      <CircularLoader size="md" className="text-primary" />
-    </div>
-  );
-}

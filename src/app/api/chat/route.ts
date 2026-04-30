@@ -3,9 +3,11 @@ import {
   generateText,
   stepCountIs,
   streamText,
+  tool,
   type UIMessage,
 } from "ai";
 import { revalidateTag } from "next/cache";
+import { z } from "zod";
 import {
   errorResponse,
   notFound,
@@ -20,18 +22,25 @@ import {
   appendMessageWithParts,
   getActiveModel,
   getChat,
+  getDraft,
   getUserProfile,
+  getSignal,
+  listSignalsByIds,
+  listSources,
   setChatTitleIfEmpty,
+  updateDraft,
 } from "@/lib/db/queries";
 import { extractText, filterPersistableParts } from "@/lib/message-parts";
 import { encodeProviderError, mapProviderError } from "@/lib/provider-errors";
 import { buildRateLimitHeaders, checkChatRateLimit } from "@/lib/rate-limit";
+import type { SignalRow } from "@/lib/db/types";
 
 export const maxDuration = 60;
 
 type ChatRequestBody = {
   id: string;
   messages: UIMessage[];
+  activeDraftId?: string;
 };
 
 export async function POST(req: Request) {
@@ -50,10 +59,21 @@ export async function POST(req: Request) {
     );
   }
 
-  const { id: chatId, messages }: ChatRequestBody = await req.json();
+  const { id: chatId, messages, activeDraftId }: ChatRequestBody =
+    await req.json();
+  if (!activeDraftId) {
+    return errorResponse("missing_active_draft", 400);
+  }
 
   const chat = await getChat(chatId, user.id);
   if (!chat) return notFound();
+
+  const draft = await getDraft(user.id, activeDraftId);
+  if (!draft) return notFound();
+  if (draft.chat_id && draft.chat_id !== chat.id) return notFound();
+  if (!draft.chat_id) {
+    await updateDraft(user.id, draft.id, { chat_id: chat.id });
+  }
 
   const { provider, model } = await getActiveModel(user.id);
   const keyResult = await requireProviderKey(user.id, provider);
@@ -67,7 +87,14 @@ export async function POST(req: Request) {
     return errorResponse("image_not_supported", 415, { provider });
   }
 
-  const profile = await getUserProfile(user.id);
+  const [profile, draftSignals, sources] = await Promise.all([
+    getUserProfile(user.id),
+    listSignalsByIds(user.id, draft.signal_ids),
+    listSources(user.id),
+  ]);
+  const sourceHandles = new Map(
+    sources.map((source) => [source.id, source.handle]),
+  );
   const lastMessage = messages[messages.length - 1];
   if (lastMessage?.role === "user") {
     const persistableParts = filterPersistableParts(lastMessage.parts);
@@ -95,9 +122,49 @@ export async function POST(req: Request) {
               voice_notes: profile.voice_notes,
             }
           : null,
+        activeDraft: draft,
+        activeDraftSignals: draftSignals.map((signal) => ({
+          ...signal,
+          sourceHandle: sourceHandles.get(signal.source_id) ?? null,
+        })),
       }),
       ...modelMessages,
     ],
+    tools: {
+      update_draft: tool({
+        description: "Replace the active draft body with the edited body.",
+        inputSchema: z.object({
+          body: z.string().min(1).max(20000),
+        }),
+        execute: async ({ body }) => {
+          await updateDraft(user.id, activeDraftId, { body });
+          return { ok: true };
+        },
+      }),
+      read_signal: tool({
+        description: "Read a source signal linked to or owned by this user.",
+        inputSchema: z.object({
+          signalId: z.uuid(),
+        }),
+        execute: async ({ signalId }) => {
+          const signal = await getSignal(user.id, signalId);
+          if (!signal) return { ok: false, error: "not_found" };
+          const handle = sourceHandles.get(signal.source_id) ?? null;
+          return {
+            ok: true,
+            signal: {
+              id: signal.id,
+              source: handle ? normalizeHandle(handle) : null,
+              text: readSignalText(signal),
+              url: signal.url,
+              posted_at: signal.posted_at,
+              summary: signal.summary,
+              relevance_score: signal.relevance_score,
+            },
+          };
+        },
+      }),
+    },
     stopWhen: stepCountIs(5),
   });
 
@@ -145,6 +212,17 @@ export async function POST(req: Request) {
       }
     },
   });
+}
+
+function normalizeHandle(handle: string) {
+  return handle.startsWith("@") ? handle : `@${handle}`;
+}
+
+function readSignalText(signal: SignalRow) {
+  const rawText = signal.raw.text;
+  if (typeof rawText === "string" && rawText.trim()) return rawText.trim();
+  if (signal.summary?.trim()) return signal.summary.trim();
+  return signal.url;
 }
 
 async function generateChatTitle(

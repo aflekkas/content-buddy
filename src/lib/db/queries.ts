@@ -617,6 +617,23 @@ export async function getSignal(
   return data;
 }
 
+export async function listSignalsByIds(
+  userId: string,
+  ids: string[],
+): Promise<SignalRow[]> {
+  if (ids.length === 0) return [];
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("signals")
+    .select("*")
+    .eq("user_id", userId)
+    .in("id", ids);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function insertSignals(
   userId: string,
   sourceId: string,
@@ -788,29 +805,6 @@ export async function setActiveModel(
 
   if (error) throw error;
   return { provider, model };
-}
-
-export type SearchChatHit = {
-  chat_id: string;
-  title: string | null;
-  updated_at: string;
-  snippet: string;
-  matched_at: string;
-};
-
-export async function searchChats(
-  query: string,
-  limit = 20,
-): Promise<SearchChatHit[]> {
-  const trimmed = query.trim();
-  if (trimmed.length < 2) return [];
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("search_chats", {
-    p_query: trimmed,
-    p_limit: limit,
-  });
-  if (error) throw error;
-  return (data ?? []) as SearchChatHit[];
 }
 
 function bytesFromSupabase(value: unknown): Buffer {
