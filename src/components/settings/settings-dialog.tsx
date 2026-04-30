@@ -51,9 +51,9 @@ const SECTION_TITLES: Record<
   { title: string; subtitle?: string }
 > = {
   keys: {
-    title: "Models & keys",
+    title: "Keys & integrations",
     subtitle:
-      "Bring your own API key. Keys are encrypted at rest and only used to call the provider on your behalf.",
+      "Bring your own OpenAI key and Apify token. Credentials are encrypted at rest.",
   },
   profile: {
     title: "Creator profile",

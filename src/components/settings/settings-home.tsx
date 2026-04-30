@@ -16,8 +16,8 @@ type Card = {
 const CARDS: Card[] = [
   {
     view: "keys",
-    title: "Models & keys",
-    subtitle: "Active OpenAI model and API key",
+    title: "Keys & integrations",
+    subtitle: "OpenAI key, Apify token, and active model",
     icon: KeyRound,
   },
   {
