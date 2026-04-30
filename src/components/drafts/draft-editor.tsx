@@ -32,8 +32,8 @@ export function DraftEditor({ draft, sourceHandles }: Props) {
 
   useEffect(() => {
     if (body === lastSavedBody) return;
-    setSaveState("saving");
     const timeout = window.setTimeout(async () => {
+      setSaveState("saving");
       const res = await fetch(`/api/drafts/${draft.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
