@@ -10,13 +10,21 @@ import {
 } from "@/lib/providers";
 import type {
   ChatRow,
+  DraftRow,
+  ExternalCredentialMetaRow,
   MessagePart,
   MessageRow,
   MessagesPage,
+  MonitoredSourceRow,
   OnboardingProfileInput,
   ProviderKeyMetaRow,
+  SignalRow,
   UserProfileRow,
 } from "./types";
+
+type ExternalCredentialKind = "apify";
+type SourceKind = MonitoredSourceRow["kind"];
+type SignalStatus = SignalRow["status"];
 
 export async function listChats(userId: string): Promise<ChatRow[]> {
   const supabase = await createClient();
@@ -244,6 +252,20 @@ export async function getUserProfile(
   return data;
 }
 
+export async function getUserProfileForCron(
+  userId: string,
+): Promise<UserProfileRow | null> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function upsertUserProfile(
   userId: string,
   patch: string | OnboardingProfileInput,
@@ -369,6 +391,361 @@ export async function clearProviderKey(
     .delete()
     .eq("user_id", userId)
     .eq("provider", provider);
+
+  if (error) throw error;
+}
+
+export const listExternalCredentialMeta = cache(
+  async (userId: string): Promise<ExternalCredentialMetaRow[]> => {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("user_external_credentials")
+      .select("kind, last4, updated_at")
+      .eq("user_id", userId);
+
+    if (error) throw error;
+    return (data ?? []).filter((row) => row.kind === "apify");
+  },
+);
+
+export async function getDecryptedExternalCredential(
+  userId: string,
+  kind: ExternalCredentialKind,
+): Promise<string | null> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("user_external_credentials")
+    .select("ciphertext, iv, auth_tag")
+    .eq("user_id", userId)
+    .eq("kind", kind)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  const ciphertext = bytesFromSupabase(data.ciphertext);
+  const iv = bytesFromSupabase(data.iv);
+  const authTag = bytesFromSupabase(data.auth_tag);
+
+  return decrypt({ ciphertext, iv, authTag });
+}
+
+export async function setExternalCredential(
+  userId: string,
+  kind: ExternalCredentialKind,
+  plaintext: string,
+): Promise<void> {
+  const trimmed = plaintext.trim();
+  if (!trimmed) throw new Error("empty credential");
+
+  const blob = encrypt(trimmed);
+  const last4 = trimmed.slice(-4);
+  const updatedAt = new Date().toISOString();
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("user_external_credentials").upsert({
+    user_id: userId,
+    kind,
+    ciphertext: bytesToSupabase(blob.ciphertext),
+    iv: bytesToSupabase(blob.iv),
+    auth_tag: bytesToSupabase(blob.authTag),
+    last4,
+    updated_at: updatedAt,
+  });
+
+  if (error) throw error;
+}
+
+export async function clearExternalCredential(
+  userId: string,
+  kind: ExternalCredentialKind,
+): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("user_external_credentials")
+    .delete()
+    .eq("user_id", userId)
+    .eq("kind", kind);
+
+  if (error) throw error;
+}
+
+export async function listSources(
+  userId: string,
+): Promise<MonitoredSourceRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("monitored_sources")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getSource(
+  userId: string,
+  id: string,
+): Promise<MonitoredSourceRow | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("monitored_sources")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function createSource(
+  userId: string,
+  input: {
+    kind: SourceKind;
+    handle: string;
+    topic_tags?: string[];
+    poll_interval_hours?: number;
+  },
+): Promise<MonitoredSourceRow> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("monitored_sources")
+    .insert({
+      user_id: userId,
+      kind: input.kind,
+      handle: input.handle,
+      topic_tags: input.topic_tags ?? [],
+      poll_interval_hours: input.poll_interval_hours ?? 24,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateSource(
+  userId: string,
+  id: string,
+  patch: Partial<
+    Pick<
+      MonitoredSourceRow,
+      | "topic_tags"
+      | "poll_interval_hours"
+      | "last_polled_at"
+      | "last_synthesized_at"
+    >
+  >,
+): Promise<MonitoredSourceRow> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("monitored_sources")
+    .update(patch)
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteSource(userId: string, id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("monitored_sources")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", id);
+
+  if (error) throw error;
+}
+
+export async function listAllSourcesForCron(): Promise<MonitoredSourceRow[]> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("monitored_sources")
+    .select("*")
+    .order("user_id", { ascending: true });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function listSignals(
+  userId: string,
+  opts?: {
+    limit?: number;
+    status?: SignalStatus;
+    sourceId?: string;
+    postedAfter?: string;
+  },
+): Promise<SignalRow[]> {
+  const limit = Math.min(Math.max(opts?.limit ?? 100, 1), 500);
+  const supabase = createAdminClient();
+  let query = supabase
+    .from("signals")
+    .select("*")
+    .eq("user_id", userId)
+    .order("posted_at", { ascending: false })
+    .limit(limit);
+
+  if (opts?.status) query = query.eq("status", opts.status);
+  if (opts?.sourceId) query = query.eq("source_id", opts.sourceId);
+  if (opts?.postedAfter) query = query.gt("posted_at", opts.postedAfter);
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getSignal(
+  userId: string,
+  id: string,
+): Promise<SignalRow | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("signals")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function insertSignals(
+  userId: string,
+  sourceId: string,
+  posts: Array<
+    Omit<
+      SignalRow,
+      | "id"
+      | "user_id"
+      | "source_id"
+      | "fetched_at"
+      | "summary"
+      | "relevance_score"
+      | "status"
+    >
+  >,
+): Promise<SignalRow[]> {
+  if (posts.length === 0) return [];
+
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("signals")
+    .upsert(
+      posts.map((post) => ({
+        user_id: userId,
+        source_id: sourceId,
+        external_id: post.external_id,
+        url: post.url,
+        posted_at: post.posted_at,
+        raw: post.raw,
+      })),
+      { onConflict: "user_id,external_id", ignoreDuplicates: true },
+    )
+    .select();
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function updateSignal(
+  userId: string,
+  id: string,
+  patch: Partial<Pick<SignalRow, "summary" | "relevance_score" | "status">>,
+): Promise<SignalRow> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("signals")
+    .update(patch)
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function listDrafts(userId: string): Promise<DraftRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("drafts")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getDraft(
+  userId: string,
+  id: string,
+): Promise<DraftRow | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("drafts")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function createDraft(
+  userId: string,
+  input: { signal_ids?: string[]; body: string; chat_id?: string | null },
+): Promise<DraftRow> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("drafts")
+    .insert({
+      user_id: userId,
+      signal_ids: input.signal_ids ?? [],
+      body: input.body,
+      chat_id: input.chat_id ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateDraft(
+  userId: string,
+  id: string,
+  patch: Partial<Pick<DraftRow, "body" | "status" | "copied_at" | "chat_id">>,
+): Promise<DraftRow> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("drafts")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteDraft(userId: string, id: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("drafts")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", id);
 
   if (error) throw error;
 }

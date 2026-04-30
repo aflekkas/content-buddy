@@ -1,3 +1,8 @@
 {
-  "crons": []
+  "crons": [
+    {
+      "path": "/api/cron/poll-sources",
+      "schedule": "0 9 * * *"
+    }
+  ]
 }

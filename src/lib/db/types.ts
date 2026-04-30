@@ -53,6 +53,50 @@ export type ProviderKeyMetaRow = {
   updated_at: string;
 };
 
+export type ExternalCredentialMetaRow = {
+  kind: "apify";
+  last4: string;
+  updated_at: string;
+};
+
+export type MonitoredSourceRow = {
+  id: string;
+  user_id: string;
+  kind: "x_self" | "x_account";
+  handle: string;
+  topic_tags: string[];
+  poll_interval_hours: number;
+  last_polled_at: string | null;
+  last_synthesized_at: string | null;
+  created_at: string;
+};
+
+export type SignalRow = {
+  id: string;
+  user_id: string;
+  source_id: string;
+  external_id: string;
+  url: string;
+  posted_at: string;
+  raw: Record<string, unknown>;
+  summary: string | null;
+  relevance_score: number | null;
+  status: "new" | "queued" | "drafted" | "dismissed";
+  fetched_at: string;
+};
+
+export type DraftRow = {
+  id: string;
+  user_id: string;
+  signal_ids: string[];
+  chat_id: string | null;
+  body: string;
+  status: "draft" | "copied" | "dismissed";
+  copied_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type StarterPromptIcon =
   | "target"
   | "lightbulb"
