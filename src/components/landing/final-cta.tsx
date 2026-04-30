@@ -14,17 +14,16 @@ export function FinalCta({ isAuthed = false }: { isAuthed?: boolean }) {
           "[mask-image:radial-gradient(ellipse_at_center,white,transparent_70%)]",
         )}
       />
-      <div className="mx-auto max-w-4xl px-4 py-24 text-center sm:px-6">
+      <div id="start" className="mx-auto max-w-4xl px-4 py-24 text-center sm:px-6">
         <Stagger>
           <StaggerItem>
             <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-              Stop staring at a blank doc.
+              Ready to ship more LinkedIn?
             </h2>
           </StaggerItem>
           <StaggerItem>
             <p className="mx-auto mt-4 max-w-xl text-balance text-muted-foreground">
-              Open Shortform Studio, paste in your OpenAI key, and use the
-              chat shell while the new synthesis workflow comes online.
+              It takes 2 minutes to connect. Free to try with your own keys.
             </p>
           </StaggerItem>
           <StaggerItem className="mt-8 flex flex-col items-center gap-3">
@@ -32,12 +31,12 @@ export function FinalCta({ isAuthed = false }: { isAuthed?: boolean }) {
               href={isAuthed ? "/dashboard" : "/login"}
               className={cn(buttonVariants({ size: "lg", shape: "pill", withArrow: true }))}
             >
-              {isAuthed ? "Open dashboard" : "Get started"}
+              Start free
               <ArrowRight className="size-4" />
             </Link>
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <KeyRound className="size-3.5" />
-              Bring your own OpenAI key
+              Bring your own OpenAI key and Apify token
             </span>
           </StaggerItem>
         </Stagger>
