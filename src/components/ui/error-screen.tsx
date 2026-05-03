@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, RotateCcw, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Check, Copy, RotateCcw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,6 +34,24 @@ export function ErrorScreen({
   onRetry,
 }: ErrorScreenProps) {
   const router = useRouter();
+  const [copied, setCopied] = useState(false);
+
+  const copyText = [
+    errorMessage ? `Error: ${errorMessage}` : null,
+    errorStack ? `\nStack:\n${errorStack}` : null,
+    digest ? `\nref ${digest}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  async function handleCopy() {
+    if (!copyText) return;
+    try {
+      await navigator.clipboard.writeText(copyText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }
 
   return (
     <div
@@ -46,9 +65,9 @@ export function ErrorScreen({
       <FadeIn className="flex w-full max-w-md flex-col items-center text-center">
         <span
           aria-hidden
-          className="flex size-10 items-center justify-center rounded-full border border-border bg-muted/40 text-muted-foreground"
+          className="flex size-14 items-center justify-center rounded-full border border-border bg-muted/40 text-destructive"
         >
-          <TriangleAlert className="size-4" />
+          <TriangleAlert className="size-6" />
         </span>
 
         <h1 className="mt-4 text-xl font-semibold tracking-tight sm:text-2xl">
@@ -70,12 +89,34 @@ export function ErrorScreen({
         {errorMessage ? (
           <Card size="sm" className="mt-6 w-full text-left">
             <CardHeader>
-              <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                Error
-              </CardTitle>
-              <CardDescription className="font-mono text-[11px] text-foreground/80 break-words whitespace-pre-wrap">
-                {errorMessage}
-              </CardDescription>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Error
+                  </CardTitle>
+                  <CardDescription className="font-mono text-[11px] text-foreground/80 break-words whitespace-pre-wrap">
+                    {errorMessage}
+                  </CardDescription>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  aria-label="Copy error details"
+                  className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-md border bg-background px-2 text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                >
+                  {copied ? (
+                    <>
+                      <Check className="size-3.5" />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="size-3.5" />
+                      Copy
+                    </>
+                  )}
+                </button>
+              </div>
             </CardHeader>
             {errorStack ? (
               <CardContent>
