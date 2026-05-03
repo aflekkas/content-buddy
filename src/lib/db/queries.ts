@@ -503,6 +503,7 @@ export async function createSource(
   input: {
     kind: SourceKind;
     handle: string;
+    url?: string | null;
     topic_tags?: string[];
     poll_interval_hours?: number;
   },
@@ -514,8 +515,40 @@ export async function createSource(
       user_id: userId,
       kind: input.kind,
       handle: input.handle,
+      url: input.url ?? null,
       topic_tags: input.topic_tags ?? [],
       poll_interval_hours: input.poll_interval_hours ?? 24,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function getOrCreateLifeJournalSource(
+  userId: string,
+): Promise<MonitoredSourceRow> {
+  const supabase = createAdminClient();
+  const { data: existing, error: lookupError } = await supabase
+    .from("monitored_sources")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("kind", "life_journal")
+    .maybeSingle();
+
+  if (lookupError) throw lookupError;
+  if (existing) return existing;
+
+  const { data, error } = await supabase
+    .from("monitored_sources")
+    .insert({
+      user_id: userId,
+      kind: "life_journal",
+      handle: "My journal",
+      url: null,
+      topic_tags: [],
+      poll_interval_hours: 24,
     })
     .select()
     .single();

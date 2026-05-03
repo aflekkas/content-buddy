@@ -6,6 +6,7 @@ import { LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CockpitTopBarFrame } from "@/components/cockpit/cockpit-primitives";
 import { LogoLockup } from "@/components/logo";
+import { BRAND_NAME } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/client";
 import { useSettingsDialog } from "@/components/settings/settings-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -34,7 +35,7 @@ export function TopBar({ email }: Props) {
       <div className="flex min-w-0 items-center gap-3">
         <Link
           href="/"
-          aria-label="Shortform Studio home"
+          aria-label={`${BRAND_NAME} home`}
           className="inline-flex min-w-0 items-center rounded-md focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
         >
           <LogoLockup iconClassName="size-[18px]" textClassName="hidden sm:inline" />

@@ -36,7 +36,7 @@ export function FinalCta({ isAuthed = false }: { isAuthed?: boolean }) {
             </Link>
             <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <KeyRound className="size-3.5" />
-              Bring your own OpenAI key and Apify token
+              Bring your own OpenAI key
             </span>
           </StaggerItem>
         </Stagger>

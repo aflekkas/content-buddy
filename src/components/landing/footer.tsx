@@ -11,13 +11,13 @@ export function LandingFooter({ isAuthed = false }: { isAuthed?: boolean }) {
             {BRAND_NAME}
           </p>
           <p className="text-xs text-muted-foreground">
-            Turn X signal into LinkedIn long-form.
+            News in. Life in. Posts out.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <KeyRound className="size-3.5" />
-            BYO OpenAI key + Apify token
+            BYO OpenAI key
           </span>
           <Link
             href={isAuthed ? "/dashboard" : "/login"}
@@ -28,7 +28,7 @@ export function LandingFooter({ isAuthed = false }: { isAuthed?: boolean }) {
           <span>
             Built by{" "}
             <a
-              href="https://twitter.com/_aflekkas"
+              href="https://x.com/_aflekkas"
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-foreground/80 transition-colors hover:text-foreground"

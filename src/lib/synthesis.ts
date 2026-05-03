@@ -9,6 +9,8 @@ const RelevanceSchema = z.object({
   summary: z.string().min(1).max(240),
 });
 
+export type SynthMode = "news" | "life" | "mix";
+
 async function getOpenAIModel(userId: string) {
   const apiKey = await getDecryptedProviderKey(userId, "openai");
   if (!apiKey) {
@@ -33,6 +35,12 @@ function extractJson(text: string): unknown {
   return JSON.parse(fenced?.[1] ?? trimmed);
 }
 
+function voiceFewShots(samples: string | null): string | null {
+  const trimmed = samples?.trim();
+  if (!trimmed) return null;
+  return `Here are examples of how the user writes on LinkedIn. Match this voice closely:\n\n${trimmed.slice(0, 6000)}`;
+}
+
 export async function scoreRelevance(args: {
   userId: string;
   signalText: string;
@@ -45,7 +53,7 @@ export async function scoreRelevance(args: {
     messages: [
       {
         role: "system",
-        content: `You score how relevant a tweet is to a creator's LinkedIn audience. Niche: ${profileLine(args.niche)}. Voice: ${profileLine(args.voiceNotes)}. Return JSON {score: 0..1, summary: 1-line}.`,
+        content: `You score how relevant a news item is to a creator's LinkedIn audience. Niche: ${profileLine(args.niche)}. Voice: ${profileLine(args.voiceNotes)}. Return JSON {score: 0..1, summary: 1-line}.`,
       },
       { role: "user", content: args.signalText.slice(0, 4000) },
     ],
@@ -55,16 +63,25 @@ export async function scoreRelevance(args: {
   return { score: parsed.score, summary: parsed.summary };
 }
 
+const SYSTEM_PROMPTS: Record<SynthMode, string> = {
+  news: "You are a LinkedIn ghostwriter. Riff on these industry items in the operator's voice. Dry, confident, no hype. Lead with a sharp take, anchor with a concrete detail from the source. Around 1500 chars.",
+  life: "You are a LinkedIn ghostwriter. Turn the operator's journal note into a candid, well-shaped LinkedIn post in their voice. Concrete, no platitudes. Lead with the moment, end with the lesson or the question. Around 800-1500 chars.",
+  mix: "You are a LinkedIn ghostwriter. Weave the news beat with the personal beat. Lead with the human angle, anchor with the news, close in the operator's voice. Around 1500 chars.",
+};
+
 export async function synthesizeFromSignals(args: {
   userId: string;
+  mode?: SynthMode;
   signals: SignalRow[];
   niche: string | null;
   voiceNotes: string | null;
+  voiceSamples?: string | null;
 }): Promise<{ body: string }> {
   if (args.signals.length === 0) {
     throw new Error("signals required");
   }
 
+  const mode: SynthMode = args.mode ?? "news";
   const model = await getOpenAIModel(args.userId);
   const sources = args.signals
     .map(
@@ -73,16 +90,20 @@ export async function synthesizeFromSignals(args: {
     )
     .join("\n\n");
 
-  const { text } = await generateText({
-    model,
-    messages: [
-      {
-        role: "system",
-        content: `You are a LinkedIn ghostwriter. Niche: ${profileLine(args.niche)}. Voice: ${profileLine(args.voiceNotes)}. Turn the source X posts into a single LinkedIn long-form post in their voice, ~1500 chars.`,
-      },
-      { role: "user", content: sources.slice(0, 12000) },
-    ],
-  });
+  const samples = voiceFewShots(args.voiceSamples ?? null);
+
+  const messages: Array<{ role: "system" | "user"; content: string }> = [
+    {
+      role: "system",
+      content: `${SYSTEM_PROMPTS[mode]} Niche: ${profileLine(args.niche)}. Voice notes: ${profileLine(args.voiceNotes)}.`,
+    },
+  ];
+  if (samples) {
+    messages.push({ role: "user", content: samples });
+  }
+  messages.push({ role: "user", content: sources.slice(0, 12000) });
+
+  const { text } = await generateText({ model, messages });
 
   return { body: text.trim() };
 }

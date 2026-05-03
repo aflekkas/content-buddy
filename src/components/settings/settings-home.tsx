@@ -17,13 +17,13 @@ const CARDS: Card[] = [
   {
     view: "keys",
     title: "Keys & integrations",
-    subtitle: "OpenAI key, Apify token, and active model",
+    subtitle: "OpenAI key, optional Apify token, and active model",
     icon: KeyRound,
   },
   {
     view: "profile",
     title: "Creator profile",
-    subtitle: "Niche and voice notes",
+    subtitle: "Niche, voice notes, voice samples, and feeds",
     icon: User,
   },
 ];

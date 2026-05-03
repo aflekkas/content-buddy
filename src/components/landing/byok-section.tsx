@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { ExternalLink, Lock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { BRAND_NAME } from "@/lib/brand";
 
 const TILES = [
   {
@@ -9,17 +10,8 @@ const TILES = [
     logo: "/providers/openai.svg",
     logoWidth: 28,
     logoHeight: 28,
-    tagline: "Your OpenAI key. Your bills.",
+    tagline: "Your OpenAI key. Your bills. No markup.",
     invert: true,
-  },
-  {
-    name: "Apify",
-    href: "https://apify.com",
-    logo: "/providers/apify.svg",
-    logoWidth: 62,
-    logoHeight: 24,
-    tagline: "Your Apify token. Free tier covers most users.",
-    invert: false,
   },
 ];
 
@@ -29,15 +21,15 @@ export function ByokSection() {
       <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
-            Bring the two keys that run the loop.
+            Bring the key that runs the loop.
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Shortform Studio handles synthesis. Your provider accounts handle
-            usage.
+            {BRAND_NAME} handles synthesis. Your OpenAI account handles usage.
+            No middleman.
           </p>
         </div>
 
-        <div className="mt-12 grid gap-4 md:grid-cols-2">
+        <div className="mx-auto mt-12 grid max-w-md gap-4">
           {TILES.map((tile) => (
             <a
               key={tile.name}
@@ -74,7 +66,7 @@ export function ByokSection() {
 
         <p className="mt-8 flex items-center justify-center gap-2 text-center text-sm text-muted-foreground">
           <Lock className="size-4 shrink-0 text-primary" />
-          Both keys are encrypted at rest with AES-256-GCM. We never see them in
+          Your key is encrypted at rest with AES-256-GCM. We never see it in
           plaintext after you save.
         </p>
       </div>

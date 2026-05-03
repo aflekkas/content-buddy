@@ -44,6 +44,7 @@ export type UserProfileRow = {
   active_model: string;
   niche: string | null;
   voice_notes: string | null;
+  voice_samples: string | null;
 };
 
 export type ProviderKeyMetaRow = {
@@ -58,11 +59,14 @@ export type ExternalCredentialMetaRow = {
   updated_at: string;
 };
 
+export type MonitoredSourceKind = "rss_feed" | "life_journal";
+
 export type MonitoredSourceRow = {
   id: string;
   user_id: string;
-  kind: "x_self" | "x_account";
+  kind: MonitoredSourceKind;
   handle: string;
+  url: string | null;
   topic_tags: string[];
   poll_interval_hours: number;
   last_polled_at: string | null;
@@ -99,6 +103,7 @@ export type DraftRow = {
 export type OnboardingProfileInput = {
   niche?: string | null;
   voice_notes?: string | null;
+  voice_samples?: string | null;
 };
 
 export type MessagesPage = {

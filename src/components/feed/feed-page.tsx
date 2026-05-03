@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { FeedTabs } from "@/components/feed/feed-tabs";
 import { DraftCard, type FeedDraft } from "@/components/feed/draft-card";
 import { SignalCard, type FeedSignal } from "@/components/feed/signal-card";
+import { JournalCapture } from "@/components/feed/journal-capture";
+import { ScanControls } from "@/components/feed/scan-controls";
 
 type Tab = "signals" | "drafts";
 const TAB_STORAGE_KEY = "shortform.feed.active-tab";
@@ -102,6 +104,12 @@ export function FeedPage({ initialSignals, initialDrafts }: Props) {
   return (
     <main className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 p-4 md:p-6">
+        <JournalCapture />
+
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ScanControls />
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <FeedTabs
             activeTab={activeTab}

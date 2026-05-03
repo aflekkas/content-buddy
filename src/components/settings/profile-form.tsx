@@ -5,7 +5,6 @@ import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -16,62 +15,49 @@ type Props = {
   profile: UserProfileRow;
 };
 
-const HANDLE_RE = /^@?[A-Za-z0-9_]{1,15}$/;
 const NICHE_MAX = 240;
 const VOICE_MAX = 1000;
-const SOURCE_LIMIT = 10;
-
-function normalizeHandle(value: string) {
-  return value.trim().replace(/^@+/, "").toLowerCase();
-}
-
-function isValidHandle(value: string) {
-  const trimmed = value.trim();
-  return trimmed.length === 0 || HANDLE_RE.test(trimmed);
-}
+const SAMPLES_MAX = 12000;
+const FEED_LIMIT = 20;
 
 function snapshotKey(state: {
   niche: string;
   voiceNotes: string;
-  ownHandle: string;
+  voiceSamples: string;
 }) {
-  return [
-    state.niche.trim(),
-    state.voiceNotes.trim(),
-    normalizeHandle(state.ownHandle),
-  ].join("|");
+  return [state.niche.trim(), state.voiceNotes.trim(), state.voiceSamples.trim()].join(
+    "|",
+  );
 }
 
 export function ProfileForm({ profile }: Props) {
   const router = useRouter();
   const initialNiche = profile.niche ?? "";
   const initialVoiceNotes = profile.voice_notes ?? "";
+  const initialVoiceSamples = profile.voice_samples ?? "";
 
   const [niche, setNiche] = useState(initialNiche);
   const [voiceNotes, setVoiceNotes] = useState(initialVoiceNotes);
-  const [ownHandle, setOwnHandle] = useState("");
+  const [voiceSamples, setVoiceSamples] = useState(initialVoiceSamples);
   const [savedKey, setSavedKey] = useState(() =>
-    snapshotKey({ niche: initialNiche, voiceNotes: initialVoiceNotes, ownHandle: "" }),
+    snapshotKey({
+      niche: initialNiche,
+      voiceNotes: initialVoiceNotes,
+      voiceSamples: initialVoiceSamples,
+    }),
   );
   const [sources, setSources] = useState<MonitoredSourceRow[]>([]);
   const [sourcesLoading, setSourcesLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [sourceSaving, setSourceSaving] = useState(false);
+  const [feedSaving, setFeedSaving] = useState(false);
   const [removingSourceId, setRemovingSourceId] = useState<string | null>(null);
-  const [newHandle, setNewHandle] = useState("");
-  const [confirmingHandleChange, setConfirmingHandleChange] = useState(false);
+  const [newFeed, setNewFeed] = useState("");
 
-  const ownSource = useMemo(
-    () => sources.find((source) => source.kind === "x_self") ?? null,
+  const rssFeeds = useMemo(
+    () => sources.filter((source) => source.kind === "rss_feed"),
     [sources],
   );
-  const nicheSources = useMemo(
-    () => sources.filter((source) => source.kind === "x_account"),
-    [sources],
-  );
-  const handleValid = isValidHandle(ownHandle);
-  const newHandleValid = newHandle.trim().length === 0 || HANDLE_RE.test(newHandle.trim());
-  const currentKey = snapshotKey({ niche, voiceNotes, ownHandle });
+  const currentKey = snapshotKey({ niche, voiceNotes, voiceSamples });
   const dirty = currentKey !== savedKey;
 
   useEffect(() => {
@@ -85,18 +71,8 @@ export function ProfileForm({ profile }: Props) {
         const rows: MonitoredSourceRow[] = await res.json();
         if (cancelled) return;
         setSources(rows);
-        const self = rows.find((source) => source.kind === "x_self");
-        const nextHandle = self?.handle ?? "";
-        setOwnHandle(nextHandle);
-        setSavedKey(
-          snapshotKey({
-            niche: initialNiche,
-            voiceNotes: initialVoiceNotes,
-            ownHandle: nextHandle,
-          }),
-        );
       } catch {
-        if (!cancelled) toast.error("Could not load X sources");
+        if (!cancelled) toast.error("Could not load feeds");
       } finally {
         if (!cancelled) setSourcesLoading(false);
       }
@@ -107,26 +83,9 @@ export function ProfileForm({ profile }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [initialNiche, initialVoiceNotes]);
+  }, []);
 
-  async function onSave(confirmedHandleChange = false) {
-    if (!handleValid) {
-      toast.error("Enter a valid X handle");
-      return;
-    }
-
-    const normalizedOwnHandle = normalizeHandle(ownHandle);
-    const savedOwnHandle = ownSource?.handle ?? "";
-
-    if (
-      ownSource &&
-      normalizedOwnHandle !== savedOwnHandle &&
-      !confirmedHandleChange
-    ) {
-      setConfirmingHandleChange(true);
-      return;
-    }
-
+  async function onSave() {
     setSaving(true);
     try {
       const profileRes = await fetch("/api/profile", {
@@ -135,45 +94,12 @@ export function ProfileForm({ profile }: Props) {
         body: JSON.stringify({
           niche: niche.trim() || null,
           voice_notes: voiceNotes.trim() || null,
+          voice_samples: voiceSamples.trim() || null,
         }),
       });
       if (!profileRes.ok) throw new Error("profile_failed");
 
-      let nextSources = sources;
-
-      if (normalizedOwnHandle !== savedOwnHandle) {
-        if (ownSource) {
-          const deleteRes = await fetch(`/api/sources/${ownSource.id}`, {
-            method: "DELETE",
-          });
-          if (!deleteRes.ok) throw new Error("source_delete_failed");
-          nextSources = nextSources.filter((source) => source.id !== ownSource.id);
-        }
-
-        if (normalizedOwnHandle) {
-          const createRes = await fetch("/api/sources", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              kind: "x_self",
-              handle: normalizedOwnHandle,
-            }),
-          });
-          if (!createRes.ok) throw new Error("source_create_failed");
-          const created: MonitoredSourceRow = await createRes.json();
-          nextSources = [created, ...nextSources];
-        }
-      }
-
-      setSources(nextSources);
-      setOwnHandle(normalizedOwnHandle);
-      setSavedKey(
-        snapshotKey({
-          niche,
-          voiceNotes,
-          ownHandle: normalizedOwnHandle,
-        }),
-      );
+      setSavedKey(snapshotKey({ niche, voiceNotes, voiceSamples }));
       router.refresh();
       toast.success("Profile updated");
     } catch {
@@ -183,61 +109,57 @@ export function ProfileForm({ profile }: Props) {
     }
   }
 
-  async function addSource() {
-    if (nicheSources.length >= SOURCE_LIMIT) return;
-    if (!HANDLE_RE.test(newHandle.trim())) {
-      toast.error("Enter a valid X handle");
+  async function addFeed() {
+    const url = newFeed.trim();
+    if (!url) return;
+    if (rssFeeds.length >= FEED_LIMIT) return;
+    if (!/^https?:\/\//i.test(url)) {
+      toast.error("Paste a full feed URL (https://...)");
       return;
     }
 
-    const normalized = normalizeHandle(newHandle);
-    if (nicheSources.some((source) => source.handle === normalized)) {
-      toast.error("That source is already monitored");
-      return;
-    }
-
-    setSourceSaving(true);
+    setFeedSaving(true);
     try {
       const res = await fetch("/api/sources", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "x_account",
-          handle: normalized,
-        }),
+        body: JSON.stringify({ kind: "rss_feed", url }),
       });
-      if (!res.ok) throw new Error("source_create_failed");
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null);
+        const reason =
+          detail?.failures?.[0]?.reason ?? detail?.message ?? "create_failed";
+        toast.error(`Could not add feed: ${reason}`);
+        return;
+      }
       const created: MonitoredSourceRow = await res.json();
       setSources((current) => [created, ...current]);
-      setNewHandle("");
+      setNewFeed("");
       router.refresh();
-      toast.success("Source added");
+      toast.success("Feed added");
     } catch {
-      toast.error("Could not add source");
+      toast.error("Could not add feed");
     } finally {
-      setSourceSaving(false);
+      setFeedSaving(false);
     }
   }
 
   async function removeSource(source: MonitoredSourceRow) {
     setRemovingSourceId(source.id);
     try {
-      const res = await fetch(`/api/sources/${source.id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/sources/${source.id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("source_delete_failed");
       setSources((current) => current.filter((item) => item.id !== source.id));
       router.refresh();
-      toast.success("Source removed");
+      toast.success("Feed removed");
     } catch {
-      toast.error("Could not remove source");
+      toast.error("Could not remove feed");
     } finally {
       setRemovingSourceId(null);
     }
   }
 
   return (
-    <>
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
         <div className="flex items-center justify-between gap-3">
@@ -271,41 +193,45 @@ export function ProfileForm({ profile }: Props) {
           value={voiceNotes}
           maxLength={VOICE_MAX}
           onChange={(e) => setVoiceNotes(e.target.value.slice(0, VOICE_MAX))}
-          placeholder="Tone, phrasing, and style notes the assistant should preserve"
+          placeholder="Tone, phrasing, recurring topics."
           rows={5}
           className="min-h-32 leading-relaxed"
         />
       </section>
 
       <section className="flex flex-col gap-2">
-        <Label htmlFor="profile-handle" className="text-sm font-medium">
-          Your X handle
-        </Label>
-        <Input
-          id="profile-handle"
-          value={ownHandle}
-          maxLength={16}
-          aria-invalid={ownHandle.trim().length > 0 && !handleValid}
-          onChange={(e) => setOwnHandle(e.target.value)}
-          placeholder="@yourhandle"
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="profile-samples" className="text-sm font-medium">
+            Voice samples
+          </Label>
+          <span className="text-xs text-muted-foreground">
+            {voiceSamples.length}/{SAMPLES_MAX}
+          </span>
+        </div>
+        <Textarea
+          id="profile-samples"
+          value={voiceSamples}
+          maxLength={SAMPLES_MAX}
+          onChange={(e) =>
+            setVoiceSamples(e.target.value.slice(0, SAMPLES_MAX))
+          }
+          placeholder={
+            "Paste 5-10 of your best LinkedIn posts. Separate with --- on its own line."
+          }
+          rows={12}
+          className="min-h-60 leading-relaxed font-mono text-xs"
         />
-        {ownHandle.trim().length > 0 && !handleValid ? (
-          <p className="text-xs text-destructive">
-            Use 1-15 letters, numbers, or underscores.
-          </p>
-        ) : ownSource ? (
-          <p className="text-xs text-muted-foreground">
-            Changing this deletes the old source row before creating a new one.
-          </p>
-        ) : null}
+        <p className="text-xs text-muted-foreground">
+          Drafts get a lot closer to your voice when you paste real samples.
+        </p>
       </section>
 
       <section className="flex flex-col gap-3 rounded-xl border bg-background p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-medium">Niche accounts you monitor</h3>
+            <h3 className="text-sm font-medium">News feeds</h3>
             <p className="text-xs text-muted-foreground">
-              {nicheSources.length} of {SOURCE_LIMIT}
+              {rssFeeds.length} of {FEED_LIMIT}
             </p>
           </div>
         </div>
@@ -313,23 +239,30 @@ export function ProfileForm({ profile }: Props) {
         {sourcesLoading ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <CircularLoader size="sm" />
-            Loading sources...
+            Loading feeds...
           </div>
-        ) : nicheSources.length > 0 ? (
+        ) : rssFeeds.length > 0 ? (
           <div className="divide-y rounded-lg border">
-            {nicheSources.map((source) => (
+            {rssFeeds.map((source) => (
               <div
                 key={source.id}
                 className="flex items-center gap-3 px-3 py-2"
               >
-                <span className="min-w-0 flex-1 truncate font-mono text-sm">
-                  @{source.handle}
-                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">
+                    {source.handle}
+                  </div>
+                  {source.url ? (
+                    <div className="truncate font-mono text-xs text-muted-foreground">
+                      {source.url}
+                    </div>
+                  ) : null}
+                </div>
                 <Button
                   type="button"
                   size="icon-sm"
                   variant="ghost"
-                  aria-label={`Remove @${source.handle}`}
+                  aria-label={`Remove ${source.handle}`}
                   disabled={removingSourceId === source.id}
                   onClick={() => void removeSource(source)}
                 >
@@ -344,22 +277,20 @@ export function ProfileForm({ profile }: Props) {
           </div>
         ) : (
           <p className="rounded-lg border border-dashed px-3 py-4 text-sm text-muted-foreground">
-            No niche accounts added yet.
+            No feeds yet. Paste an RSS URL below.
           </p>
         )}
 
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
-            value={newHandle}
-            maxLength={16}
-            aria-invalid={newHandle.trim().length > 0 && !newHandleValid}
-            placeholder="@founder"
-            disabled={nicheSources.length >= SOURCE_LIMIT}
-            onChange={(e) => setNewHandle(e.target.value)}
+            value={newFeed}
+            placeholder="https://hnrss.org/frontpage"
+            disabled={rssFeeds.length >= FEED_LIMIT}
+            onChange={(e) => setNewFeed(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                void addSource();
+                void addFeed();
               }
             }}
           />
@@ -367,21 +298,20 @@ export function ProfileForm({ profile }: Props) {
             type="button"
             variant="outline"
             disabled={
-              sourceSaving ||
-              nicheSources.length >= SOURCE_LIMIT ||
-              newHandle.trim().length === 0
+              feedSaving ||
+              rssFeeds.length >= FEED_LIMIT ||
+              newFeed.trim().length === 0
             }
-            onClick={() => void addSource()}
+            onClick={() => void addFeed()}
           >
-            {sourceSaving ? <CircularLoader size="sm" /> : <Plus className="size-4" />}
+            {feedSaving ? (
+              <CircularLoader size="sm" />
+            ) : (
+              <Plus className="size-4" />
+            )}
             Add
           </Button>
         </div>
-        {newHandle.trim().length > 0 && !newHandleValid ? (
-          <p className="text-xs text-destructive">
-            Use 1-15 letters, numbers, or underscores.
-          </p>
-        ) : null}
       </section>
 
       <div className="flex items-center justify-end gap-3 border-t pt-4">
@@ -390,7 +320,7 @@ export function ProfileForm({ profile }: Props) {
         )}
         <Button
           onClick={() => void onSave()}
-          disabled={saving || sourcesLoading || !dirty || !handleValid}
+          disabled={saving || sourcesLoading || !dirty}
         >
           {saving ? (
             <>
@@ -403,14 +333,5 @@ export function ProfileForm({ profile }: Props) {
         </Button>
       </div>
     </div>
-    <ConfirmDialog
-      open={confirmingHandleChange}
-      onOpenChange={setConfirmingHandleChange}
-      title="Changing your X handle removes prior fetch history."
-      description="The old source row will be deleted before the new handle is added."
-      confirmLabel="Change handle"
-      onConfirm={() => onSave(true)}
-    />
-    </>
   );
 }

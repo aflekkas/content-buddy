@@ -7,7 +7,7 @@ import { BRAND_NAME } from "@/lib/brand";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
-  description: "Tell me what you want, I'll tell you what to film.",
+  description: "Riff on the news. Post about your life. In your voice.",
 };
 
 export default function RootLayout({
@@ -41,7 +41,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <NextTopLoader
-            color="oklch(0.685 0.169 237.323)"
+            color="oklch(0.66 0.165 38)"
             height={4}
             showSpinner={false}
             shadow={false}

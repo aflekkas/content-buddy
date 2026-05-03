@@ -1,9 +1,10 @@
 "use client";
 
-import { FileText, X } from "lucide-react";
+import { FileText, NotebookPen, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { formatRelativeTime } from "@/lib/system-prompt";
+import type { MonitoredSourceKind } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
 
 export type FeedSignal = {
@@ -16,6 +17,7 @@ export type FeedSignal = {
   relevance_score: number | null;
   status: "new" | "queued" | "drafted" | "dismissed";
   sourceHandle: string | null;
+  sourceKind: MonitoredSourceKind | null;
 };
 
 type Props = {
@@ -26,7 +28,8 @@ type Props = {
 };
 
 export function SignalCard({ signal, onDraft, onDismiss, busy }: Props) {
-  const handle = normalizeHandle(signal.sourceHandle);
+  const isJournal = signal.sourceKind === "life_journal";
+  const isRss = signal.sourceKind === "rss_feed";
   const text = signal.summary || readSignalText(signal);
   const score = signal.relevance_score ?? 0;
 
@@ -35,16 +38,31 @@ export function SignalCard({ signal, onDraft, onDismiss, busy }: Props) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{handle}</span>
+            {isJournal ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
+                <NotebookPen className="size-3" />
+                from your journal
+              </span>
+            ) : isRss ? (
+              <span className="font-medium text-foreground">
+                {signal.sourceHandle ?? "feed"}
+              </span>
+            ) : (
+              <span className="font-medium text-foreground">
+                {normalizeHandle(signal.sourceHandle)}
+              </span>
+            )}
             <span>{formatRelativeTime(signal.posted_at)}</span>
-            <span
-              className={cn(
-                "rounded-full bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground",
-                score >= 0.75 && "bg-primary/10 text-primary",
-              )}
-            >
-              {score.toFixed(2)}
-            </span>
+            {!isJournal ? (
+              <span
+                className={cn(
+                  "rounded-full bg-muted px-2 py-0.5 font-mono text-[11px] text-foreground",
+                  score >= 0.75 && "bg-primary/10 text-primary",
+                )}
+              >
+                {score.toFixed(2)}
+              </span>
+            ) : null}
           </div>
           <p className="mt-3 line-clamp-4 text-sm leading-6 text-foreground">
             {text}

@@ -24,8 +24,8 @@ export function StepKeys({ state, setState, onContinue }: Props) {
   const [apifyOptional, setApifyOptional] = useState(false);
 
   const openaiKeyValid = state.openaiKey.trim().startsWith("sk-");
-  const canContinue =
-    state.openaiKeySaved && (state.apifyTokenSaved || apifyOptional);
+  const canContinue = state.openaiKeySaved;
+  void apifyOptional;
 
   async function saveOpenAIKey() {
     if (!openaiKeyValid) {
@@ -98,10 +98,11 @@ export function StepKeys({ state, setState, onContinue }: Props) {
       <div className="flex flex-col gap-6">
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight">
-            Connect your keys
+            Connect your OpenAI key
           </h1>
           <p className="text-sm leading-6 text-muted-foreground">
-            Add OpenAI for writing and Apify for X collection.
+            We use your OpenAI key to draft posts. Apify is optional, only for
+            scraping your own LinkedIn later.
           </p>
         </div>
 
@@ -152,10 +153,15 @@ export function StepKeys({ state, setState, onContinue }: Props) {
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between gap-3">
               <div className="space-y-1">
-                <Label htmlFor="apify-token">Apify token</Label>
+                <Label htmlFor="apify-token">
+                  Apify token{" "}
+                  <span className="font-normal text-muted-foreground">
+                    (optional)
+                  </span>
+                </Label>
                 <p className="text-xs text-muted-foreground">
-                  From console.apify.com/account/integrations. Free tier covers
-                  most users.
+                  Skip for now. Add later if you want to opt in to LinkedIn
+                  voice scraping. From console.apify.com/account/integrations.
                 </p>
               </div>
               {state.apifyTokenSaved ? <SavedBadge /> : null}

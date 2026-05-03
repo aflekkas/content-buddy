@@ -1,18 +1,15 @@
 import { errorResponse, jsonResponse, requireAuth } from "@/lib/api";
 import {
-  createDraft,
-  getDecryptedExternalCredential,
   getUserProfileForCron,
   insertSignals,
   listAllSourcesForCron,
-  listSignals,
   updateSignal,
   updateSource,
 } from "@/lib/db/queries";
-import type { MonitoredSourceRow, SignalRow } from "@/lib/db/types";
+import type { MonitoredSourceRow } from "@/lib/db/types";
 import { FETCHERS } from "@/lib/sources";
 import type { FetchedPost } from "@/lib/sources/types";
-import { scoreRelevance, synthesizeFromSignals } from "@/lib/synthesis";
+import { scoreRelevance } from "@/lib/synthesis";
 
 export const maxDuration = 300;
 
@@ -20,7 +17,6 @@ type Summary = {
   users_processed: number;
   sources_polled: number;
   signals_inserted: number;
-  drafts_created: number;
   errors: string[];
 };
 
@@ -32,12 +28,6 @@ function isDue(
   if (!timestamp) return true;
   const elapsedMs = now.getTime() - new Date(timestamp).getTime();
   return elapsedMs > intervalHours * 60 * 60 * 1000;
-}
-
-function isSynthesisDue(timestamp: string | null, now: Date): boolean {
-  if (!timestamp) return true;
-  const elapsedMs = now.getTime() - new Date(timestamp).getTime();
-  return elapsedMs > 3 * 24 * 60 * 60 * 1000;
 }
 
 function toSignalInput(post: FetchedPost) {
@@ -89,7 +79,6 @@ async function handlePollSources(req: Request) {
     users_processed: 0,
     sources_polled: 0,
     signals_inserted: 0,
-    drafts_created: 0,
     errors: [],
   };
 
@@ -103,25 +92,21 @@ async function handlePollSources(req: Request) {
     summary.users_processed += 1;
 
     try {
-      const apifyToken = await getDecryptedExternalCredential(userId, "apify");
-      if (!apifyToken) {
-        const message = `${userId}: no_apify_token`;
-        console.log("[cron/poll-sources]", message);
-        summary.errors.push(message);
-        continue;
-      }
-
       const profile = await getUserProfileForCron(userId);
 
       for (const source of userSources) {
+        if (source.kind === "life_journal") continue;
         if (!isDue(source.last_polled_at, source.poll_interval_hours, now)) {
           continue;
         }
 
-        const posts = await FETCHERS[source.kind].fetch(
-          source.handle,
+        const fetcher = FETCHERS[source.kind];
+        if (!fetcher) continue;
+
+        const posts = await fetcher.fetch(
+          source.url ?? source.handle,
           source.last_polled_at ? new Date(source.last_polled_at) : null,
-          { apifyToken },
+          {},
         );
         const inserted = await insertSignals(
           userId,
@@ -150,38 +135,6 @@ async function handlePollSources(req: Request) {
         await updateSource(userId, source.id, {
           last_polled_at: now.toISOString(),
         });
-      }
-
-      for (const source of userSources.filter(
-        (item) =>
-          item.kind === "x_self" &&
-          isSynthesisDue(item.last_synthesized_at, now),
-      )) {
-        const recentSignals = await listSignals(userId, {
-          limit: 50,
-          sourceId: source.id,
-          postedAfter: source.last_synthesized_at ?? undefined,
-        });
-        const usableSignals: SignalRow[] = recentSignals.filter(
-          (signal) => signal.status !== "dismissed",
-        );
-
-        if (usableSignals.length >= 2) {
-          const { body } = await synthesizeFromSignals({
-            userId,
-            signals: usableSignals,
-            niche: profile?.niche ?? null,
-            voiceNotes: profile?.voice_notes ?? null,
-          });
-          await createDraft(userId, {
-            body,
-            signal_ids: usableSignals.map((signal) => signal.id),
-          });
-          await updateSource(userId, source.id, {
-            last_synthesized_at: now.toISOString(),
-          });
-          summary.drafts_created += 1;
-        }
       }
     } catch (error) {
       const message =

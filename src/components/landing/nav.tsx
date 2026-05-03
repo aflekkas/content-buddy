@@ -51,10 +51,7 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
           >
             <LogoMark className="size-6" />
             <span className="hidden text-sm font-semibold tracking-tight leading-none sm:inline">
-              Shortform{" "}
-              <span className="font-semibold">
-                Studio
-              </span>
+              {BRAND_NAME}
             </span>
           </Link>
 

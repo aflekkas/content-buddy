@@ -19,8 +19,8 @@ export type OnboardingState = {
   apifyTokenSaved: boolean;
   niche: string;
   voiceNotes: string;
-  ownHandle: string;
-  nicheHandles: string;
+  voiceSamples: string;
+  feedUrls: string;
 };
 
 type Step = "welcome" | "keys" | "profile" | "sources";
@@ -41,8 +41,8 @@ const INITIAL_STATE: OnboardingState = {
   apifyTokenSaved: false,
   niche: "",
   voiceNotes: "",
-  ownHandle: "",
-  nicheHandles: "",
+  voiceSamples: "",
+  feedUrls: "",
 };
 
 type Props = {

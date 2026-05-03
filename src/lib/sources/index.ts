@@ -1,7 +1,7 @@
+import type { MonitoredSourceKind } from "@/lib/db/types";
 import type { SourceFetcher } from "./types";
-import { apifyXAccountFetcher, apifyXSelfFetcher } from "./apify-x";
+import { rssFeedFetcher } from "./rss";
 
-export const FETCHERS: Record<"x_self" | "x_account", SourceFetcher> = {
-  x_self: apifyXSelfFetcher,
-  x_account: apifyXAccountFetcher,
+export const FETCHERS: Partial<Record<MonitoredSourceKind, SourceFetcher>> = {
+  rss_feed: rssFeedFetcher,
 };

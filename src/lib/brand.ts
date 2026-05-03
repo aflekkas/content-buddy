@@ -1,1 +1,1 @@
-export const BRAND_NAME = "Shortform Studio";
+export const BRAND_NAME = "LinkedStudio";

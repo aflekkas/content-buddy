@@ -6,19 +6,19 @@ const STEPS = [
     n: "01",
     icon: KeyRound,
     title: "Connect.",
-    body: "Paste your OpenAI key and your Apify token. Add your X handle and a few accounts you follow.",
+    body: "Paste your OpenAI key. Add your niche, your voice, and a few of your best LinkedIn posts.",
   },
   {
     n: "02",
     icon: Radar,
-    title: "Monitor.",
-    body: "Daily, we pull new posts. AI scores each for relevance to your audience and drafts your LinkedIn variants.",
+    title: "Feed.",
+    body: "Pick a niche bundle or paste your own RSS URLs. Drop a journal note whenever something happens worth posting about.",
   },
   {
     n: "03",
     icon: FileText,
-    title: "Draft.",
-    body: "Open your inbox, edit any draft in chat, copy the final version, paste into LinkedIn.",
+    title: "Scan.",
+    body: "Click scan. We draft a news riff, a life post, or a mix in your voice. You edit, copy, ship.",
   },
 ];
 
@@ -34,7 +34,7 @@ export function HowItWorks() {
             How it works
           </h2>
           <p className="mt-3 text-muted-foreground">
-            One loop: connect your inputs, monitor the feed, ship the draft.
+            Connect, feed, scan. Three buttons, one loop.
           </p>
         </div>
         <ol className="mt-12 grid gap-6 md:grid-cols-3">

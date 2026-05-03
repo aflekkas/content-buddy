@@ -5,6 +5,7 @@ import { getUserProfile, upsertUserProfile } from "@/lib/db/queries";
 const PatchBody = z.object({
   niche: z.string().trim().max(240).nullable().optional(),
   voice_notes: z.string().trim().max(1000).nullable().optional(),
+  voice_samples: z.string().trim().max(20000).nullable().optional(),
 });
 
 export async function GET() {
@@ -16,6 +17,7 @@ export async function GET() {
   return jsonResponse({
     niche: profile?.niche ?? null,
     voice_notes: profile?.voice_notes ?? null,
+    voice_samples: profile?.voice_samples ?? null,
   });
 }
 
@@ -30,5 +32,6 @@ export async function PATCH(req: Request) {
   return jsonResponse({
     niche: profile.niche,
     voice_notes: profile.voice_notes,
+    voice_samples: profile.voice_samples,
   });
 }

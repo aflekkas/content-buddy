@@ -53,11 +53,11 @@ const SECTION_TITLES: Record<
   keys: {
     title: "Keys & integrations",
     subtitle:
-      "Bring your own OpenAI key and Apify token. Credentials are encrypted at rest.",
+      "Bring your own OpenAI key. Apify token optional. Credentials are encrypted at rest.",
   },
   profile: {
     title: "Creator profile",
-    subtitle: "Niche and voice notes used for every response.",
+    subtitle: "Niche, voice notes, samples, and the feeds you scan.",
   },
 };
 

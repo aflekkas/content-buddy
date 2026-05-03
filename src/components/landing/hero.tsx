@@ -18,17 +18,16 @@ export function Hero({ isAuthed = false }: { isAuthed?: boolean }) {
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
           <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
             <Sparkles className="size-3.5 text-primary" />
-            AI synthesizer · X → LinkedIn
+            AI ghostwriter for LinkedIn
           </span>
 
           <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
-            Turn your X feed into LinkedIn long-form. On autopilot.
+            Riff on the news. Post about your life.
           </h1>
 
           <p className="mt-5 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
-            We poll the X accounts you care about. AI scores what&apos;s worth
-            your LinkedIn audience and drafts long-form posts in your voice. You
-            copy, you ship.
+            Add the feeds you read. Drop a journal note when something matters.
+            We draft LinkedIn posts in your voice. You ship.
           </p>
 
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -65,7 +64,7 @@ function FeedToDraftMockup() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold tracking-tight">Feed inbox</p>
-              <p className="text-xs text-muted-foreground">New signal from X</p>
+              <p className="text-xs text-muted-foreground">New from your feeds</p>
             </div>
             <span className="rounded-full border border-primary/20 bg-primary/10 px-2 py-1 font-mono text-xs font-medium text-primary">
               0.87
@@ -74,7 +73,7 @@ function FeedToDraftMockup() {
         </CardHeader>
         <CardContent className="space-y-4 pt-1">
           <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">@swyx</span>
+            <span className="font-medium text-foreground">Stratechery</span>
             <span>2h ago</span>
           </div>
           <p className="text-sm leading-relaxed text-foreground/85">

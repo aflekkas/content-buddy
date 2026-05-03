@@ -1,3 +1,5 @@
+import type { MonitoredSourceKind } from "@/lib/db/types";
+
 export interface FetchedPost {
   externalId: string;
   url: string;
@@ -7,11 +9,11 @@ export interface FetchedPost {
 }
 
 export interface FetchCtx {
-  apifyToken: string;
+  apifyToken?: string;
 }
 
 export interface SourceFetcher {
-  kind: "x_self" | "x_account";
+  kind: MonitoredSourceKind;
   fetch(
     handle: string,
     since: Date | null,

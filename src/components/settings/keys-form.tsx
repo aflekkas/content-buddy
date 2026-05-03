@@ -525,13 +525,20 @@ function ApifyTokenRow({
           <KeyRound className="size-3.5" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium">Apify token</p>
+          <p className="text-sm font-medium">
+            Apify token{" "}
+            <span className="font-normal text-muted-foreground">
+              (optional)
+            </span>
+          </p>
           {meta ? (
             <p className="font-mono text-xs text-muted-foreground">
               Connected ····{meta.last4}
             </p>
           ) : (
-            <p className="text-xs text-muted-foreground">Not connected</p>
+            <p className="text-xs text-muted-foreground">
+              Optional. Only needed if you opt in to scraping your own LinkedIn.
+            </p>
           )}
         </div>
         <div className="shrink-0">

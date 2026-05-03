@@ -14,12 +14,11 @@ export function StepWelcome({ onContinue }: Props) {
         </div>
         <div className="max-w-xl space-y-3">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            Turn your X feed into LinkedIn long-form.
+            Riff on the news. Post about your life. In your voice.
           </h1>
           <p className="text-base leading-7 text-muted-foreground">
-            Shortform Studio watches your own posts and the niche accounts you
-            care about, then turns the strongest signals into polished drafts
-            in your voice.
+            Add the feeds you read. Drop a journal note when something matters.
+            We draft LinkedIn posts in your voice. You ship.
           </p>
         </div>
         <div>

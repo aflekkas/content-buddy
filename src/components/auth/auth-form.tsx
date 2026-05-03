@@ -276,7 +276,7 @@ function BrandPanel() {
           <LogoMark className="size-8" />
         </span>
         <p className="text-base text-muted-foreground leading-snug">
-          X signal in. LinkedIn draft out.
+          News in. Life in. LinkedIn drafts out.
           <br />
           Your voice, ready to copy.
         </p>

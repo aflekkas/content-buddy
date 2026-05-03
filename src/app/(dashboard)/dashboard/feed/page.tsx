@@ -16,6 +16,9 @@ export default async function DashboardFeedPage() {
   const sourceHandles = new Map(
     sources.map((source) => [source.id, source.handle]),
   );
+  const sourceKinds = new Map(
+    sources.map((source) => [source.id, source.kind]),
+  );
   const signalHandles = new Map(
     signals.map((signal) => [
       signal.id,
@@ -31,6 +34,7 @@ export default async function DashboardFeedPage() {
         .map((signal) => ({
           ...signal,
           sourceHandle: sourceHandles.get(signal.source_id) ?? null,
+          sourceKind: sourceKinds.get(signal.source_id) ?? null,
         }))}
       initialDrafts={drafts
         .filter((draft) => draft.status !== "dismissed")
