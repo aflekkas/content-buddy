@@ -73,7 +73,7 @@ export function MemoryRail({ initialFacts }: Props) {
         />
         <Button
           type="submit"
-          size="icon-sm"
+          size="icon"
           disabled={!draft.trim()}
           aria-label="Add fact"
         >
