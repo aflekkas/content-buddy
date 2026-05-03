@@ -31,7 +31,7 @@ export function FinalCta({ isAuthed = false }: { isAuthed?: boolean }) {
               href={isAuthed ? "/dashboard" : "/login"}
               className={cn(buttonVariants({ size: "lg", shape: "pill", withArrow: true }))}
             >
-              Open Studio
+              Open studio
               <ArrowRight className="size-4" />
             </Link>
           </StaggerItem>

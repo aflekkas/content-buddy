@@ -87,7 +87,7 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
                   "h-8 gap-1.5 px-3 text-xs",
                 )}
               >
-                Open Studio
+                Open studio
                 <ArrowRight className="size-3" />
               </Link>
             ) : (
@@ -152,7 +152,7 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
                   onClick={() => setMobileOpen(false)}
                   className="block rounded-lg px-3 py-2.5 text-sm text-foreground/80 transition-colors hover:bg-muted"
                 >
-                  {isAuthed ? "Open Studio" : "Sign in"}
+                  {isAuthed ? "Open studio" : "Sign in"}
                 </Link>
               </div>
             </nav>
