@@ -39,13 +39,21 @@ export type MessageRow = {
 export type UserProfileRow = {
   user_id: string;
   updated_at: string;
-  onboarded_at: string | null;
   niche: string | null;
   voice_notes: string | null;
   voice_samples: string | null;
 };
 
-export type MonitoredSourceKind = "rss_feed" | "life_journal";
+export type UserFactRow = {
+  id: string;
+  user_id: string;
+  fact: string;
+  source: "user" | "agent";
+  created_at: string;
+  updated_at: string;
+};
+
+export type MonitoredSourceKind = "rss_feed";
 
 export type MonitoredSourceRow = {
   id: string;

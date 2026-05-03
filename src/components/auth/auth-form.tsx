@@ -91,8 +91,6 @@ export function AuthForm() {
       return;
     }
 
-    // Full page nav so middleware + server layouts see fresh auth cookies.
-    // The (dashboard) layout redirects unonboarded users to /onboarding.
     window.location.assign(next);
   }
 

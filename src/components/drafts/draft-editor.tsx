@@ -82,7 +82,7 @@ export function DraftEditor({ draft, sourceHandles }: Props) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status: "dismissed" }),
     });
-    if (res.ok) startTransition(() => router.push("/dashboard/feed"));
+    if (res.ok) startTransition(() => router.push("/dashboard/drafts"));
   }
 
   return (

@@ -8,7 +8,7 @@ const RelevanceSchema = z.object({
   summary: z.string().min(1).max(240),
 });
 
-export type SynthMode = "news" | "life" | "mix";
+export type SynthMode = "news";
 
 function getOpenAIModel() {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -63,8 +63,6 @@ export async function scoreRelevance(args: {
 
 const SYSTEM_PROMPTS: Record<SynthMode, string> = {
   news: "You are a LinkedIn ghostwriter. Riff on these industry items in the operator's voice. Dry, confident, no hype. Lead with a sharp take, anchor with a concrete detail from the source. Around 1500 chars.",
-  life: "You are a LinkedIn ghostwriter. Turn the operator's journal note into a candid, well-shaped LinkedIn post in their voice. Concrete, no platitudes. Lead with the moment, end with the lesson or the question. Around 800-1500 chars.",
-  mix: "You are a LinkedIn ghostwriter. Weave the news beat with the personal beat. Lead with the human angle, anchor with the news, close in the operator's voice. Around 1500 chars.",
 };
 
 export async function synthesizeFromSignals(args: {

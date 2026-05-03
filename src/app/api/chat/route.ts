@@ -15,18 +15,24 @@ import { providerSupportsImages } from "@/lib/providers";
 import {
   addChatUsage,
   appendMessageWithParts,
+  createDraft,
+  createFact,
   getChat,
   getDraft,
   getUserProfile,
   getSignal,
+  listFacts,
+  listSignals,
   listSignalsByIds,
   listSources,
   setChatTitleIfEmpty,
   updateDraft,
+  updateSignal,
 } from "@/lib/db/queries";
 import { extractText, filterPersistableParts } from "@/lib/message-parts";
 import { encodeProviderError, mapProviderError } from "@/lib/provider-errors";
 import { buildRateLimitHeaders, checkChatRateLimit } from "@/lib/rate-limit";
+import { synthesizeFromSignals } from "@/lib/synthesis";
 import type { SignalRow } from "@/lib/db/types";
 
 export const maxDuration = 60;
@@ -36,6 +42,8 @@ type ChatRequestBody = {
   messages: UIMessage[];
   activeDraftId?: string;
 };
+
+const NEWS_SCAN_LOOKBACK_DAYS = 14;
 
 export async function POST(req: Request) {
   const auth = await requireAuth();
@@ -55,18 +63,17 @@ export async function POST(req: Request) {
 
   const { id: chatId, messages, activeDraftId }: ChatRequestBody =
     await req.json();
-  if (!activeDraftId) {
-    return errorResponse("missing_active_draft", 400);
-  }
 
   const chat = await getChat(chatId, user.id);
   if (!chat) return notFound();
 
-  const draft = await getDraft(user.id, activeDraftId);
-  if (!draft) return notFound();
-  if (draft.chat_id && draft.chat_id !== chat.id) return notFound();
-  if (!draft.chat_id) {
-    await updateDraft(user.id, draft.id, { chat_id: chat.id });
+  const draft = activeDraftId ? await getDraft(user.id, activeDraftId) : null;
+  if (activeDraftId) {
+    if (!draft) return notFound();
+    if (draft.chat_id && draft.chat_id !== chat.id) return notFound();
+    if (!draft.chat_id) {
+      await updateDraft(user.id, draft.id, { chat_id: chat.id });
+    }
   }
 
   const provider = "openai" as const;
@@ -85,14 +92,16 @@ export async function POST(req: Request) {
     return errorResponse("image_not_supported", 415, { provider });
   }
 
-  const [profile, draftSignals, sources] = await Promise.all([
+  const [profile, facts, draftSignals, sources] = await Promise.all([
     getUserProfile(user.id),
-    listSignalsByIds(user.id, draft.signal_ids),
+    listFacts(user.id),
+    draft ? listSignalsByIds(user.id, draft.signal_ids) : Promise.resolve([]),
     listSources(user.id),
   ]);
   const sourceHandles = new Map(
     sources.map((source) => [source.id, source.handle]),
   );
+
   const lastMessage = messages[messages.length - 1];
   if (lastMessage?.role === "user") {
     const persistableParts = filterPersistableParts(lastMessage.parts);
@@ -120,6 +129,7 @@ export async function POST(req: Request) {
               voice_notes: profile.voice_notes,
             }
           : null,
+        facts,
         activeDraft: draft,
         activeDraftSignals: draftSignals.map((signal) => ({
           ...signal,
@@ -129,12 +139,122 @@ export async function POST(req: Request) {
       ...modelMessages,
     ],
     tools: {
+      read_memory: tool({
+        description:
+          "Return all of the user's saved long-term memory facts. Call this if you want a fresh read of memory; current memory is already in the system prompt.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const rows = await listFacts(user.id);
+          return {
+            ok: true,
+            facts: rows.map((r) => ({ id: r.id, fact: r.fact, source: r.source })),
+          };
+        },
+      }),
+      write_memory: tool({
+        description:
+          "Save a long-term memory fact about the user (niche, voice, audience, preferences). Use when the user asks you to remember something or reveals durable context.",
+        inputSchema: z.object({
+          fact: z.string().min(1).max(500),
+        }),
+        execute: async ({ fact }) => {
+          const row = await createFact(user.id, fact, "agent");
+          return { ok: true, id: row.id };
+        },
+      }),
+      news_scan: tool({
+        description:
+          "Pull recent items from the user's RSS feeds. Returns top relevance-scored signals from the last 14 days. Use when the user asks about news, signals, recent events, or wants to draft from current items.",
+        inputSchema: z.object({
+          limit: z.number().int().min(1).max(20).optional(),
+        }),
+        execute: async ({ limit }) => {
+          const cutoff = new Date();
+          cutoff.setDate(cutoff.getDate() - NEWS_SCAN_LOOKBACK_DAYS);
+          const rows = await listSignals(user.id, {
+            limit: 200,
+            postedAfter: cutoff.toISOString(),
+          });
+          const top = rows
+            .filter((s) => s.status !== "dismissed")
+            .sort(
+              (a, b) => (b.relevance_score ?? 0) - (a.relevance_score ?? 0),
+            )
+            .slice(0, limit ?? 5);
+          return {
+            ok: true,
+            signals: top.map((s) => ({
+              id: s.id,
+              source: sourceHandles.get(s.source_id) ?? null,
+              text: readSignalText(s),
+              url: s.url,
+              posted_at: s.posted_at,
+              summary: s.summary,
+              relevance_score: s.relevance_score,
+            })),
+          };
+        },
+      }),
+      save_as_draft: tool({
+        description:
+          "Save a finalized LinkedIn post body as a draft. Use when the user is happy with a post and wants to keep it.",
+        inputSchema: z.object({
+          body: z.string().min(1).max(20000),
+          signal_ids: z.array(z.uuid()).optional(),
+        }),
+        execute: async ({ body, signal_ids }) => {
+          const row = await createDraft(user.id, {
+            body,
+            signal_ids: signal_ids ?? [],
+            chat_id: chat.id,
+          });
+          if (signal_ids && signal_ids.length > 0) {
+            await Promise.all(
+              signal_ids.map((id) =>
+                updateSignal(user.id, id, { status: "drafted" }),
+              ),
+            );
+          }
+          return { ok: true, id: row.id };
+        },
+      }),
+      synthesize_from_news: tool({
+        description:
+          "Generate a LinkedIn draft from recent news signals using the user's niche and voice. Returns the draft body. The user can then ask you to save it.",
+        inputSchema: z.object({
+          signal_ids: z.array(z.uuid()).min(1).max(5),
+        }),
+        execute: async ({ signal_ids }) => {
+          const signals = await listSignalsByIds(user.id, signal_ids);
+          if (signals.length === 0) {
+            return { ok: false, error: "no_signals_found" };
+          }
+          try {
+            const { body } = await synthesizeFromSignals({
+              mode: "news",
+              signals,
+              niche: profile?.niche ?? null,
+              voiceNotes: profile?.voice_notes ?? null,
+              voiceSamples: profile?.voice_samples ?? null,
+            });
+            return { ok: true, body, signal_ids };
+          } catch (error) {
+            return {
+              ok: false,
+              error:
+                error instanceof Error ? error.message : "synthesis_failed",
+            };
+          }
+        },
+      }),
       update_draft: tool({
-        description: "Replace the active draft body with the edited body.",
+        description:
+          "Replace the active draft body with the edited body. Only works when an active draft is in scope.",
         inputSchema: z.object({
           body: z.string().min(1).max(20000),
         }),
         execute: async ({ body }) => {
+          if (!activeDraftId) return { ok: false, error: "no_active_draft" };
           await updateDraft(user.id, activeDraftId, { body });
           return { ok: true };
         },
@@ -163,7 +283,7 @@ export async function POST(req: Request) {
         },
       }),
     },
-    stopWhen: stepCountIs(5),
+    stopWhen: stepCountIs(8),
   });
 
   return result.toUIMessageStreamResponse({

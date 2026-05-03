@@ -1,5 +1,4 @@
 import { unstable_cache } from "next/cache";
-import { cache } from "react";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import type {
   ChatRow,
@@ -10,6 +9,7 @@ import type {
   MonitoredSourceRow,
   OnboardingProfileInput,
   SignalRow,
+  UserFactRow,
   UserProfileRow,
 } from "./types";
 
@@ -276,32 +276,62 @@ export async function upsertUserProfile(
   return data;
 }
 
-export async function markOnboarded(userId: string): Promise<void> {
+export async function listFacts(userId: string): Promise<UserFactRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("user_facts")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createFact(
+  userId: string,
+  fact: string,
+  source: UserFactRow["source"] = "user",
+): Promise<UserFactRow> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("user_facts")
+    .insert({ user_id: userId, fact, source })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateFact(
+  userId: string,
+  id: string,
+  fact: string,
+): Promise<UserFactRow> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("user_facts")
+    .update({ fact, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteFact(userId: string, id: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase
-    .from("user_profiles")
-    .upsert({
-      user_id: userId,
-      onboarded_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+    .from("user_facts")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", id);
 
   if (error) throw error;
 }
-
-export const hasCompletedOnboarding = cache(
-  async (userId: string): Promise<boolean> => {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from("user_profiles")
-      .select("onboarded_at")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (error) throw error;
-    return Boolean(data?.onboarded_at);
-  },
-);
 
 export async function listSources(
   userId: string,
@@ -353,37 +383,6 @@ export async function createSource(
       url: input.url ?? null,
       topic_tags: input.topic_tags ?? [],
       poll_interval_hours: input.poll_interval_hours ?? 24,
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
-}
-
-export async function getOrCreateLifeJournalSource(
-  userId: string,
-): Promise<MonitoredSourceRow> {
-  const supabase = createAdminClient();
-  const { data: existing, error: lookupError } = await supabase
-    .from("monitored_sources")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("kind", "life_journal")
-    .maybeSingle();
-
-  if (lookupError) throw lookupError;
-  if (existing) return existing;
-
-  const { data, error } = await supabase
-    .from("monitored_sources")
-    .insert({
-      user_id: userId,
-      kind: "life_journal",
-      handle: "My journal",
-      url: null,
-      topic_tags: [],
-      poll_interval_hours: 24,
     })
     .select()
     .single();

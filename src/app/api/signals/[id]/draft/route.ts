@@ -19,13 +19,9 @@ export async function POST(
   if (!signal) return notFound();
 
   const profile = await getUserProfile(auth.user.id);
-  const sourceKindMode =
-    signal.raw && (signal.raw as { kind?: string }).kind === "life_journal"
-      ? "life"
-      : "news";
   try {
     const { body } = await synthesizeFromSignals({
-      mode: sourceKindMode,
+      mode: "news",
       signals: [signal],
       niche: profile?.niche ?? null,
       voiceNotes: profile?.voice_notes ?? null,

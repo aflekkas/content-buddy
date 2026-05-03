@@ -1,16 +1,21 @@
 import type { ModelMessage } from "ai";
-import type { DraftRow, SignalRow } from "@/lib/db/types";
+import type { DraftRow, SignalRow, UserFactRow } from "@/lib/db/types";
 
 export const DEFAULT_ASSISTANT_NAME = "LinkedIn Studio";
 
-const CORE_INSTRUCTIONS = `You are a LinkedIn ghostwriter editing the active draft in the user's voice.
+const CORE_INSTRUCTIONS = `You are a LinkedIn ghostwriter. The user talks to you to draft posts in their voice.
 
-Keep the interaction simple:
+You have these tools:
+- write_memory: save a long-term fact about the user (niche, voice, audience, anything they want remembered every chat). Use this whenever the user reveals something useful, or asks you to remember it.
+- news_scan: pull recent items from the user's RSS feeds. Use when the user asks about news, signals, recent events, or asks to draft from current items.
+- save_as_draft: persist a finalized post body as a draft. Use when the user says it's good, save it, ship it, etc.
+- update_draft: replace the active draft body when the user is editing a specific draft.
+
+Style:
 - Ask clarifying questions when the request is underspecified.
-- Use the creator profile and active draft context when they are available.
+- Use the memory facts as the source of truth for the user's niche and voice.
 - Keep responses practical, direct, and easy to adapt.
-- Prefer updating the active draft with the update_draft tool when the user asks for a rewrite or edit.
-- Do not mention old product surfaces or provider internals.`;
+- Never mention old product surfaces or provider internals.`;
 
 type CreatorProfile = {
   niche: string | null;
@@ -19,6 +24,7 @@ type CreatorProfile = {
 
 type UserContext = {
   creatorProfile?: CreatorProfile | null;
+  facts?: UserFactRow[];
   activeDraft?: DraftRow | null;
   activeDraftSignals?: ActiveDraftSignal[];
 };
@@ -29,6 +35,12 @@ type ActiveDraftSignal = SignalRow & {
 
 export function getCoreInstructions(): string {
   return CORE_INSTRUCTIONS;
+}
+
+export function buildMemoryBlock(facts: UserFactRow[]): string {
+  if (facts.length === 0) return "";
+  const lines = facts.map((f) => `- ${f.fact}`);
+  return `<memory>\n${lines.join("\n")}\n</memory>`;
 }
 
 export function buildCreatorProfileBlock(profile: CreatorProfile): string {
@@ -71,6 +83,10 @@ export function buildSystemMessages(user: UserContext): ModelMessage[] {
       content: CORE_INSTRUCTIONS,
     },
   ];
+
+  if (user.facts && user.facts.length > 0) {
+    messages.push({ role: "system", content: buildMemoryBlock(user.facts) });
+  }
 
   if (user.creatorProfile) {
     const profileBlock = buildCreatorProfileBlock(user.creatorProfile);

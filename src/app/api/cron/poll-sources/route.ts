@@ -95,7 +95,6 @@ async function handlePollSources(req: Request) {
       const profile = await getUserProfileForCron(userId);
 
       for (const source of userSources) {
-        if (source.kind === "life_journal") continue;
         if (!isDue(source.last_polled_at, source.poll_interval_hours, now)) {
           continue;
         }

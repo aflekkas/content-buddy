@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   chatId: string;
-  draftId: string;
+  draftId?: string;
   initialMessages: UIMessage[];
   initialHasMore?: boolean;
   initialUsage: TokenUsage;
@@ -80,7 +80,9 @@ export function Chat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest: ({ id, messages }) => ({
-        body: { id, messages, activeDraftId: draftId },
+        body: draftId
+          ? { id, messages, activeDraftId: draftId }
+          : { id, messages },
       }),
       fetch: async (input, init) => {
         const res = await fetch(input, init);
@@ -234,7 +236,10 @@ export function Chat({
           role="log"
         >
           {messages.length === 0 ? (
-            <EmptyState onPick={(text) => handleSubmit(text, [])} />
+            <EmptyState
+              onPick={(text) => handleSubmit(text, [])}
+              variant={draftId ? "draft" : "general"}
+            />
           ) : (
             <>
               {initialHasMore && (
@@ -346,12 +351,25 @@ export function Chat({
   );
 }
 
-function EmptyState({ onPick }: { onPick: (text: string) => void }) {
-  const prompts = [
-    "Make this draft punchier",
-    "Shorten the intro and keep the hook",
-    "Read the source signal and tighten the argument",
-  ];
+function EmptyState({
+  onPick,
+  variant,
+}: {
+  onPick: (text: string) => void;
+  variant: "draft" | "general";
+}) {
+  const prompts =
+    variant === "draft"
+      ? [
+          "Make this draft punchier",
+          "Shorten the intro and keep the hook",
+          "Read the source signal and tighten the argument",
+        ]
+      : [
+          "Scan the news for my niche",
+          "Draft a LinkedIn post about today's top signal",
+          "Remember that my niche is...",
+        ];
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-4 text-center">
@@ -359,9 +377,13 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
         <Sparkles className="size-5" />
       </div>
       <div>
-        <h1 className="text-lg font-semibold">Draft assistant</h1>
+        <h1 className="text-lg font-semibold">
+          {variant === "draft" ? "Draft assistant" : "LinkedIn Studio"}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Edit this draft in your voice.
+          {variant === "draft"
+            ? "Edit this draft in your voice."
+            : "Talk to your ghostwriter. Scan news, save memories, draft posts."}
         </p>
       </div>
       <div className="grid w-full gap-2">
@@ -432,6 +454,22 @@ function MessageRender({
 
           if (part.type === "tool-read_signal") {
             return <ToolChip key={index} label="Read signal" />;
+          }
+
+          if (part.type === "tool-read_memory") {
+            return <ToolChip key={index} label="Read memory" />;
+          }
+
+          if (part.type === "tool-write_memory") {
+            return <ToolChip key={index} label="Saved to memory" />;
+          }
+
+          if (part.type === "tool-news_scan") {
+            return <ToolChip key={index} label="Scanned news" />;
+          }
+
+          if (part.type === "tool-save_as_draft") {
+            return <ToolChip key={index} label="Saved as draft" />;
           }
 
           return null;

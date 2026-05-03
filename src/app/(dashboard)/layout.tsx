@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { getUserProfile, hasCompletedOnboarding } from "@/lib/db/queries";
+import { getUserProfile } from "@/lib/db/queries";
 import { SettingsDialogProvider } from "@/components/settings/settings-dialog";
 
 export default async function DashboardLayout({
@@ -14,14 +14,7 @@ export default async function DashboardLayout({
     redirect("/");
   }
 
-  const [onboarded, profile] = await Promise.all([
-    hasCompletedOnboarding(user.id),
-    getUserProfile(user.id),
-  ]);
-
-  if (!onboarded) {
-    redirect("/onboarding");
-  }
+  const profile = await getUserProfile(user.id);
 
   return (
     <SettingsDialogProvider profile={profile}>
