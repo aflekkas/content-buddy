@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, Sparkles, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, Linkedin, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { ChatInput, type ChatAttachment } from "./chat-input";
@@ -373,8 +373,8 @@ function EmptyState({
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-4 text-center">
-      <div className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
-        <Sparkles className="size-5" />
+      <div className="grid size-11 place-items-center rounded-xl bg-[#0A66C2]/10 text-[#0A66C2]">
+        {variant === "draft" ? <Sparkles className="size-5" /> : <Linkedin className="size-5" />}
       </div>
       <div>
         <h1 className="text-lg font-semibold">
