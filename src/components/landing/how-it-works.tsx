@@ -1,12 +1,12 @@
-import { FileText, KeyRound, Radar } from "lucide-react";
+import { FileText, Radar, UserRound } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const STEPS = [
   {
     n: "01",
-    icon: KeyRound,
-    title: "Connect.",
-    body: "Paste your OpenAI key. Add your niche, your voice, and a few of your best LinkedIn posts.",
+    icon: UserRound,
+    title: "Set up.",
+    body: "Add your niche, your voice notes, and a few of your best LinkedIn posts. Two minutes.",
   },
   {
     n: "02",
@@ -34,7 +34,7 @@ export function HowItWorks() {
             How it works
           </h2>
           <p className="mt-3 text-muted-foreground">
-            Connect, feed, scan. Three buttons, one loop.
+            Set up, feed, scan. One loop.
           </p>
         </div>
         <ol className="mt-12 grid gap-6 md:grid-cols-3">
