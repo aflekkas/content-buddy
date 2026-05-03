@@ -4,7 +4,8 @@ import { useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, Linkedin, Sparkles, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, Sparkles, X } from "lucide-react";
+import { LogoMark } from "@/components/logo";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { ChatInput, type ChatAttachment } from "./chat-input";
@@ -13,7 +14,6 @@ import { Loader } from "@/components/ui/loader";
 import { Markdown } from "@/components/ui/markdown";
 import { Message } from "@/components/ui/message";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useSettingsDialog } from "@/components/settings/settings-dialog";
 import { EASE_OUT } from "@/lib/motion";
 import { estimateCostUsd, type TokenUsage } from "@/lib/pricing";
 import { PROVIDERS, providerSupportsImages, type ProviderId } from "@/lib/providers";
@@ -63,7 +63,6 @@ export function Chat({
   activeModelId,
 }: Props) {
   const router = useRouter();
-  const settingsDialog = useSettingsDialog();
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const stickToBottomRef = useRef(true);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -197,17 +196,10 @@ export function Chat({
     missingKey
       ? {
           id: "missing-key",
-          message: `Add your ${PROVIDERS[activeProviderId].label} API key in settings to start chatting.`,
-          actions: [
-            {
-              label: "Edit settings",
-              onClick: () => settingsDialog.open(),
-            },
-          ],
+          message: `${PROVIDERS[activeProviderId].label} API key not configured on the server.`,
         }
       : providerError
         ? providerErrorToNotice(providerError, {
-            onOpenSettings: () => settingsDialog.open(),
             onDismiss: () => {
               setProviderError(null);
               clearError();
@@ -374,7 +366,7 @@ function EmptyState({
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-4 text-center">
       <div className="grid size-11 place-items-center rounded-xl bg-[#0A66C2]/10 text-[#0A66C2]">
-        {variant === "draft" ? <Sparkles className="size-5" /> : <Linkedin className="size-5" />}
+        {variant === "draft" ? <Sparkles className="size-5" /> : <LogoMark className="size-5" />}
       </div>
       <div>
         <h1 className="text-lg font-semibold">
@@ -552,15 +544,11 @@ function ChatNotice({
 
 function providerErrorToNotice(
   err: ProviderErrorPayload,
-  handlers: { onOpenSettings: () => void; onDismiss: () => void },
+  handlers: { onDismiss: () => void },
 ) {
   return {
     id: `${err.provider}-${err.code}`,
     message: err.message,
-    actions:
-      err.helpUrl === "/settings"
-        ? [{ label: "Edit settings", onClick: handlers.onOpenSettings }]
-        : undefined,
     onDismiss: handlers.onDismiss,
   };
 }

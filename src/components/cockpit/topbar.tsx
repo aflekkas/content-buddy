@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CockpitTopBarFrame } from "@/components/cockpit/cockpit-primitives";
 import { LogoLockup } from "@/components/logo";
 import { BRAND_NAME } from "@/lib/brand";
 import { createClient } from "@/lib/supabase/client";
-import { useSettingsDialog } from "@/components/settings/settings-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 type Props = {
@@ -17,7 +16,6 @@ type Props = {
 
 export function TopBar({ email }: Props) {
   const [signingOut, setSigningOut] = useState(false);
-  const settings = useSettingsDialog();
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -49,15 +47,6 @@ export function TopBar({ email }: Props) {
           {email}
         </p>
         <ThemeToggle />
-        <button
-          type="button"
-          aria-label="Settings"
-          title="Settings"
-          onClick={() => settings.open()}
-          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <Settings className="size-4" />
-        </button>
         <Button
           variant="ghost"
           size="icon-sm"

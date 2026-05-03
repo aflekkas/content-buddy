@@ -84,8 +84,7 @@ export function mapProviderError(
       kind: "provider_error",
       provider,
       code: "invalid_key",
-      message: `Your ${providerLabel} API key was rejected. Update it in settings.`,
-      helpUrl: "/settings",
+      message: `Your ${providerLabel} API key was rejected.`,
     };
   }
 
@@ -121,8 +120,7 @@ export function mapProviderError(
       kind: "provider_error",
       provider,
       code: "model_unavailable",
-      message: `Your ${providerLabel} account doesn't have access to ${model}. Pick another model in settings.`,
-      helpUrl: "/settings",
+      message: `Your ${providerLabel} account doesn't have access to ${model}.`,
     };
   }
 
