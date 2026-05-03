@@ -1,6 +1,5 @@
 import { generateText } from "ai";
 import { z } from "zod";
-import { getDecryptedProviderKey } from "@/lib/db/queries";
 import type { SignalRow } from "@/lib/db/types";
 import { getModel } from "@/lib/model-dispatch";
 
@@ -11,10 +10,10 @@ const RelevanceSchema = z.object({
 
 export type SynthMode = "news" | "life" | "mix";
 
-async function getOpenAIModel(userId: string) {
-  const apiKey = await getDecryptedProviderKey(userId, "openai");
+function getOpenAIModel() {
+  const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new Error("missing_openai_key");
+    throw new Error("missing_openai_key_env");
   }
   return getModel("openai", "gpt-4o-mini", apiKey);
 }
@@ -42,12 +41,11 @@ function voiceFewShots(samples: string | null): string | null {
 }
 
 export async function scoreRelevance(args: {
-  userId: string;
   signalText: string;
   niche: string | null;
   voiceNotes: string | null;
 }): Promise<{ score: number; summary: string }> {
-  const model = await getOpenAIModel(args.userId);
+  const model = getOpenAIModel();
   const { text } = await generateText({
     model,
     messages: [
@@ -70,7 +68,6 @@ const SYSTEM_PROMPTS: Record<SynthMode, string> = {
 };
 
 export async function synthesizeFromSignals(args: {
-  userId: string;
   mode?: SynthMode;
   signals: SignalRow[];
   niche: string | null;
@@ -82,7 +79,7 @@ export async function synthesizeFromSignals(args: {
   }
 
   const mode: SynthMode = args.mode ?? "news";
-  const model = await getOpenAIModel(args.userId);
+  const model = getOpenAIModel();
   const sources = args.signals
     .map(
       (signal, index) =>

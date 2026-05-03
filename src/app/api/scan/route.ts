@@ -86,7 +86,6 @@ export async function POST(req: Request) {
 
   try {
     const { body } = await synthesizeFromSignals({
-      userId,
       mode,
       signals: chosen,
       niche: profile?.niche ?? null,

@@ -8,7 +8,7 @@ This repo uses Next.js 16. APIs, conventions, and file structure may differ from
 
 ## Project Structure & Module Organization
 
-Next.js 16 TypeScript app for LinkedStudio: a LinkedIn ghostwriter. The core loop is feeds + journal -> signals -> on-demand scan -> draft -> copy. App Router routes live in `src/app`, including dashboard pages under `src/app/(dashboard)` and API routes under `src/app/api`. Reusable feature components live in `src/components`, with shared UI primitives in `src/components/ui`. Feed and draft surfaces live in `src/components/feed` and `src/components/drafts`; source fetching and synthesis live in `src/lib/sources` and `src/lib/synthesis.ts`. Database access is centralized in `src/lib/db/queries.ts`, with row types in `src/lib/db/types.ts`. Supabase SQL migrations live in `supabase/migrations`. Static assets live in `public`, including provider logos. Prefer extending the existing structure over creating parallel folders or duplicate abstractions.
+Next.js 16 TypeScript app for LinkedIn Studio: a LinkedIn ghostwriter. The core loop is feeds + journal -> signals -> on-demand scan -> draft -> copy. App Router routes live in `src/app`, including dashboard pages under `src/app/(dashboard)` and API routes under `src/app/api`. Reusable feature components live in `src/components`, with shared UI primitives in `src/components/ui`. Feed and draft surfaces live in `src/components/feed` and `src/components/drafts`; source fetching and synthesis live in `src/lib/sources` and `src/lib/synthesis.ts`. Database access is centralized in `src/lib/db/queries.ts`, with row types in `src/lib/db/types.ts`. Supabase SQL migrations live in `supabase/migrations`. Static assets live in `public`, including provider logos. Prefer extending the existing structure over creating parallel folders or duplicate abstractions.
 
 ## Build, Test, and Development Commands
 
@@ -56,18 +56,15 @@ Reuse existing helpers, do not create ad hoc clients:
 
 Do not expose secret env vars to the client. Never use the admin client in browser code. Prefer the publishable-key client unless the task strictly requires server-only admin access. If a change affects the database schema, add or update a migration in `supabase/migrations` and keep the TypeScript row types in `src/lib/db/types.ts` in sync within the same change.
 
-## Bring Your Own Key
+## OpenAI key (env-driven)
 
-LinkedStudio is a bring-your-own-key product. Each user supplies their own OpenAI API key and picks an active OpenAI model in `/settings`; the app uses that key to drive synthesis and chat. Apify tokens are optional and only used for the deferred LinkedIn voice-scrape feature.
+LinkedIn Studio is a single-user, self-hosted, open-source app. There is no per-user key storage.
 
-- Users supply their own OpenAI API key in onboarding/settings. Apify is optional.
-- Onboarding is 4 steps: welcome, keys (OpenAI), profile (niche + voice notes + voice samples), sources (RSS feeds + niche bundles).
-- Surface BYOK in the UI subtly (footer note, landing CTA line, onboarding hint), not as the headline of the brand.
-- Server-side AI orchestration must use the **caller's** key, not a shared platform key. Pull the user's key via `getDecryptedProviderKey(userId, provider)` from `src/lib/db/queries.ts`.
-- Optional Apify token (deferred LinkedIn scrape only) lives behind `getDecryptedExternalCredential(userId, "apify")`.
-- Provider catalogue (supported providers and models) is the single source of truth in `src/lib/providers.ts`. Use `getModel(provider, model, apiKey)` from `src/lib/model-dispatch.ts` to instantiate the AI SDK model. Do not import provider SDKs directly in route or feature code.
-- Keys are stored encrypted at rest in `public.user_provider_keys` (AES-256-GCM, master key in `BYOK_ENCRYPTION_KEY`). Helpers in `src/lib/crypto.ts`. Never log, return, or expose the decrypted key to the client.
-- Missing/invalid user keys must surface as actionable UI ("add your key in settings"), not opaque 500s. The chat route returns `402 {error: "missing_key", provider}`; the chat client surfaces a banner linking to `/settings`.
+- The OpenAI key lives in `process.env.OPENAI_API_KEY` (set in `.env.local`).
+- Server-side AI calls read the env key directly: `process.env.OPENAI_API_KEY`. Never reintroduce per-user key tables, encrypted credentials, or BYOK UI surfaces.
+- Provider catalogue (supported providers and models) is the single source of truth in `src/lib/providers.ts`. Use `getModel("openai", "gpt-4o-mini", apiKey)` from `src/lib/model-dispatch.ts`. Do not import provider SDKs directly in route or feature code.
+- Onboarding is 3 steps: welcome, profile (niche + voice notes + voice samples), sources (RSS feeds + niche bundles). No keys step.
+- Settings is a single dialog with the creator profile form only.
 
 ## Pipeline Invariants
 
@@ -85,10 +82,10 @@ When editing chat flows, preserve unless the user explicitly asks to change:
 - persistence of user and assistant messages
 - chat title generation
 - creator profile context (`niche`, `voice_notes`, and `voice_samples`)
-- usage and token accounting (per-user, since each user pays for their own key)
+- usage and token accounting (rolled up per chat row)
 
 Keep server-side AI orchestration in route handlers and shared library files. Do not move provider secrets or model calls into client components.
 
 ## Security & Configuration Tips
 
-Local secrets belong in `.env.local`, never in commits. Required values include `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, `BYOK_ENCRYPTION_KEY`, and `CRON_SECRET`. User provider keys and (optional) Apify tokens are encrypted and must never be logged, returned to the client, or handled outside server-side code.
+Local secrets belong in `.env.local`, never in commits. Required values include `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and `OPENAI_API_KEY`. The OpenAI key must never be logged or returned to the client.

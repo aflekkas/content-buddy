@@ -25,7 +25,6 @@ export async function POST(
       : "news";
   try {
     const { body } = await synthesizeFromSignals({
-      userId: auth.user.id,
       mode: sourceKindMode,
       signals: [signal],
       niche: profile?.niche ?? null,

@@ -7,38 +7,28 @@ import { Button } from "@/components/ui/button";
 import { CircularLoader } from "@/components/ui/loader";
 import { LogoLockup } from "@/components/logo";
 import { StepWelcome } from "@/components/onboarding/steps/step-welcome";
-import { StepKeys } from "@/components/onboarding/steps/step-keys";
 import { StepProfile } from "@/components/onboarding/steps/step-profile";
 import { StepSources } from "@/components/onboarding/steps/step-sources";
 import { cn } from "@/lib/utils";
 
 export type OnboardingState = {
-  openaiKey: string;
-  openaiKeySaved: boolean;
-  apifyToken: string;
-  apifyTokenSaved: boolean;
   niche: string;
   voiceNotes: string;
   voiceSamples: string;
   feedUrls: string;
 };
 
-type Step = "welcome" | "keys" | "profile" | "sources";
+type Step = "welcome" | "profile" | "sources";
 
-const STEPS: Step[] = ["welcome", "keys", "profile", "sources"];
+const STEPS: Step[] = ["welcome", "profile", "sources"];
 
 const STEP_LABELS: Record<Step, string> = {
   welcome: "Welcome",
-  keys: "Keys",
   profile: "Profile",
   sources: "Sources",
 };
 
 const INITIAL_STATE: OnboardingState = {
-  openaiKey: "",
-  openaiKeySaved: false,
-  apifyToken: "",
-  apifyTokenSaved: false,
   niche: "",
   voiceNotes: "",
   voiceSamples: "",
@@ -81,11 +71,12 @@ export function OnboardingFlow({ userId }: Props) {
       }
 
       try {
-        void fetch(`/api/cron/poll-sources?user_id=${encodeURIComponent(userId)}`, {
-          method: "POST",
-        }).catch(() => undefined);
+        void fetch(
+          `/api/cron/poll-sources?user_id=${encodeURIComponent(userId)}`,
+          { method: "POST" },
+        ).catch(() => undefined);
       } catch {
-        // First-poll endpoint is delivered in a later stage.
+        // First-poll endpoint is best-effort.
       }
 
       router.replace("/dashboard/feed");
@@ -96,14 +87,7 @@ export function OnboardingFlow({ userId }: Props) {
   }
 
   const content = {
-    welcome: <StepWelcome onContinue={() => goTo("keys")} />,
-    keys: (
-      <StepKeys
-        state={state}
-        setState={setState}
-        onContinue={() => goTo("profile")}
-      />
-    ),
+    welcome: <StepWelcome onContinue={() => goTo("profile")} />,
     profile: (
       <StepProfile
         state={state}
@@ -140,7 +124,10 @@ export function OnboardingFlow({ userId }: Props) {
                 transition={{ duration: 0.2, ease: "easeOut" }}
               />
             </div>
-            <nav className="grid grid-cols-4 gap-2" aria-label="Onboarding steps">
+            <nav
+              className="grid grid-cols-3 gap-2"
+              aria-label="Onboarding steps"
+            >
               {STEPS.map((item, index) => (
                 <span
                   key={item}
@@ -191,7 +178,7 @@ export function OnboardingFlow({ userId }: Props) {
             </p>
           ) : (
             <p className="text-sm text-muted-foreground">
-              Your keys stay encrypted and server-side.
+              You stay signed in. Edit anything later in settings.
             </p>
           )}
         </footer>

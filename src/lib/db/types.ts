@@ -40,23 +40,9 @@ export type UserProfileRow = {
   user_id: string;
   updated_at: string;
   onboarded_at: string | null;
-  active_provider: string;
-  active_model: string;
   niche: string | null;
   voice_notes: string | null;
   voice_samples: string | null;
-};
-
-export type ProviderKeyMetaRow = {
-  provider: ProviderId;
-  last4: string;
-  updated_at: string;
-};
-
-export type ExternalCredentialMetaRow = {
-  kind: "apify";
-  last4: string;
-  updated_at: string;
 };
 
 export type MonitoredSourceKind = "rss_feed" | "life_journal";

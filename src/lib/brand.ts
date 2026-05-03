@@ -1,1 +1,1 @@
-export const BRAND_NAME = "LinkedStudio";
+export const BRAND_NAME = "LinkedIn Studio";

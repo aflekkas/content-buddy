@@ -84,7 +84,7 @@ function normaliseItem(
 async function fetchFeed(url: string): Promise<string> {
   const res = await fetch(url, {
     headers: {
-      "user-agent": "LinkedStudio/1.0 (+https://linkedstudio.app)",
+      "user-agent": "LinkedInStudio/1.0 (+https://github.com/aflekkas/linkedin-studio)",
       accept:
         "application/rss+xml, application/atom+xml, application/xml, application/json, text/xml;q=0.9, */*;q=0.5",
     },

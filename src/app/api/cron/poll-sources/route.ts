@@ -121,7 +121,6 @@ async function handlePollSources(req: Request) {
           const rawText = signal.raw.text;
           const signalText = typeof rawText === "string" ? rawText : signal.url;
           const scored = await scoreRelevance({
-            userId,
             signalText,
             niche: profile?.niche ?? null,
             voiceNotes: profile?.voice_notes ?? null,

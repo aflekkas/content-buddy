@@ -1,8 +1,11 @@
-# LinkedStudio
+# LinkedIn Studio
 
-LinkedStudio is a LinkedIn ghostwriter. You add the news feeds you read and
-drop journal notes whenever something happens. One click and we draft posts in
-your voice — news riffs, life posts, or a mix. You edit, copy, ship.
+LinkedIn Studio is a self-hosted LinkedIn ghostwriter. You add the news feeds
+you read and drop journal notes whenever something happens. One click and it
+drafts posts in your voice — news riffs, life posts, or a mix. You edit, copy,
+ship.
+
+Open source. Single user. Bring your own OpenAI key in `.env.local`.
 
 ## Stack
 
@@ -17,6 +20,7 @@ your voice — news riffs, life posts, or a mix. You edit, copy, ship.
 ```bash
 npm install
 cp .env.local.example .env.local
+# fill in OPENAI_API_KEY + Supabase keys
 npm run dev
 ```
 
@@ -27,23 +31,15 @@ Required environment variables:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser-safe Supabase key |
 | `SUPABASE_SECRET_KEY` | Server-only Supabase service key |
-| `BYOK_ENCRYPTION_KEY` | 32-byte base64 AES-GCM key for stored user keys |
-| `CRON_SECRET` | Bearer secret for scheduled source polling |
+| `OPENAI_API_KEY` | Single OpenAI key. Every server-side AI call reads this. |
+| `CRON_SECRET` | Optional. Bearer secret for the poll-sources cron route. |
 
 Apply migrations from `supabase/migrations/` in numeric order.
 
-## BYOK
-
-Users bring their own OpenAI API key. The key lives in
-`public.user_provider_keys`, AES-256-GCM encrypted at rest, decrypted only
-inside server-side request paths, and never returned to the client after
-storage. Apify tokens are still supported in `public.user_external_credentials`
-for the deferred LinkedIn voice-scrape feature, but are optional in the MVP.
-
 ## Product Flow
 
-- Onboarding has 4 steps: welcome, keys (OpenAI), profile (niche + voice +
-  voice samples), sources (RSS feeds + niche bundles).
+- Onboarding has 3 steps: welcome, profile (niche + voice + voice samples),
+  sources (RSS feeds + niche bundles).
 - Sources are stored in `monitored_sources` as `rss_feed` or `life_journal`.
 - `/api/cron/poll-sources` runs daily to fetch RSS items and score signals.
   No drafts are auto-created — synthesis is manual.
@@ -75,7 +71,7 @@ framework-level changes.
 - `src/components/feed` — signal/draft inbox, journal capture, scan controls
 - `src/components/drafts` — draft editor and chat sidebar
 - `src/components/chat` — reusable chat UI and input
-- `src/components/settings` — key and profile settings
+- `src/components/settings` — profile settings dialog
 - `src/lib/providers.ts` — OpenAI model catalogue
 - `src/lib/model-dispatch.ts` — AI SDK model construction
 - `src/lib/system-prompt.ts` — basic system prompt composition
@@ -87,6 +83,6 @@ framework-level changes.
 ## Security Notes
 
 - Keep local secrets in `.env.local`; never commit them.
-- Never expose `SUPABASE_SECRET_KEY` or `BYOK_ENCRYPTION_KEY` to client code.
-- Do not log decrypted provider keys.
-- Keep RLS enabled on user-owned tables.
+- Never expose `SUPABASE_SECRET_KEY` or `OPENAI_API_KEY` to client code.
+- The OpenAI key is read server-side only via `process.env.OPENAI_API_KEY`.
+- RLS stays enabled on user-owned tables.

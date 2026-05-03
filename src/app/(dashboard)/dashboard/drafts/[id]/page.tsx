@@ -43,7 +43,7 @@ export default async function DraftPage({
   return (
     <main className="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 md:p-6">
       <DraftEditor draft={draft} sourceHandles={handles} />
-      <DraftChatSidebar draftId={draft.id} chat={chat} userId={user.id} />
+      <DraftChatSidebar draftId={draft.id} chat={chat} />
     </main>
   );
 }

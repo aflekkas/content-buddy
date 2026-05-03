@@ -8,19 +8,13 @@ import {
 } from "ai";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
-import {
-  errorResponse,
-  notFound,
-  requireAuth,
-  requireProviderKey,
-} from "@/lib/api";
+import { errorResponse, notFound, requireAuth } from "@/lib/api";
 import { buildSystemMessages } from "@/lib/system-prompt";
 import { getModel } from "@/lib/model-dispatch";
 import { providerSupportsImages } from "@/lib/providers";
 import {
   addChatUsage,
   appendMessageWithParts,
-  getActiveModel,
   getChat,
   getDraft,
   getUserProfile,
@@ -75,10 +69,14 @@ export async function POST(req: Request) {
     await updateDraft(user.id, draft.id, { chat_id: chat.id });
   }
 
-  const { provider, model } = await getActiveModel(user.id);
-  const keyResult = await requireProviderKey(user.id, provider);
-  if (!keyResult.ok) return keyResult.response;
-  const { apiKey } = keyResult;
+  const provider = "openai" as const;
+  const model = "gpt-4o-mini";
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return errorResponse("missing_openai_key_env", 500, {
+      message: "Set OPENAI_API_KEY in .env.local",
+    });
+  }
 
   const hasFileParts = messages.some((m) =>
     m.parts.some((p) => p.type === "file"),

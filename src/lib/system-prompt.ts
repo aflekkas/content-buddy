@@ -1,7 +1,7 @@
 import type { ModelMessage } from "ai";
 import type { DraftRow, SignalRow } from "@/lib/db/types";
 
-export const DEFAULT_ASSISTANT_NAME = "LinkedStudio";
+export const DEFAULT_ASSISTANT_NAME = "LinkedIn Studio";
 
 const CORE_INSTRUCTIONS = `You are a LinkedIn ghostwriter editing the active draft in the user's voice.
 

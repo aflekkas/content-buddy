@@ -288,7 +288,7 @@ function BrandPanel() {
         className="flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1.5 text-xs text-muted-foreground"
       >
         <KeyRound className="size-3.5 text-primary" />
-        You&apos;ll bring an OpenAI key and an Apify token. Both stay encrypted.
+        Self-hosted, single user. Your OpenAI key lives in your env file.
       </motion.div>
     </motion.div>
   );
