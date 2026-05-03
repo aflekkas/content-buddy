@@ -84,11 +84,11 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
                 href="/dashboard"
                 className={cn(
                   buttonVariants({ size: "sm", shape: "pill", withArrow: true }),
-                  "h-10 gap-2 px-5 text-sm",
+                  "h-8 gap-1.5 px-3 text-xs",
                 )}
               >
-                My account
-                <ArrowRight className="size-3.5" />
+                Open Studio
+                <ArrowRight className="size-3" />
               </Link>
             ) : (
               <>
@@ -152,7 +152,7 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
                   onClick={() => setMobileOpen(false)}
                   className="block rounded-lg px-3 py-2.5 text-sm text-foreground/80 transition-colors hover:bg-muted"
                 >
-                  {isAuthed ? "My account" : "Sign in"}
+                  {isAuthed ? "Open Studio" : "Sign in"}
                 </Link>
               </div>
             </nav>
