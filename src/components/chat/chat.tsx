@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useRouter } from "next/navigation";
@@ -108,6 +108,23 @@ export function Chat({
   const { messages, sendMessage, status, stop, clearError, error } = chat;
   const isStreaming = status === "submitted" || status === "streaming";
   const missingKey = !hasActiveKey || keyErrorFrom402;
+
+  const seenMemorySavesRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    for (const m of messages) {
+      if (m.role !== "assistant") continue;
+      for (const part of m.parts) {
+        if (part.type !== "tool-write_memory") continue;
+        const p = part as { toolCallId?: string; state?: string; output?: { ok?: boolean } };
+        if (!p.toolCallId) continue;
+        if (p.state !== "output-available") continue;
+        if (p.output?.ok !== true) continue;
+        if (seenMemorySavesRef.current.has(p.toolCallId)) continue;
+        seenMemorySavesRef.current.add(p.toolCallId);
+        window.dispatchEvent(new CustomEvent("memory:saved"));
+      }
+    }
+  }, [messages]);
 
   const totalUsage: TokenUsage = useMemo(() => {
     const total: TokenUsage = { ...initialUsage };

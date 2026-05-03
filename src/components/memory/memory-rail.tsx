@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Brain, Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,17 @@ export function MemoryRail({ initialFacts }: Props) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    async function refresh() {
+      const res = await fetch("/api/memory");
+      if (!res.ok) return;
+      const { facts: rows } = (await res.json()) as { facts: UserFactRow[] };
+      setFacts(rows);
+    }
+    window.addEventListener("memory:saved", refresh);
+    return () => window.removeEventListener("memory:saved", refresh);
+  }, []);
 
   async function addFact(e: React.FormEvent) {
     e.preventDefault();
