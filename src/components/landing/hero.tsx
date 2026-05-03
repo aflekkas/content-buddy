@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Copy, FileText, Sparkles } from "lucide-react";
+import { ArrowRight, Copy, FileText, Linkedin } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { DotPattern } from "@/components/ui/dot-pattern";
@@ -16,12 +16,7 @@ export function Hero({ isAuthed = false }: { isAuthed?: boolean }) {
       />
       <div className="mx-auto max-w-6xl px-4 pt-16 pb-20 sm:px-6 sm:pt-24 sm:pb-28">
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
-            <Sparkles className="size-3.5 text-primary" />
-            AI ghostwriter for LinkedIn
-          </span>
-
-          <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
+          <h1 className="text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
             Riff on the news. Post about your life.
           </h1>
 
@@ -35,7 +30,7 @@ export function Hero({ isAuthed = false }: { isAuthed?: boolean }) {
               href={isAuthed ? "/dashboard" : "/login"}
               className={cn(buttonVariants({ size: "lg", shape: "pill", withArrow: true }))}
             >
-              Open Studio
+              Open studio
               <ArrowRight className="size-4" />
             </Link>
             <Link
@@ -114,7 +109,7 @@ function FeedToDraftMockup() {
               Draft · synthesized 1m ago
             </p>
             <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
-              ready
+              Ready
             </span>
           </div>
         </CardHeader>
@@ -130,13 +125,20 @@ function FeedToDraftMockup() {
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-background to-transparent" />
           </div>
         </CardContent>
-        <CardFooter className="justify-end bg-muted/30">
+        <CardFooter className="justify-end gap-1.5 bg-muted/30">
           <button
             type="button"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md bg-primary px-2.5 text-xs font-medium text-primary-foreground"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2.5 text-xs font-medium text-muted-foreground"
           >
             <Copy className="size-3.5" />
             Copy
+          </button>
+          <button
+            type="button"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md bg-[#0A66C2] px-2.5 text-xs font-medium text-white"
+          >
+            <Linkedin className="size-3.5" />
+            Publish
           </button>
         </CardFooter>
       </Card>
