@@ -490,16 +490,16 @@ function getStoredPanelState() {
 
 const EMPTY_CANVAS_MESSAGES = [
   {
-    title: "lights out.",
-    body: "you minimized everything. tap a panel on the rail to bring it back.",
+    title: "Lights out.",
+    body: "You minimized everything. Tap a panel on the rail to bring it back.",
   },
   {
-    title: "studio's quiet.",
-    body: "every panel collapsed. enjoy the silence or open one back up.",
+    title: "Studio's quiet.",
+    body: "Every panel collapsed. Enjoy the silence or open one back up.",
   },
   {
-    title: "blank canvas.",
-    body: "no panels, no chat, no drafts. you're flying clean.",
+    title: "Blank canvas.",
+    body: "No panels, no chat, no drafts. You're flying clean.",
   },
 ] as const;
 
@@ -519,7 +519,7 @@ function EmptyCanvas({ onExpandAll }: { onExpandAll: () => void }) {
         onClick={onExpandAll}
         className="mt-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
       >
-        bring it all back
+        Bring it all back
       </button>
     </div>
   );
