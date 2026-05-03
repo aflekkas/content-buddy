@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { BRAND_NAME } from "@/lib/brand";
 import { LogoLockup } from "@/components/logo";
 
-export function LandingFooter({ isAuthed = false }: { isAuthed?: boolean }) {
+export function LandingFooter() {
   return (
     <footer className="border-t bg-background">
       <div className="mx-auto flex max-w-6xl flex-col items-start gap-6 px-4 py-10 sm:px-6 md:flex-row md:items-center md:justify-between">
@@ -16,24 +15,14 @@ export function LandingFooter({ isAuthed = false }: { isAuthed?: boolean }) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
-          <Link
-            href={isAuthed ? "/dashboard" : "/login"}
-            className="transition-colors hover:text-foreground"
+          <a
+            href="https://www.linkedin.com/in/alexandros-lekkas/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-4 decoration-foreground/30 transition-colors hover:text-foreground hover:decoration-foreground"
           >
-            {isAuthed ? "Dashboard" : "Sign in"}
-          </Link>
-          <span>
-            Powering{" "}
-            <a
-              href="https://www.linkedin.com/in/alexandros-lekkas/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-foreground/80 transition-colors hover:text-foreground"
-            >
-              Alexandros&apos;
-            </a>{" "}
-            LinkedIn posts since 2026
-          </span>
+            Powering Alexandros&apos; LinkedIn posts since 2026
+          </a>
         </div>
       </div>
       <div className="border-t border-border/60">

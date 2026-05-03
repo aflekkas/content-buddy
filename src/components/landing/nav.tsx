@@ -9,7 +9,7 @@ import { LogoMark } from "@/components/logo";
 import { BRAND_NAME } from "@/lib/brand";
 import { cn } from "@/lib/utils";
 
-const LINKS = [
+const BASE_LINKS = [
   { href: "#how", label: "How it works" },
   { href: "#start", label: "Start" },
 ];
@@ -21,6 +21,9 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
   const [scrolled, setScrolled] = useState(false);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const LINKS = isAuthed
+    ? [...BASE_LINKS, { href: "/dashboard", label: "Dashboard" }]
+    : BASE_LINKS;
 
   useMotionValueEvent(scrollY, "change", (y) => {
     setScrolled(y > 16);

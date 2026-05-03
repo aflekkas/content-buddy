@@ -20,7 +20,7 @@ export default async function RootPage() {
         <HowItWorks />
         <FinalCta isAuthed={isAuthed} />
       </main>
-      <LandingFooter isAuthed={isAuthed} />
+      <LandingFooter />
     </div>
   );
 }

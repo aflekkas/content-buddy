@@ -163,19 +163,18 @@ function SketchArrow({ className }: { className?: string }) {
   return (
     <svg
       aria-hidden
-      width="96"
-      height="40"
-      viewBox="0 0 400 400"
+      width="110"
+      height="44"
+      viewBox="0 0 400 160"
       fill="none"
       stroke="currentColor"
-      strokeOpacity="0.9"
-      strokeWidth="18"
+      strokeWidth="14"
       strokeLinecap="round"
       strokeLinejoin="round"
       className={cn("rotate-90 md:rotate-0", className)}
     >
-      <path d="M35 262C160.529 140.938 328.006 207.285 361 215.518" />
-      <path d="M343.69 143C355.23 190.289 361 214.681 361 216.177C361 218.421 327.488 234.13 312 258" />
+      <path d="M30 80 C 110 70, 220 70, 360 80" />
+      <path d="M310 38 C 330 58, 350 72, 360 80 C 350 88, 330 102, 310 122" />
     </svg>
   );
 }
