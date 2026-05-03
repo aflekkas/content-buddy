@@ -2,9 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { ColumnHeader } from "@/components/cockpit/column-header";
 import { useActiveDrafts } from "@/components/cockpit/active-drafts-context";
 import { formatRelativeTime } from "@/lib/system-prompt";
 import { cn } from "@/lib/utils";
@@ -22,7 +21,7 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: "copied", label: "Copied" },
 ];
 
-export function DraftsQueue({ initialDrafts }: Props) {
+export function DraftsList({ initialDrafts }: Props) {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
@@ -45,11 +44,6 @@ export function DraftsQueue({ initialDrafts }: Props) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <ColumnHeader
-        title="Drafts"
-        icon={FileText}
-        description={`${visible.length} of ${initialDrafts.filter((d) => d.status !== "dismissed").length}`}
-      />
       <div className="flex shrink-0 flex-col gap-2 border-b p-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />

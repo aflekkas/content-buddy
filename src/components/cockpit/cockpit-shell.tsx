@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 type Props = {
   user: { id: string; email: string };
   memorySlot: ReactNode;
-  draftsSlot: ReactNode;
+  queueSlot: ReactNode;
   chatSwitcherSlot: ReactNode;
   children: ReactNode;
 };
@@ -74,7 +74,7 @@ const DEFAULT_PANEL_STATE = {
 export function CockpitShell({
   user,
   memorySlot,
-  draftsSlot,
+  queueSlot,
   chatSwitcherSlot,
   children,
 }: Props) {
@@ -293,7 +293,7 @@ export function CockpitShell({
                 draftsCollapsed && "lg:pointer-events-none lg:opacity-0",
               )}
             >
-              {draftsSlot}
+              {queueSlot}
             </aside>
 
             <PanelButton
