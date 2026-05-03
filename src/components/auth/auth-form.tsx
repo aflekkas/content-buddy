@@ -97,9 +97,11 @@ export function AuthForm() {
           </div>
 
           {/* Animated form block — entire form blurs-fades on mode change */}
-          <AnimatePresence mode="wait" initial={false}>
+          <motion.div layout transition={{ duration: 0.28, ease: EASE_OUT }}>
+          <AnimatePresence mode="popLayout" initial={false}>
             <motion.div
               key={mode}
+              layout
               initial={{ opacity: 0, filter: "blur(8px)", y: 4 }}
               animate={{ opacity: 1, filter: "blur(0px)", y: 0 }}
               exit={{ opacity: 0, filter: "blur(8px)", y: -4 }}
@@ -220,6 +222,7 @@ export function AuthForm() {
               </form>
             </motion.div>
           </AnimatePresence>
+          </motion.div>
         </div>
     </div>
   );
