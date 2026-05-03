@@ -1,6 +1,12 @@
 "use client";
 
-import { Brain, ChevronLeft, FileText, Sparkles } from "lucide-react";
+import {
+  Brain,
+  ChevronLeft,
+  FileText,
+  Newspaper,
+  Sparkles,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode } from "react";
@@ -25,16 +31,18 @@ import { cn } from "@/lib/utils";
 type Props = {
   user: { id: string; email: string };
   memorySlot: ReactNode;
-  queueSlot: ReactNode;
+  draftsSlot: ReactNode;
+  newsSlot: ReactNode;
   chatSwitcherSlot: ReactNode;
   children: ReactNode;
 };
 
-type MobilePanel = "memory" | "queue" | "chat";
+type MobilePanel = "memory" | "drafts" | "news" | "chat";
 
 const MOBILE_PANELS = [
   { id: "memory", label: "Memory", icon: Brain },
-  { id: "queue", label: "Drafts", icon: FileText },
+  { id: "drafts", label: "Drafts", icon: FileText },
+  { id: "news", label: "News", icon: Newspaper },
   { id: "chat", label: "Chat", icon: Sparkles },
 ] as const satisfies ReadonlyArray<{
   id: MobilePanel;
@@ -44,12 +52,15 @@ const MOBILE_PANELS = [
 
 const MEMORY_PANEL_WIDTH = 320;
 const DRAFTS_PANEL_WIDTH = 320;
+const NEWS_PANEL_WIDTH = 340;
 const RAIL_WIDTH = 56;
 const PANEL_STATE_STORAGE_KEY = "linkedin-studio:cockpit-panels";
 const MEMORY_ICON_BUTTON_CLASS =
   "text-sky-600 hover:text-sky-700 dark:text-sky-300";
-const QUEUE_ICON_BUTTON_CLASS =
+const DRAFTS_ICON_BUTTON_CLASS =
   "text-amber-600 hover:text-amber-700 dark:text-amber-300";
+const NEWS_ICON_BUTTON_CLASS =
+  "text-emerald-600 hover:text-emerald-700 dark:text-emerald-300";
 const HEADER_ICON_BUTTON_CLASS =
   "inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
@@ -62,19 +73,22 @@ const REDUCED_TRANSITION = { duration: 0 } as const;
 type StoredPanelState = {
   memoryCollapsed?: boolean;
   draftsCollapsed?: boolean;
+  newsCollapsed?: boolean;
   chatCollapsed?: boolean;
 };
 
 const DEFAULT_PANEL_STATE = {
-  memoryCollapsed: false,
+  memoryCollapsed: true,
   draftsCollapsed: false,
+  newsCollapsed: true,
   chatCollapsed: false,
 } as const;
 
 export function CockpitShell({
   user,
   memorySlot,
-  queueSlot,
+  draftsSlot,
+  newsSlot,
   chatSwitcherSlot,
   children,
 }: Props) {
@@ -85,6 +99,9 @@ export function CockpitShell({
   );
   const [draftsCollapsed, setDraftsCollapsed] = useState<boolean>(
     DEFAULT_PANEL_STATE.draftsCollapsed,
+  );
+  const [newsCollapsed, setNewsCollapsed] = useState<boolean>(
+    DEFAULT_PANEL_STATE.newsCollapsed,
   );
   const [chatCollapsed, setChatCollapsed] = useState<boolean>(
     DEFAULT_PANEL_STATE.chatCollapsed,
@@ -99,13 +116,19 @@ export function CockpitShell({
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration sync from localStorage
     setMemoryCollapsed(stored.memoryCollapsed);
     setDraftsCollapsed(stored.draftsCollapsed);
+    setNewsCollapsed(stored.newsCollapsed);
     setChatCollapsed(stored.chatCollapsed);
   }, []);
 
   const hasActiveDrafts = activeDraftIds.length > 0;
-  const hasCollapsedRail = memoryCollapsed || draftsCollapsed || chatCollapsed;
+  const hasCollapsedRail =
+    memoryCollapsed || draftsCollapsed || newsCollapsed || chatCollapsed;
   const showEmptyCanvas =
-    memoryCollapsed && draftsCollapsed && chatCollapsed && !hasActiveDrafts;
+    memoryCollapsed &&
+    draftsCollapsed &&
+    newsCollapsed &&
+    chatCollapsed &&
+    !hasActiveDrafts;
   const reducedMotion = useReducedMotionSafe();
   const panelTransition = reducedMotion ? REDUCED_TRANSITION : PANEL_TRANSITION;
   const railTransition = reducedMotion ? REDUCED_TRANSITION : RAIL_TRANSITION;
@@ -116,15 +139,23 @@ export function CockpitShell({
   useEffect(() => {
     window.localStorage.setItem(
       PANEL_STATE_STORAGE_KEY,
-      JSON.stringify({ memoryCollapsed, draftsCollapsed, chatCollapsed }),
+      JSON.stringify({
+        memoryCollapsed,
+        draftsCollapsed,
+        newsCollapsed,
+        chatCollapsed,
+      }),
     );
-  }, [chatCollapsed, draftsCollapsed, memoryCollapsed]);
+  }, [chatCollapsed, draftsCollapsed, memoryCollapsed, newsCollapsed]);
 
   function expandMemoryPanel() {
     setMemoryCollapsed(false);
   }
   function expandDraftsPanel() {
     setDraftsCollapsed(false);
+  }
+  function expandNewsPanel() {
+    setNewsCollapsed(false);
   }
   function expandChatPanel() {
     setChatCollapsed(false);
@@ -136,7 +167,7 @@ export function CockpitShell({
 
       <nav
         aria-label="Dashboard sections"
-        className="grid h-11 shrink-0 grid-cols-3 border-b bg-background p-1 lg:hidden"
+        className="grid h-11 shrink-0 grid-cols-4 border-b bg-background p-1 lg:hidden"
       >
         {MOBILE_PANELS.map((panel) => {
           const Icon = panel.icon;
@@ -149,7 +180,8 @@ export function CockpitShell({
               onClick={() => {
                 setActivePanel(panel.id);
                 if (panel.id === "memory") expandMemoryPanel();
-                if (panel.id === "queue") expandDraftsPanel();
+                if (panel.id === "drafts") expandDraftsPanel();
+                if (panel.id === "news") expandNewsPanel();
                 if (panel.id === "chat") expandChatPanel();
               }}
               className={cn(
@@ -200,7 +232,7 @@ export function CockpitShell({
                 ) : null}
                 {draftsCollapsed ? (
                   <motion.div
-                    key="queue"
+                    key="drafts"
                     layout
                     initial={reducedMotion ? false : { opacity: 0, scale: 0.94 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -210,8 +242,25 @@ export function CockpitShell({
                     <RailButton
                       label="Expand drafts"
                       icon={FileText}
-                      className={QUEUE_ICON_BUTTON_CLASS}
+                      className={DRAFTS_ICON_BUTTON_CLASS}
                       onClick={expandDraftsPanel}
+                    />
+                  </motion.div>
+                ) : null}
+                {newsCollapsed ? (
+                  <motion.div
+                    key="news"
+                    layout
+                    initial={reducedMotion ? false : { opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
+                    transition={railTransition}
+                  >
+                    <RailButton
+                      label="Expand news"
+                      icon={Newspaper}
+                      className={NEWS_ICON_BUTTON_CLASS}
+                      onClick={expandNewsPanel}
                     />
                   </motion.div>
                 ) : null}
@@ -280,7 +329,7 @@ export function CockpitShell({
             transition={panelTransition}
             className={cn(
               "relative min-h-0 flex-1 overflow-hidden",
-              activePanel === "queue" ? "flex" : "hidden",
+              activePanel === "drafts" ? "flex" : "hidden",
               "lg:flex lg:h-full lg:w-[var(--drafts-panel-width)] lg:flex-none lg:border-r",
               draftsCollapsed && "lg:border-r-0",
             )}
@@ -293,7 +342,7 @@ export function CockpitShell({
                 draftsCollapsed && "lg:pointer-events-none lg:opacity-0",
               )}
             >
-              {queueSlot}
+              {draftsSlot}
             </aside>
 
             <PanelButton
@@ -301,6 +350,40 @@ export function CockpitShell({
               icon={ChevronLeft}
               onClick={() => setDraftsCollapsed(true)}
               className={draftsCollapsed && "lg:hidden"}
+            />
+          </motion.div>
+
+          <motion.div
+            initial={false}
+            animate={{
+              "--news-panel-width": `${
+                newsCollapsed ? 0 : NEWS_PANEL_WIDTH
+              }px`,
+            }}
+            transition={panelTransition}
+            className={cn(
+              "relative min-h-0 flex-1 overflow-hidden",
+              activePanel === "news" ? "flex" : "hidden",
+              "lg:flex lg:h-full lg:w-[var(--news-panel-width)] lg:flex-none lg:border-r",
+              newsCollapsed && "lg:border-r-0",
+            )}
+          >
+            <aside
+              aria-hidden={newsCollapsed}
+              inert={newsCollapsed ? true : undefined}
+              className={cn(
+                "flex min-h-0 flex-1 flex-col transition-opacity duration-150 lg:w-[340px] lg:flex-none",
+                newsCollapsed && "lg:pointer-events-none lg:opacity-0",
+              )}
+            >
+              {newsSlot}
+            </aside>
+
+            <PanelButton
+              label="Collapse news"
+              icon={ChevronLeft}
+              onClick={() => setNewsCollapsed(true)}
+              className={newsCollapsed && "lg:hidden"}
             />
           </motion.div>
 
@@ -450,6 +533,7 @@ export function CockpitShell({
                   onExpandAll={() => {
                     setMemoryCollapsed(false);
                     setDraftsCollapsed(false);
+                    setNewsCollapsed(false);
                     setChatCollapsed(false);
                   }}
                 />
@@ -477,6 +561,10 @@ function getStoredPanelState() {
         typeof stored.draftsCollapsed === "boolean"
           ? stored.draftsCollapsed
           : DEFAULT_PANEL_STATE.draftsCollapsed,
+      newsCollapsed:
+        typeof stored.newsCollapsed === "boolean"
+          ? stored.newsCollapsed
+          : DEFAULT_PANEL_STATE.newsCollapsed,
       chatCollapsed:
         typeof stored.chatCollapsed === "boolean"
           ? stored.chatCollapsed

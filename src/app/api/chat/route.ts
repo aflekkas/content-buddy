@@ -27,6 +27,7 @@ import {
   listSources,
   setChatTitleIfEmpty,
   updateDraft,
+  updateFact,
   updateSignal,
 } from "@/lib/db/queries";
 import { extractText, filterPersistableParts } from "@/lib/message-parts";
@@ -153,13 +154,29 @@ export async function POST(req: Request) {
       }),
       write_memory: tool({
         description:
-          "Save a long-term memory fact about the user (niche, voice, audience, preferences). Use when the user asks you to remember something or reveals durable context.",
+          "Save a new long-term memory fact about the user (niche, voice, audience, preferences). Before calling, check the <memory> block for duplicates or overlap; if the new info refines an existing fact, call update_memory instead.",
         inputSchema: z.object({
           fact: z.string().min(1).max(500),
         }),
         execute: async ({ fact }) => {
           const row = await createFact(user.id, fact, "agent");
           return { ok: true, id: row.id };
+        },
+      }),
+      update_memory: tool({
+        description:
+          "Update an existing memory fact by id. Use when a previously saved fact needs refinement, correction, or merging with new info. Get ids from the <memory> block.",
+        inputSchema: z.object({
+          id: z.uuid(),
+          fact: z.string().min(1).max(500),
+        }),
+        execute: async ({ id, fact }) => {
+          try {
+            const row = await updateFact(user.id, id, fact);
+            return { ok: true, id: row.id };
+          } catch {
+            return { ok: false, error: "update_failed" };
+          }
         },
       }),
       news_scan: tool({

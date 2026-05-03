@@ -143,11 +143,6 @@ export function MemoryRail({ initialFacts }: Props) {
                       {fact.fact}
                     </p>
                     <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                      {fact.source === "agent" && (
-                        <span className="rounded-full border px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-muted-foreground">
-                          AI
-                        </span>
-                      )}
                       <Button
                         size="icon-xs"
                         variant="ghost"

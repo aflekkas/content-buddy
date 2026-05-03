@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { FileText, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { ColumnHeader } from "@/components/cockpit/column-header";
 import { useActiveDrafts } from "@/components/cockpit/active-drafts-context";
 import { formatRelativeTime } from "@/lib/system-prompt";
 import { cn } from "@/lib/utils";
@@ -42,8 +43,18 @@ export function DraftsList({ initialDrafts }: Props) {
     }
   }
 
+  const totalActive = initialDrafts.filter(
+    (d) => d.status !== "dismissed",
+  ).length;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
+      <ColumnHeader
+        title="Drafts"
+        icon={FileText}
+        iconTone="queue"
+        description={`${visible.length} of ${totalActive}`}
+      />
       <div className="flex shrink-0 flex-col gap-2 border-b p-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />

@@ -114,7 +114,12 @@ export function Chat({
     for (const m of messages) {
       if (m.role !== "assistant") continue;
       for (const part of m.parts) {
-        if (part.type !== "tool-write_memory") continue;
+        if (
+          part.type !== "tool-write_memory" &&
+          part.type !== "tool-update_memory"
+        ) {
+          continue;
+        }
         const p = part as { toolCallId?: string; state?: string; output?: { ok?: boolean } };
         if (!p.toolCallId) continue;
         if (p.state !== "output-available") continue;
@@ -471,6 +476,10 @@ function MessageRender({
 
           if (part.type === "tool-write_memory") {
             return <ToolChip key={index} label="Saved to memory" />;
+          }
+
+          if (part.type === "tool-update_memory") {
+            return <ToolChip key={index} label="Updated memory" />;
           }
 
           if (part.type === "tool-news_scan") {

@@ -11,7 +11,8 @@ import { CockpitShell } from "@/components/cockpit/cockpit-shell";
 import { ActiveDraftsProvider } from "@/components/cockpit/active-drafts-context";
 import { ChatSwitcherMount } from "@/components/cockpit/chat-switcher-mount";
 import { MemoryRail } from "@/components/memory/memory-rail";
-import { QueuePanel } from "@/components/cockpit/queue-panel";
+import { DraftsList } from "@/components/drafts/drafts-list";
+import { NewsRail } from "@/components/news/news-rail";
 
 const SIGNALS_LOOKBACK_DAYS = 14;
 
@@ -50,9 +51,9 @@ export default async function DashboardShellLayout({
       <CockpitShell
         user={{ id: user.id, email: user.email ?? "" }}
         memorySlot={<MemoryRail initialFacts={facts} />}
-        queueSlot={
-          <QueuePanel
-            initialDrafts={drafts}
+        draftsSlot={<DraftsList initialDrafts={drafts} />}
+        newsSlot={
+          <NewsRail
             initialSources={sources}
             initialSignals={initialSignals}
             userId={user.id}
