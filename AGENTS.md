@@ -8,7 +8,7 @@ This repo uses Next.js 16. APIs, conventions, and file structure may differ from
 
 ## Project Structure & Module Organization
 
-Next.js 16 TypeScript app for LinkedIn Studio: a LinkedIn ghostwriter. The core loop is feeds + journal -> signals -> on-demand scan -> draft -> copy. App Router routes live in `src/app`, including dashboard pages under `src/app/(dashboard)` and API routes under `src/app/api`. Reusable feature components live in `src/components`, with shared UI primitives in `src/components/ui`. Feed and draft surfaces live in `src/components/feed` and `src/components/drafts`; source fetching and synthesis live in `src/lib/sources` and `src/lib/synthesis.ts`. Database access is centralized in `src/lib/db/queries.ts`, with row types in `src/lib/db/types.ts`. Supabase SQL migrations live in `supabase/migrations`. Static assets live in `public`, including provider logos. Prefer extending the existing structure over creating parallel folders or duplicate abstractions.
+Next.js 16 TypeScript app for LinkedIn Studio: a LinkedIn ghostwriter. The core loop is feeds + journal -> signals -> on-demand scan -> draft -> copy. App Router routes live in `src/app`, including dashboard pages under `src/app/(dashboard)` and API routes under `src/app/api`. Reusable feature components live in `src/components`, with shared UI primitives in `src/components/ui`. Feed and draft surfaces live in `src/components/feed` and `src/components/drafts`; source fetching and synthesis live in `src/lib/sources` and `src/lib/synthesis.ts`. Dashboard shell primitives (topbar, column header, cockpit layout) live in `src/components/cockpit`. Database access is centralized in `src/lib/db/queries.ts`, with row types in `src/lib/db/types.ts`. Supabase SQL migrations live in `supabase/migrations`. Static assets live in `public`, including provider logos. Prefer extending the existing structure over creating parallel folders or duplicate abstractions.
 
 ## Build, Test, and Development Commands
 
@@ -28,7 +28,7 @@ Use TypeScript, React Server Components where appropriate, and existing local he
 
 ## Testing Guidelines
 
-No test runner is currently configured. For changes today, run `npm run lint`; run `npm run build` for routing, server, database, or framework-level changes. If tests are added, colocate them near the code under test using `*.test.ts` or `*.test.tsx`, and add the corresponding npm script.
+`vitest` is configured. Run unit tests with `npm test` (one current test at `src/lib/rate-limit.test.ts`). Colocate new tests next to the code under test as `*.test.ts` or `*.test.tsx`. Run `npm test` for logic changes, `npm run lint` for most edits, and `npm run build` for routing, server, database, or framework-level changes.
 
 ## Shipping Workflow (auto-commit + push)
 
@@ -58,7 +58,7 @@ Do not expose secret env vars to the client. Never use the admin client in brows
 
 ## OpenAI key (env-driven)
 
-LinkedIn Studio is a single-user, self-hosted, open-source app. There is no per-user key storage.
+LinkedIn Studio uses a single shared OpenAI key set in the server env. There is no per-user key storage.
 
 - The OpenAI key lives in `process.env.OPENAI_API_KEY` (set in `.env.local`).
 - Server-side AI calls read the env key directly: `process.env.OPENAI_API_KEY`. Never reintroduce per-user key tables, encrypted credentials, or BYOK UI surfaces.
@@ -89,3 +89,7 @@ Keep server-side AI orchestration in route handlers and shared library files. Do
 ## Security & Configuration Tips
 
 Local secrets belong in `.env.local`, never in commits. Required values include `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, and `OPENAI_API_KEY`. The OpenAI key must never be logged or returned to the client.
+
+## Browser tooling
+
+Don't use Playwright or MCP browser tools unless the user explicitly asks. For UI work, make the change and let the user verify in their own browser.

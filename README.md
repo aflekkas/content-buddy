@@ -1,11 +1,8 @@
 # LinkedIn Studio
 
-LinkedIn Studio is a self-hosted LinkedIn ghostwriter. You add the news feeds
-you read and drop journal notes whenever something happens. One click and it
-drafts posts in your voice — news riffs, life posts, or a mix. You edit, copy,
-ship.
-
-Open source. Single user. Bring your own OpenAI key in `.env.local`.
+LinkedIn Studio is a LinkedIn ghostwriter. You add the news feeds you read and
+drop journal notes whenever something happens. One click and it drafts posts
+in your voice — news riffs, life posts, or a mix. You edit, copy, ship.
 
 ## Stack
 

@@ -2,7 +2,6 @@ import { createClient } from "@/lib/supabase/server";
 import { LandingNav } from "@/components/landing/nav";
 import { Hero } from "@/components/landing/hero";
 import { HowItWorks } from "@/components/landing/how-it-works";
-import { ByokSection } from "@/components/landing/byok-section";
 import { FinalCta } from "@/components/landing/final-cta";
 import { LandingFooter } from "@/components/landing/footer";
 
@@ -19,7 +18,6 @@ export default async function RootPage() {
       <main className="flex-1">
         <Hero isAuthed={isAuthed} />
         <HowItWorks />
-        <ByokSection />
         <FinalCta isAuthed={isAuthed} />
       </main>
       <LandingFooter isAuthed={isAuthed} />

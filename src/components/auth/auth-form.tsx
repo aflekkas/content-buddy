@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Eye, EyeOff, KeyRound } from "lucide-react";
+import { ArrowRight, Eye, EyeOff } from "lucide-react";
 import { CircularLoader } from "@/components/ui/loader";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -282,14 +282,6 @@ function BrandPanel() {
         </p>
       </motion.div>
 
-      <motion.div
-        variants={panelVariants.item}
-        transition={transitionBase}
-        className="flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1.5 text-xs text-muted-foreground"
-      >
-        <KeyRound className="size-3.5 text-primary" />
-        Self-hosted, single user. Your OpenAI key lives in your env file.
-      </motion.div>
     </motion.div>
   );
 }

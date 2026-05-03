@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, KeyRound } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { buttonVariants } from "@/components/ui/button";
 import { Stagger, StaggerItem } from "@/components/ui/motion";
@@ -23,7 +23,7 @@ export function FinalCta({ isAuthed = false }: { isAuthed?: boolean }) {
           </StaggerItem>
           <StaggerItem>
             <p className="mx-auto mt-4 max-w-xl text-balance text-muted-foreground">
-              It takes 2 minutes to connect. Free to try with your own keys.
+              It takes 2 minutes to connect.
             </p>
           </StaggerItem>
           <StaggerItem className="mt-8 flex flex-col items-center gap-3">
@@ -34,10 +34,6 @@ export function FinalCta({ isAuthed = false }: { isAuthed?: boolean }) {
               Start free
               <ArrowRight className="size-4" />
             </Link>
-            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-              <KeyRound className="size-3.5" />
-              Self-host with your own OpenAI key
-            </span>
           </StaggerItem>
         </Stagger>
       </div>
