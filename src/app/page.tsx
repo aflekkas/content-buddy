@@ -13,7 +13,7 @@ export default async function RootPage() {
   const isAuthed = Boolean(user);
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-y-auto">
+    <div className="flex h-full min-h-0 flex-1 scroll-pt-20 flex-col overflow-y-auto scroll-smooth">
       <LandingNav isAuthed={isAuthed} />
       <main className="flex-1">
         <Hero isAuthed={isAuthed} />
