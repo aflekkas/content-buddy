@@ -1,13 +1,8 @@
-"use client";
-
 import Link from "next/link";
 import { ArrowRight, Copy, FileText, Sparkles } from "lucide-react";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { DotPattern } from "@/components/ui/dot-pattern";
-import { BlurFade } from "@/components/ui/blur-fade";
-import { AnimatedGradientText } from "@/components/ui/animated-gradient-text";
-import { ShineBorder } from "@/components/ui/shine-border";
 import { cn } from "@/lib/utils";
 
 export function Hero({ isAuthed = false }: { isAuthed?: boolean }) {
@@ -21,58 +16,41 @@ export function Hero({ isAuthed = false }: { isAuthed?: boolean }) {
       />
       <div className="mx-auto max-w-6xl px-4 pt-16 pb-20 sm:px-6 sm:pt-24 sm:pb-28">
         <div className="mx-auto flex max-w-3xl flex-col items-center text-center">
-          <BlurFade delay={0.05} inView>
-            <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs backdrop-blur">
-              <Sparkles className="size-3.5 text-primary" />
-              <AnimatedGradientText
-                speed={1.2}
-                colorFrom="var(--primary)"
-                colorTo="var(--foreground)"
-                className="font-medium"
-              >
-                AI ghostwriter for LinkedIn
-              </AnimatedGradientText>
-            </span>
-          </BlurFade>
+          <span className="inline-flex items-center gap-2 rounded-full border bg-background/70 px-3 py-1 text-xs text-muted-foreground backdrop-blur">
+            <Sparkles className="size-3.5 text-primary" />
+            AI ghostwriter for LinkedIn
+          </span>
 
-          <BlurFade delay={0.15} inView>
-            <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
-              Riff on the news. Post about your life.
-            </h1>
-          </BlurFade>
+          <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
+            Riff on the news. Post about your life.
+          </h1>
 
-          <BlurFade delay={0.25} inView>
-            <p className="mt-5 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
-              Add the feeds you read. Drop a journal note when something matters.
-              We draft LinkedIn posts in your voice. You ship.
-            </p>
-          </BlurFade>
+          <p className="mt-5 max-w-2xl text-balance text-base text-muted-foreground sm:text-lg">
+            Add the feeds you read. Drop a journal note when something matters.
+            We draft LinkedIn posts in your voice. You ship.
+          </p>
 
-          <BlurFade delay={0.35} inView>
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                href={isAuthed ? "/dashboard" : "/login"}
-                className={cn(buttonVariants({ size: "lg", shape: "pill", withArrow: true }))}
-              >
-                Open Studio
-                <ArrowRight className="size-4" />
-              </Link>
-              <Link
-                href="#how"
-                className={cn(
-                  buttonVariants({ variant: "outline", size: "lg", shape: "pill" }),
-                  "bg-background/70",
-                )}
-              >
-                How it works
-              </Link>
-            </div>
-          </BlurFade>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <Link
+              href={isAuthed ? "/dashboard" : "/login"}
+              className={cn(buttonVariants({ size: "lg", shape: "pill", withArrow: true }))}
+            >
+              Open Studio
+              <ArrowRight className="size-4" />
+            </Link>
+            <Link
+              href="#how"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "lg", shape: "pill" }),
+                "bg-background/70",
+              )}
+            >
+              How it works
+            </Link>
+          </div>
         </div>
 
-        <BlurFade delay={0.5} inView>
-          <FeedToDraftMockup />
-        </BlurFade>
+        <FeedToDraftMockup />
       </div>
     </section>
   );
@@ -81,12 +59,7 @@ export function Hero({ isAuthed = false }: { isAuthed?: boolean }) {
 function FeedToDraftMockup() {
   return (
     <div className="mx-auto mt-14 grid max-w-5xl items-center gap-4 md:grid-cols-[1fr_auto_1fr]">
-      <Card className="relative rounded-lg border-border/80 bg-background/90 shadow-xl shadow-primary/5 backdrop-blur">
-        <ShineBorder
-          borderWidth={1}
-          duration={12}
-          shineColor={["var(--primary)", "transparent"]}
-        />
+      <Card className="rounded-lg border-border/80 bg-background/90 shadow-xl shadow-primary/5 backdrop-blur">
         <CardHeader className="border-b">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -128,23 +101,13 @@ function FeedToDraftMockup() {
       </Card>
 
       <div className="flex flex-col items-center justify-center gap-2">
-        <span
-          aria-hidden
-          className="inline-flex size-10 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-primary shadow-sm shadow-primary/10"
-        >
-          <Sparkles className="size-4" />
-        </span>
+        <SketchArrow className="text-primary" />
         <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
           synthesize
         </span>
       </div>
 
-      <Card className="relative rounded-lg border-border/80 bg-background/95 shadow-xl shadow-primary/5 backdrop-blur">
-        <ShineBorder
-          borderWidth={1}
-          duration={12}
-          shineColor={["var(--primary)", "transparent"]}
-        />
+      <Card className="rounded-lg border-border/80 bg-background/95 shadow-xl shadow-primary/5 backdrop-blur">
         <CardHeader className="border-b">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold tracking-tight">
@@ -178,5 +141,26 @@ function FeedToDraftMockup() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+function SketchArrow({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden
+      width="96"
+      height="40"
+      viewBox="0 0 400 400"
+      fill="none"
+      stroke="currentColor"
+      strokeOpacity="0.9"
+      strokeWidth="18"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn("rotate-90 md:rotate-0", className)}
+    >
+      <path d="M35 262C160.529 140.938 328.006 207.285 361 215.518" />
+      <path d="M343.69 143C355.23 190.289 361 214.681 361 216.177C361 218.421 327.488 234.13 312 258" />
+    </svg>
   );
 }
