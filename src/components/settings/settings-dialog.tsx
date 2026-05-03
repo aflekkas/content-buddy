@@ -61,7 +61,7 @@ export function SettingsDialogProvider({
           <DialogHeader>
             <DialogTitle>Creator profile</DialogTitle>
             <DialogDescription>
-              Niche, voice notes, and writing samples. Manage feeds in News.
+              Niche, voice notes, samples, and the feeds the agent scans.
             </DialogDescription>
           </DialogHeader>
           <div className="max-h-[65vh] overflow-y-auto px-1">

@@ -1,17 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
-import {
-  createChat,
-  getChat,
-  getDraft,
-  listSignalsByIds,
-  listSources,
-  updateDraft,
-} from "@/lib/db/queries";
-import { DraftChatSidebar } from "@/components/drafts/draft-chat-sidebar";
-import { DraftEditor } from "@/components/drafts/draft-editor";
+import { createChat, getDraft, updateDraft } from "@/lib/db/queries";
 
-export default async function DraftPage({
+export default async function DraftDeepLinkPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -23,27 +14,12 @@ export default async function DraftPage({
   const draft = await getDraft(user.id, id);
   if (!draft || draft.status === "dismissed") notFound();
 
-  const [signals, sources] = await Promise.all([
-    listSignalsByIds(user.id, draft.signal_ids),
-    listSources(user.id),
-  ]);
-  const sourceHandles = new Map(
-    sources.map((source) => [source.id, source.handle]),
-  );
-  const handles = signals
-    .map((signal) => sourceHandles.get(signal.source_id))
-    .filter((handle): handle is string => Boolean(handle));
-
-  let chat = draft.chat_id ? await getChat(draft.chat_id, user.id) : null;
-  if (!chat) {
-    chat = await createChat(user.id);
-    await updateDraft(user.id, draft.id, { chat_id: chat.id });
+  let chatId = draft.chat_id;
+  if (!chatId) {
+    const chat = await createChat(user.id);
+    chatId = chat.id;
+    await updateDraft(user.id, draft.id, { chat_id: chatId });
   }
 
-  return (
-    <main className="flex min-h-0 flex-1 gap-4 overflow-hidden p-4 md:p-6">
-      <DraftEditor draft={draft} sourceHandles={handles} />
-      <DraftChatSidebar draftId={draft.id} chat={chat} />
-    </main>
-  );
+  redirect(`/dashboard/chat/${chatId}?drafts=${draft.id}`);
 }
