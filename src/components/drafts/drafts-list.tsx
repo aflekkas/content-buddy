@@ -143,6 +143,8 @@ export function DraftsList({ initialDrafts, userId }: Props) {
           next.set(id, detail.body);
           return next;
         });
+        // Auto-open the draft tab so the user can watch the rewrite live.
+        openDraft(id);
       }
     }
     function onStreamingEnd(event: Event) {
@@ -155,6 +157,8 @@ export function DraftsList({ initialDrafts, userId }: Props) {
           next.delete(detail.toolCallId);
           return next;
         });
+        // Brand-new draft: open it now that we have the persisted id.
+        if (detail.id) openDraft(detail.id);
       } else if (detail.kind === "update" && detail.id) {
         const id = detail.id;
         setLiveUpdateBodies((current) => {
@@ -180,7 +184,7 @@ export function DraftsList({ initialDrafts, userId }: Props) {
         onStreamingEnd,
       );
     };
-  }, []);
+  }, [openDraft]);
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
