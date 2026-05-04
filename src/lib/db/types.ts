@@ -63,6 +63,8 @@ export type UserProfileRow = {
   preferred_post_types: PostType[];
   avoid_phrases: string | null;
   include_links: boolean;
+  active_provider_id: string;
+  active_model_id: string;
 };
 
 export type UserMemoryRow = {
@@ -131,6 +133,8 @@ export type OnboardingProfileInput = {
   niche?: string | null;
   voice_notes?: string | null;
   voice_samples?: string | null;
+  active_provider_id?: string;
+  active_model_id?: string;
 } & WritingPrefsInput;
 
 export type MessagesPage = {

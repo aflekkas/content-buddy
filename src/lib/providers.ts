@@ -7,14 +7,14 @@ export const PROVIDERS = {
     keyPrefix: "sk-",
     consoleUrl: "https://platform.openai.com/api-keys",
     models: [
-      { id: "gpt-4o-mini", label: "GPT-4o Mini" },
-      { id: "gpt-5.5", label: "GPT-5.5" },
       { id: "gpt-5.4", label: "GPT-5.4" },
       { id: "gpt-5.4-mini", label: "GPT-5.4 Mini" },
-      { id: "gpt-5.4-nano", label: "GPT-5.4 Nano" },
       { id: "gpt-5", label: "GPT-5" },
       { id: "gpt-5-mini", label: "GPT-5 Mini" },
+      { id: "gpt-5.5", label: "GPT-5.5" },
+      { id: "gpt-5.4-nano", label: "GPT-5.4 Nano" },
       { id: "gpt-5-nano", label: "GPT-5 Nano" },
+      { id: "gpt-4o-mini", label: "GPT-4o Mini" },
     ],
   },
 } as const;

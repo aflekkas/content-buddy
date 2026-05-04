@@ -11,7 +11,12 @@ import { z } from "zod";
 import { errorResponse, notFound, requireAuth } from "@/lib/api";
 import { buildSystemMessages } from "@/lib/system-prompt";
 import { getModel } from "@/lib/model-dispatch";
-import { providerSupportsImages } from "@/lib/providers";
+import {
+  defaultModel,
+  isModelForProvider,
+  isProviderId,
+  providerSupportsImages,
+} from "@/lib/providers";
 import {
   addChatUsage,
   appendMessageWithParts,
@@ -83,20 +88,11 @@ export async function POST(req: Request) {
     }
   }
 
-  const provider = "openai" as const;
-  const model = "gpt-4o-mini";
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
     return errorResponse("missing_openai_key_env", 500, {
       message: "Set OPENAI_API_KEY in .env.local",
     });
-  }
-
-  const hasFileParts = messages.some((m) =>
-    m.parts.some((p) => p.type === "file"),
-  );
-  if (hasFileParts && !providerSupportsImages(provider)) {
-    return errorResponse("image_not_supported", 415, { provider });
   }
 
   const [profile, memories, draftSignals, sources] = await Promise.all([
@@ -105,6 +101,22 @@ export async function POST(req: Request) {
     draft ? listSignalsByIds(user.id, draft.signal_ids) : Promise.resolve([]),
     listSources(user.id),
   ]);
+
+  const provider =
+    profile && isProviderId(profile.active_provider_id)
+      ? profile.active_provider_id
+      : ("openai" as const);
+  const model =
+    profile && isModelForProvider(provider, profile.active_model_id)
+      ? profile.active_model_id
+      : defaultModel(provider);
+
+  const hasFileParts = messages.some((m) =>
+    m.parts.some((p) => p.type === "file"),
+  );
+  if (hasFileParts && !providerSupportsImages(provider)) {
+    return errorResponse("image_not_supported", 415, { provider });
+  }
   const sourceHandles = new Map(
     sources.map((source) => [source.id, source.handle]),
   );

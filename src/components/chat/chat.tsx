@@ -30,6 +30,13 @@ import {
   decodeProviderError,
   type ProviderErrorPayload,
 } from "@/lib/provider-errors";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -81,6 +88,35 @@ export function Chat({
   const [baseMessageIds] = useState(
     () => new Set(initialMessages.map((m) => m.id)),
   );
+  const [optimisticModelId, setOptimisticModelId] = useState<string | null>(
+    null,
+  );
+  const [propModelSnapshot, setPropModelSnapshot] = useState(activeModelId);
+  if (propModelSnapshot !== activeModelId) {
+    setPropModelSnapshot(activeModelId);
+    setOptimisticModelId(null);
+  }
+  const selectedModelId = optimisticModelId ?? activeModelId;
+
+  function handleModelChange(nextModelId: string) {
+    if (nextModelId === selectedModelId) return;
+    setOptimisticModelId(nextModelId);
+    fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        active_provider_id: activeProviderId,
+        active_model_id: nextModelId,
+      }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`profile_patch_failed_${res.status}`);
+        router.refresh();
+      })
+      .catch(() => {
+        setOptimisticModelId(null);
+      });
+  }
 
   const chat = useChat({
     id: chatId,
@@ -162,9 +198,13 @@ export function Chat({
     totalUsage.cacheCreationTokens;
   const estimatedCost = estimateCostUsd(
     activeProviderId,
-    activeModelId,
+    selectedModelId,
     totalUsage,
   );
+  const providerModels = PROVIDERS[activeProviderId].models;
+  const activeModelLabel =
+    providerModels.find((m) => m.id === selectedModelId)?.label ??
+    selectedModelId;
 
   function scrollToBottom(smooth = true) {
     const el = viewportRef.current;
@@ -355,19 +395,41 @@ export function Chat({
             attachmentsDisabled={!providerSupportsImages(activeProviderId)}
             attachmentsDisabledReason={`${PROVIDERS[activeProviderId].label} does not support image input.`}
           />
-          {totalTokens > 0 && (
-            <div
-              className="mt-1.5 text-center text-[10px] tracking-wide text-muted-foreground/70"
-              title={buildUsageTitle(totalUsage, estimatedCost)}
-            >
-              {formatTokens(totalTokens)}
-              {estimatedCost !== null && (
-                <span> tokens / {formatUsd(estimatedCost)}</span>
-              )}
-              {estimatedCost === null && <span> tokens</span>}
-              <span> this chat</span>
-            </div>
-          )}
+          <div
+            className="mt-1.5 flex items-center justify-center gap-1 text-[10px] tracking-wide text-muted-foreground/70"
+            title={buildUsageTitle(totalUsage, estimatedCost)}
+          >
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                aria-label="Change model"
+                className="rounded transition-colors outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
+              >
+                {activeModelLabel}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center" side="top" sideOffset={6}>
+                <DropdownMenuRadioGroup
+                  value={selectedModelId}
+                  onValueChange={(value) => handleModelChange(String(value))}
+                >
+                  {providerModels.map((m) => (
+                    <DropdownMenuRadioItem key={m.id} value={m.id}>
+                      {m.label}
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {totalTokens > 0 && (
+              <span>
+                · {formatTokens(totalTokens)}
+                {estimatedCost !== null && (
+                  <> tokens / {formatUsd(estimatedCost)}</>
+                )}
+                {estimatedCost === null && <> tokens</>}
+                {" "}this chat
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>
