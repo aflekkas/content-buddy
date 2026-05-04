@@ -286,8 +286,9 @@ export function Chat({
 
   return (
     <div className="relative flex h-full flex-col">
+      <div className="relative min-h-0 flex-1">
       <ScrollArea
-        className="min-h-0 flex-1"
+        className="h-full"
         viewportRef={viewportRef}
         onViewportScroll={handleViewportScroll}
       >
@@ -412,12 +413,10 @@ export function Chat({
                 sideOffset={6}
                 className="w-auto min-w-64"
               >
-                <div className="flex items-center justify-between gap-4 px-2 pt-1 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                <div className="grid grid-cols-[1fr_auto_auto] items-center gap-4 px-2 pt-1 pb-1.5 pr-9 text-[10px] uppercase tracking-wide text-muted-foreground/70">
                   <span>Model</span>
-                  <span className="flex items-center gap-3">
-                    <span>cost</span>
-                    <span>iq</span>
-                  </span>
+                  <span className="w-12 text-center">cost</span>
+                  <span className="w-12 text-center">iq</span>
                 </div>
                 <DropdownMenuRadioGroup
                   value={selectedModelId}
@@ -429,14 +428,16 @@ export function Chat({
                       value={m.id}
                       className="pr-9"
                     >
-                      <span className="flex w-full items-center justify-between gap-4 whitespace-nowrap">
+                      <span className="grid w-full grid-cols-[1fr_auto_auto] items-center gap-4 whitespace-nowrap">
                         <span>{m.label}</span>
-                        <span className="flex items-center gap-3 text-muted-foreground">
+                        <span className="flex w-12 justify-center text-muted-foreground">
                           <TierIcons
                             icon={DollarSign}
                             level={m.cost}
                             label="cost"
                           />
+                        </span>
+                        <span className="flex w-12 justify-center text-muted-foreground">
                           <TierIcons
                             icon={Brain}
                             level={m.intelligence}
