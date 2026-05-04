@@ -1,3 +1,4 @@
+import { AnimatePresence, motion } from "motion/react";
 import type { ComponentType, ReactNode, SVGProps } from "react";
 import { cn } from "@/lib/utils";
 
@@ -64,15 +65,28 @@ export function ColumnHeader({
             {title}
           </p>
         )}
-        {description ? (
-          <p
+        {description !== undefined ? (
+          <div
             className={cn(
-              "truncate text-muted-foreground",
+              "relative h-[1.2em] overflow-hidden text-muted-foreground",
               compact ? "text-[11px]" : "text-xs",
             )}
           >
-            {description}
-          </p>
+            <AnimatePresence initial={false} mode="wait">
+              {description ? (
+                <motion.p
+                  key={description}
+                  initial={{ opacity: 0, y: 2 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2 }}
+                  transition={{ duration: 0.18, ease: "easeOut" }}
+                  className="absolute inset-0 truncate"
+                >
+                  {description}
+                </motion.p>
+              ) : null}
+            </AnimatePresence>
+          </div>
         ) : null}
       </div>
       {right}
