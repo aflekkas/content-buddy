@@ -422,80 +422,90 @@ function MessageRender({
   message: UIMessage;
   streamingThis?: boolean;
 }) {
+  const isUser = message.role === "user";
+
+  const renderToolChip = (
+    type: string,
+    key: number,
+  ): React.ReactNode | null => {
+    const labels: Record<string, string> = {
+      "tool-update_draft": "Updated draft body",
+      "tool-read_signal": "Read signal",
+      "tool-read_memory": "Read memory",
+      "tool-write_memory": "Saved to memory",
+      "tool-update_memory": "Updated memory",
+      "tool-news_scan": "Scanned news",
+      "tool-save_as_draft": "Saved as draft",
+    };
+    const label = labels[type];
+    return label ? <ToolChip key={key} label={label} /> : null;
+  };
+
+  if (isUser) {
+    return (
+      <Message
+        data-from="user"
+        className={cn("w-full flex justify-end")}
+      >
+        <div className="min-w-0 max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3 py-2 text-sm text-primary-foreground">
+          {message.parts.map((part, index) => {
+            if (part.type === "text") {
+              return (
+                <p key={index} className="whitespace-pre-wrap">
+                  {part.text}
+                </p>
+              );
+            }
+            if (part.type === "file") {
+              return (
+                <ChatImage
+                  key={index}
+                  url={part.url}
+                  alt={part.filename ?? "Attachment"}
+                  className="mt-2 max-h-64 w-auto"
+                />
+              );
+            }
+            return null;
+          })}
+        </div>
+      </Message>
+    );
+  }
+
   return (
     <Message
-      data-from={message.role === "user" ? "user" : "assistant"}
-      className={cn(
-        "w-full",
-        message.role === "user" && "flex justify-end",
-      )}
+      data-from="assistant"
+      className="flex w-full flex-col items-start gap-2"
     >
-      <div
-        className={cn(
-          "min-w-0 rounded-2xl px-3 py-2 text-sm",
-          message.role === "user"
-            ? "max-w-[80%] bg-primary text-primary-foreground"
-            : "max-w-[85%] bg-muted text-foreground",
-        )}
-      >
-        {message.parts.map((part, index) => {
-          if (part.type === "text") {
-            return message.role === "assistant" ? (
-              <Markdown
-                key={index}
-                className="prose prose-sm prose-invert max-w-none break-words [&_p]:my-2 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5 [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:mt-3 [&_h3]:mb-1.5 [&_pre]:my-2 [&_blockquote]:my-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-              >
+      {message.parts.map((part, index) => {
+        if (part.type === "text") {
+          if (!part.text) return null;
+          return (
+            <div
+              key={index}
+              className="min-w-0 max-w-[85%] rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-sm text-foreground"
+            >
+              <Markdown className="prose prose-sm prose-invert max-w-none break-words [&_p]:my-2 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5 [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:mt-3 [&_h3]:mb-1.5 [&_pre]:my-2 [&_blockquote]:my-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                 {part.text}
               </Markdown>
-            ) : (
-              <p key={index} className="whitespace-pre-wrap">
-                {part.text}
-              </p>
-            );
-          }
+            </div>
+          );
+        }
 
-          if (part.type === "file") {
-            return (
-              <ChatImage
-                key={index}
-                url={part.url}
-                alt={part.filename ?? "Attachment"}
-                className="mt-2 max-h-64 w-auto"
-              />
-            );
-          }
+        if (part.type === "file") {
+          return (
+            <ChatImage
+              key={index}
+              url={part.url}
+              alt={part.filename ?? "Attachment"}
+              className="max-h-64 w-auto"
+            />
+          );
+        }
 
-          if (part.type === "tool-update_draft") {
-            return <ToolChip key={index} label="Updated draft body" />;
-          }
-
-          if (part.type === "tool-read_signal") {
-            return <ToolChip key={index} label="Read signal" />;
-          }
-
-          if (part.type === "tool-read_memory") {
-            return <ToolChip key={index} label="Read memory" />;
-          }
-
-          if (part.type === "tool-write_memory") {
-            return <ToolChip key={index} label="Saved to memory" />;
-          }
-
-          if (part.type === "tool-update_memory") {
-            return <ToolChip key={index} label="Updated memory" />;
-          }
-
-          if (part.type === "tool-news_scan") {
-            return <ToolChip key={index} label="Scanned news" />;
-          }
-
-          if (part.type === "tool-save_as_draft") {
-            return <ToolChip key={index} label="Saved as draft" />;
-          }
-
-          return null;
-        })}
-      </div>
+        return renderToolChip(part.type, index);
+      })}
     </Message>
   );
 }
