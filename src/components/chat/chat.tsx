@@ -10,6 +10,10 @@ import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
 import { ChatInput, type ChatAttachment } from "./chat-input";
 import { ChatImage } from "./chat-image";
+import {
+  NewsSignalCard,
+  type NewsSignalCardData,
+} from "@/components/news/news-signal-card";
 import { Loader } from "@/components/ui/loader";
 import { Markdown } from "@/components/ui/markdown";
 import { Message } from "@/components/ui/message";
@@ -441,6 +445,49 @@ function MessageRender({
     return label ? <ToolChip key={key} label={label} /> : null;
   };
 
+  const collectNewsCards = (
+    parts: UIMessage["parts"],
+  ): NewsSignalCardData[] => {
+    const out: NewsSignalCardData[] = [];
+    for (const part of parts) {
+      if (part.type !== "tool-news_scan") continue;
+      const p = part as {
+        state?: string;
+        output?: {
+          ok?: boolean;
+          signals?: Array<{
+            id: string;
+            source: string | null;
+            text: string;
+            url: string;
+            posted_at: string;
+            summary: string | null;
+            relevance_score: number | null;
+          }>;
+        };
+      };
+      if (p.state !== "output-available" || !p.output?.ok) continue;
+      for (const s of p.output.signals ?? []) {
+        out.push({
+          id: s.id,
+          source: s.source,
+          posted_at: s.posted_at,
+          text: s.summary?.trim() || s.text || s.url,
+          url: s.url,
+          relevance_score: s.relevance_score,
+        });
+      }
+    }
+    return out;
+  };
+
+  const newsScanPending = (parts: UIMessage["parts"]): boolean =>
+    parts.some(
+      (part) =>
+        part.type === "tool-news_scan" &&
+        (part as { state?: string }).state !== "output-available",
+    );
+
   if (isUser) {
     return (
       <Message
@@ -473,6 +520,12 @@ function MessageRender({
     );
   }
 
+  const newsCards = collectNewsCards(message.parts);
+  const newsPending = newsCards.length === 0 && newsScanPending(message.parts);
+  const hasAnyText = message.parts.some(
+    (p) => p.type === "text" && (p as { text?: string }).text,
+  );
+
   return (
     <Message
       data-from="assistant"
@@ -486,7 +539,7 @@ function MessageRender({
               key={index}
               className="min-w-0 max-w-[85%] rounded-2xl rounded-bl-md bg-muted px-3 py-2 text-sm text-foreground"
             >
-              <Markdown className="prose prose-sm prose-invert max-w-none break-words [&_p]:my-2 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5 [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:mt-3 [&_h3]:mb-1.5 [&_pre]:my-2 [&_blockquote]:my-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+              <Markdown className="prose prose-sm dark:prose-invert max-w-none break-words [&_p]:my-2 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5 [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:mt-3 [&_h3]:mb-1.5 [&_pre]:my-2 [&_blockquote]:my-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
                 {part.text}
               </Markdown>
             </div>
@@ -504,8 +557,22 @@ function MessageRender({
           );
         }
 
+        if (part.type === "tool-news_scan") return null;
+
         return renderToolChip(part.type, index);
       })}
+
+      {newsPending && !hasAnyText ? (
+        <ToolChip label="Scanning news…" />
+      ) : null}
+
+      {newsCards.length > 0 ? (
+        <div className="flex w-full max-w-[85%] flex-col gap-1.5">
+          {newsCards.map((c) => (
+            <NewsSignalCard key={c.id} variant="chat" signal={c} />
+          ))}
+        </div>
+      ) : null}
     </Message>
   );
 }

@@ -194,18 +194,19 @@ export function ChatSwitcher({ chats, activeChatId, activeTitle }: Props) {
           )}
         </div>
 
-        {activeChatId && (
-          <DropdownMenuItem
-            onClick={(event) => {
-              event.preventDefault();
-              startRename();
-            }}
-          >
-            <Pencil className="mr-2 size-4" />
-            Rename this chat
-          </DropdownMenuItem>
-        )}
         <DropdownMenuItem
+          key="rename"
+          disabled={!activeChatId}
+          onClick={(event) => {
+            event.preventDefault();
+            startRename();
+          }}
+        >
+          <Pencil className="mr-2 size-4" />
+          Rename this chat
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          key="new"
           disabled={creatingChat}
           onClick={(event) => {
             event.preventDefault();
@@ -215,7 +216,7 @@ export function ChatSwitcher({ chats, activeChatId, activeTitle }: Props) {
           <MessageSquarePlus className="mr-2 size-4" />
           {creatingChat ? "Creating..." : "New chat"}
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator key="sep" />
 
         {groups.length === 0 ? (
           <div className="px-2 py-3 text-sm text-muted-foreground">

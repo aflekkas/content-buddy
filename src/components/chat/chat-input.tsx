@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ClipboardEvent, type DragEvent } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowUp, Paperclip, Square, X } from "lucide-react";
 import { toast } from "sonner";
@@ -45,6 +45,23 @@ export function ChatInput({
   const [uploading, setUploading] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    function onInsert(event: Event) {
+      const detail = (event as CustomEvent<{ text?: string; append?: boolean }>)
+        .detail;
+      const text = detail?.text;
+      if (typeof text !== "string" || !text) return;
+      setValue((current) => {
+        if (detail?.append && current.trim().length > 0) {
+          return `${current}\n\n${text}`;
+        }
+        return text;
+      });
+    }
+    window.addEventListener("chat:input-paste", onInsert);
+    return () => window.removeEventListener("chat:input-paste", onInsert);
+  }, []);
 
   function send() {
     const trimmed = value.trim();

@@ -9,10 +9,12 @@ import {
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
 import {
-  ChevronDown,
+  Brain,
+  Check,
   ChevronRight,
-  ExternalLink,
+  Copy,
   Loader2,
   Plus,
   RefreshCw,
@@ -22,9 +24,15 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatRelativeTime } from "@/lib/system-prompt";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+import { NewsSignalCard } from "@/components/news/news-signal-card";
 import type { MonitoredSourceRow, SignalRow } from "@/lib/db/types";
 import type { ScanEvent } from "@/app/api/cron/poll-sources/route";
 
@@ -47,6 +55,17 @@ type Props = {
 };
 
 const SOURCES_COLLAPSED_KEY = "news:sources-collapsed";
+const SIGNALS_COLLAPSED_KEY = "news:signals-collapsed";
+
+// Apple-style ease-out: standard "decelerate" curve, smooth on collapse/expand.
+const COLLAPSE_TRANSITION = {
+  duration: 0.34,
+  ease: [0.32, 0.72, 0, 1] as [number, number, number, number],
+};
+const COLLAPSE_DURATION_MS = 340;
+const COLLAPSE_TIMING = "cubic-bezier(0.32, 0.72, 0, 1)";
+const MONO_FONT_STACK =
+  'ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
 
 export function NewsList({
   initialSources,
@@ -68,8 +87,13 @@ export function NewsList({
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(SOURCES_COLLAPSED_KEY) === "1";
   });
+  const [signalsCollapsed, setSignalsCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(SIGNALS_COLLAPSED_KEY) === "1";
+  });
   const [consoleVisible, setConsoleVisible] = useState(false);
   const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
+  const [consoleCopied, setConsoleCopied] = useState(false);
   const [, startTransition] = useTransition();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const consoleScrollRef = useRef<HTMLDivElement | null>(null);
@@ -82,6 +106,11 @@ export function NewsList({
     [sources],
   );
 
+  const consoleText = useMemo(
+    () => consoleLines.map((l) => l.text).join("\n"),
+    [consoleLines],
+  );
+
   const toggleSourcesCollapsed = useCallback(() => {
     setSourcesCollapsed((prev) => {
       const next = !prev;
@@ -89,6 +118,39 @@ export function NewsList({
       return next;
     });
   }, []);
+
+  const toggleSignalsCollapsed = useCallback(() => {
+    setSignalsCollapsed((prev) => {
+      const next = !prev;
+      window.localStorage.setItem(SIGNALS_COLLAPSED_KEY, next ? "1" : "0");
+      return next;
+    });
+  }, []);
+
+  const copyConsole = useCallback(async () => {
+    if (!consoleText) return;
+    try {
+      await navigator.clipboard.writeText(consoleText);
+      setConsoleCopied(true);
+      setTimeout(() => setConsoleCopied(false), 1400);
+    } catch {
+      toast.error("Could not copy console.");
+    }
+  }, [consoleText]);
+
+  const sendConsoleToChat = useCallback(() => {
+    if (!consoleText) {
+      toast.error("Nothing in the console yet.");
+      return;
+    }
+    const wrapped = `Here is the latest news scan output. Help me make sense of it:\n\n\`\`\`\n${consoleText}\n\`\`\``;
+    window.dispatchEvent(
+      new CustomEvent("chat:input-paste", {
+        detail: { text: wrapped, append: true },
+      }),
+    );
+    toast.success("Pasted into chat");
+  }, [consoleText]);
 
   // Realtime subscribe to signal inserts/updates/deletes for this user.
   useEffect(() => {
@@ -462,189 +524,258 @@ export function NewsList({
 
       <div
         className={cn(
-          "shrink-0 overflow-hidden border-b bg-muted/40 transition-[max-height,opacity] duration-300 ease-out",
-          consoleVisible ? "max-h-44 opacity-100" : "max-h-0 opacity-0",
+          "shrink-0 overflow-hidden transition-[max-height,opacity,padding] ease-out",
+          consoleVisible
+            ? "max-h-52 px-3 pt-3 pb-3 opacity-100"
+            : "max-h-0 px-3 pt-0 pb-0 opacity-0",
         )}
+        style={{ transitionDuration: `${COLLAPSE_DURATION_MS}ms` }}
         aria-live="polite"
       >
-        <div className="flex items-center justify-between border-b border-border/60 bg-background/40 px-3 py-1.5">
-          <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
-            scan console
-          </span>
-          <button
-            type="button"
-            onClick={() => setConsoleVisible(false)}
-            className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Hide scan console"
-          >
-            <X className="size-3" />
-          </button>
-        </div>
-        <div
-          ref={consoleScrollRef}
-          className="max-h-32 overflow-y-auto px-3 py-2 font-mono text-[10.5px] leading-snug"
-        >
-          {consoleLines.map((line) => (
-            <div
-              key={line.id}
-              className={cn(
-                "whitespace-pre-wrap break-words",
-                line.tone === "info" && "text-foreground",
-                line.tone === "muted" && "text-muted-foreground",
-                line.tone === "success" && "text-emerald-600 dark:text-emerald-400",
-                line.tone === "warn" && "text-amber-600 dark:text-amber-400",
-                line.tone === "error" && "text-red-600 dark:text-red-400",
-              )}
+        <div className="overflow-hidden rounded-lg border bg-muted/40 shadow-sm">
+          <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-background/40 px-3 py-1.5">
+            <span
+              className="text-[10px] uppercase tracking-wide text-muted-foreground"
+              style={{ fontFamily: MONO_FONT_STACK }}
             >
-              {line.text}
+              scan console
+            </span>
+            <div className="flex items-center gap-0.5">
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={sendConsoleToChat}
+                      className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                      aria-label="Send console to chat"
+                      disabled={consoleLines.length === 0}
+                    >
+                      <Brain className="size-3" />
+                    </button>
+                  }
+                />
+                <TooltipContent side="bottom">Send to chat</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={() => void copyConsole()}
+                      className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                      aria-label="Copy console output"
+                      disabled={consoleLines.length === 0}
+                    >
+                      {consoleCopied ? (
+                        <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <Copy className="size-3" />
+                      )}
+                    </button>
+                  }
+                />
+                <TooltipContent side="bottom">
+                  {consoleCopied ? "Copied" : "Copy"}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      onClick={() => setConsoleVisible(false)}
+                      className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                      aria-label="Hide scan console"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  }
+                />
+                <TooltipContent side="bottom">Close</TooltipContent>
+              </Tooltip>
             </div>
-          ))}
-          {scanning && (
-            <div className="flex items-center gap-1.5 text-muted-foreground">
-              <Loader2 className="size-3 animate-spin" />
-              running…
-            </div>
-          )}
+          </div>
+          <div
+            ref={consoleScrollRef}
+            className="max-h-32 overflow-y-auto bg-background/20 px-3 py-2 text-[10.5px] leading-snug"
+            style={{ fontFamily: MONO_FONT_STACK }}
+          >
+            {consoleLines.map((line) => (
+              <div
+                key={line.id}
+                className={cn(
+                  "whitespace-pre-wrap break-words",
+                  line.tone === "info" && "text-foreground",
+                  line.tone === "muted" && "text-muted-foreground",
+                  line.tone === "success" && "text-emerald-600 dark:text-emerald-400",
+                  line.tone === "warn" && "text-amber-600 dark:text-amber-400",
+                  line.tone === "error" && "text-red-600 dark:text-red-400",
+                )}
+              >
+                {line.text}
+              </div>
+            ))}
+            {scanning && (
+              <div className="flex items-center gap-1.5 text-muted-foreground">
+                <Loader2 className="size-3 animate-spin" />
+                running…
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {sources.length === 0 ? (
-          <p className="px-2 py-4 text-xs text-muted-foreground">
+          <p className="px-3 py-4 text-xs text-muted-foreground">
             No feeds yet. Paste an RSS URL above to start collecting signals.
           </p>
         ) : (
           <>
-            <button
-              type="button"
-              onClick={toggleSourcesCollapsed}
-              className="mb-2 flex w-full items-center gap-1.5 rounded px-1 py-1 text-[10px] uppercase tracking-wide text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-expanded={!sourcesCollapsed}
-            >
-              {sourcesCollapsed ? (
-                <ChevronRight className="size-3" />
-              ) : (
-                <ChevronDown className="size-3" />
-              )}
-              Sources
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] normal-case tracking-normal">
-                {sources.length}
-              </span>
-            </button>
-
-            {!sourcesCollapsed && (
-              <ul className="mb-3 flex flex-col gap-1">
-                {sources.map((source) => (
-                  <li
-                    key={source.id}
-                    className="group flex items-center gap-2 rounded-md border bg-background px-2 py-1.5"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-xs font-medium">
-                        {source.handle}
-                      </p>
-                      <p className="truncate text-[10px] text-muted-foreground">
-                        {source.last_polled_at
-                          ? `last poll ${formatRelativeTime(source.last_polled_at)}`
-                          : "never polled"}
-                      </p>
-                    </div>
-                    <Button
-                      type="button"
-                      size="icon-xs"
-                      variant="ghost"
-                      onClick={() => void removeFeed(source.id)}
-                      aria-label={`Remove ${source.handle}`}
-                      className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="mb-2 flex items-center gap-2 px-1 text-[10px] uppercase tracking-wide text-muted-foreground">
-              Recent signals
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] normal-case tracking-normal">
-                {totalCount}
-              </span>
-            </div>
-
-            {signals.length === 0 ? (
-              <p className="px-2 py-3 text-xs text-muted-foreground">
-                No signals yet. Click Scan now or wait for the daily poll.
-              </p>
-            ) : (
-              <>
-                <ul className="flex flex-col gap-1.5">
-                  {signals.map((signal) => {
-                    const text =
-                      signal.summary ||
-                      (typeof signal.raw.text === "string"
-                        ? (signal.raw.text as string).trim()
-                        : signal.url);
-                    const score = signal.relevance_score ?? 0;
-                    return (
-                      <li key={signal.id}>
-                        <div className="rounded-md border bg-background p-2">
-                          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                            <span className="truncate font-medium text-foreground">
-                              {signal.sourceHandle ?? "feed"}
-                            </span>
-                            <span>·</span>
-                            <span>{formatRelativeTime(signal.posted_at)}</span>
-                            <span
-                              className={cn(
-                                "ml-auto rounded-full bg-muted px-1.5 py-0.5 font-mono",
-                                score >= 0.75 && "bg-primary/10 text-primary",
-                              )}
-                            >
-                              {score.toFixed(2)}
-                            </span>
-                          </div>
-                          <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-foreground">
-                            {text}
+            <section className="border-b">
+              <button
+                type="button"
+                onClick={toggleSourcesCollapsed}
+                className="flex w-full select-none items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                aria-expanded={!sourcesCollapsed}
+              >
+                <motion.span
+                  animate={{ rotate: sourcesCollapsed ? 0 : 90 }}
+                  transition={COLLAPSE_TRANSITION}
+                  className="flex"
+                >
+                  <ChevronRight className="size-3" />
+                </motion.span>
+                Sources
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] normal-case tracking-normal">
+                  {sources.length}
+                </span>
+              </button>
+              <div
+                className="grid"
+                style={{
+                  gridTemplateRows: sourcesCollapsed ? "0fr" : "1fr",
+                  opacity: sourcesCollapsed ? 0 : 1,
+                  transition: `grid-template-rows ${COLLAPSE_DURATION_MS}ms ${COLLAPSE_TIMING}, opacity ${COLLAPSE_DURATION_MS}ms ${COLLAPSE_TIMING}`,
+                }}
+                aria-hidden={sourcesCollapsed}
+              >
+                <div className="overflow-hidden">
+                  <ul className="flex flex-col gap-1 px-2 pb-2">
+                    {sources.map((source) => (
+                      <li
+                        key={source.id}
+                        className="group flex items-center gap-2 rounded-md border bg-background px-2 py-1.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium">
+                            {source.handle}
                           </p>
-                          <div className="mt-1.5 flex items-center justify-end gap-1">
-                            <a
-                              href={signal.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
-                            >
-                              <ExternalLink className="size-3" />
-                              Open
-                            </a>
-                            <button
-                              type="button"
-                              onClick={() => void dismissSignal(signal.id)}
-                              className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                              aria-label="Dismiss signal"
-                            >
-                              <X className="size-3" />
-                              Dismiss
-                            </button>
-                          </div>
+                          <p className="truncate text-[10px] text-muted-foreground">
+                            {source.last_polled_at
+                              ? `last poll ${formatRelativeTime(source.last_polled_at)}`
+                              : "never polled"}
+                          </p>
                         </div>
+                        <Button
+                          type="button"
+                          size="icon-xs"
+                          variant="ghost"
+                          onClick={() => void removeFeed(source.id)}
+                          aria-label={`Remove ${source.handle}`}
+                          className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+                        >
+                          <Trash2 className="size-3" />
+                        </Button>
                       </li>
-                    );
-                  })}
-                </ul>
-                {hasMore && (
-                  <div
-                    ref={sentinelRef}
-                    className="flex justify-center py-3"
-                    aria-live="polite"
-                  >
-                    <Loader2
-                      className="size-4 animate-spin text-muted-foreground"
-                      aria-label={loadingMore ? "Loading more" : "Load more"}
-                    />
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <section>
+              <button
+                type="button"
+                onClick={toggleSignalsCollapsed}
+                className="flex w-full select-none items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                aria-expanded={!signalsCollapsed}
+              >
+                <motion.span
+                  animate={{ rotate: signalsCollapsed ? 0 : 90 }}
+                  transition={COLLAPSE_TRANSITION}
+                  className="flex"
+                >
+                  <ChevronRight className="size-3" />
+                </motion.span>
+                Recent signals
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] normal-case tracking-normal">
+                  {totalCount}
+                </span>
+              </button>
+              <div
+                className="grid"
+                style={{
+                  gridTemplateRows: signalsCollapsed ? "0fr" : "1fr",
+                  opacity: signalsCollapsed ? 0 : 1,
+                  transition: `grid-template-rows ${COLLAPSE_DURATION_MS}ms ${COLLAPSE_TIMING}, opacity ${COLLAPSE_DURATION_MS}ms ${COLLAPSE_TIMING}`,
+                }}
+                aria-hidden={signalsCollapsed}
+              >
+                <div className="overflow-hidden">
+                  <div className="px-2 pb-2">
+                    {signals.length === 0 ? (
+                      <p className="px-2 py-3 text-xs text-muted-foreground">
+                        No signals yet. Click Scan now or wait for the daily poll.
+                      </p>
+                    ) : (
+                      <>
+                        <ul className="flex flex-col gap-1.5">
+                          {signals.map((signal) => {
+                            const text =
+                              signal.summary ||
+                              (typeof signal.raw.text === "string"
+                                ? (signal.raw.text as string).trim()
+                                : signal.url);
+                            return (
+                              <li key={signal.id}>
+                                <NewsSignalCard
+                                  variant="rail"
+                                  signal={{
+                                    id: signal.id,
+                                    source: signal.sourceHandle ?? null,
+                                    posted_at: signal.posted_at,
+                                    text,
+                                    url: signal.url,
+                                    relevance_score: signal.relevance_score,
+                                  }}
+                                  onDismiss={(id) => void dismissSignal(id)}
+                                />
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        {hasMore && (
+                          <div
+                            ref={sentinelRef}
+                            className="flex justify-center py-3"
+                            aria-live="polite"
+                          >
+                            <Loader2
+                              className="size-4 animate-spin text-muted-foreground"
+                              aria-label={
+                                loadingMore ? "Loading more" : "Load more"
+                              }
+                            />
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
-                )}
-              </>
-            )}
+                </div>
+              </div>
+            </section>
           </>
         )}
       </div>
