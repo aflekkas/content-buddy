@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, Sparkles, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, Brain, DollarSign, Sparkles, X } from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -406,14 +406,44 @@ export function Chat({
               >
                 {activeModelLabel}
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" side="top" sideOffset={6}>
+              <DropdownMenuContent
+                align="center"
+                side="top"
+                sideOffset={6}
+                className="w-auto min-w-64"
+              >
+                <div className="flex items-center justify-between gap-4 px-2 pt-1 pb-1.5 text-[10px] uppercase tracking-wide text-muted-foreground/70">
+                  <span>Model</span>
+                  <span className="flex items-center gap-3">
+                    <span>cost</span>
+                    <span>iq</span>
+                  </span>
+                </div>
                 <DropdownMenuRadioGroup
                   value={selectedModelId}
                   onValueChange={(value) => handleModelChange(String(value))}
                 >
                   {providerModels.map((m) => (
-                    <DropdownMenuRadioItem key={m.id} value={m.id}>
-                      {m.label}
+                    <DropdownMenuRadioItem
+                      key={m.id}
+                      value={m.id}
+                      className="pr-9"
+                    >
+                      <span className="flex w-full items-center justify-between gap-4 whitespace-nowrap">
+                        <span>{m.label}</span>
+                        <span className="flex items-center gap-3 text-muted-foreground">
+                          <TierIcons
+                            icon={DollarSign}
+                            level={m.cost}
+                            label="cost"
+                          />
+                          <TierIcons
+                            icon={Brain}
+                            level={m.intelligence}
+                            label="intelligence"
+                          />
+                        </span>
+                      </span>
                     </DropdownMenuRadioItem>
                   ))}
                 </DropdownMenuRadioGroup>
@@ -433,6 +463,36 @@ export function Chat({
         </div>
       </div>
     </div>
+  );
+}
+
+function TierIcons({
+  icon: Icon,
+  level,
+  label,
+}: {
+  icon: typeof DollarSign;
+  level: number;
+  label: string;
+}) {
+  const max = 3;
+  const safeLevel = Math.max(1, Math.min(max, level));
+  return (
+    <span
+      className="flex items-center gap-0.5"
+      aria-label={`${label}: ${safeLevel} of ${max}`}
+    >
+      {Array.from({ length: max }).map((_, i) => (
+        <Icon
+          key={i}
+          className={cn(
+            "size-3",
+            i < safeLevel ? "text-foreground/80" : "text-muted-foreground/30",
+          )}
+          aria-hidden
+        />
+      ))}
+    </span>
   );
 }
 
