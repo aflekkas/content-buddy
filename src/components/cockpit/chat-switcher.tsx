@@ -174,7 +174,7 @@ export function ChatSwitcher({ chats, activeChatId, activeTitle }: Props) {
         }
       />
       <DropdownMenuContent side="bottom" align="start" className="w-80 p-2">
-        <div className="relative mb-1">
+        <div key="search" className="relative mb-1">
           <Search className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={search}
@@ -219,11 +219,11 @@ export function ChatSwitcher({ chats, activeChatId, activeTitle }: Props) {
         <DropdownMenuSeparator key="sep" />
 
         {groups.length === 0 ? (
-          <div className="px-2 py-3 text-sm text-muted-foreground">
+          <div key="empty" className="px-2 py-3 text-sm text-muted-foreground">
             {search ? "No matches." : "No chats yet."}
           </div>
         ) : (
-          <div className="max-h-[24rem] space-y-3 overflow-y-auto pr-1">
+          <div key="groups" className="max-h-[24rem] space-y-3 overflow-y-auto pr-1">
             {groups.map((group) => (
               <DropdownMenuGroup key={group.name}>
                 <DropdownMenuLabel className="px-2">

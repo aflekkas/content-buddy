@@ -1,14 +1,20 @@
-import { formatRelativeTime } from "@/lib/system-prompt";
 import type { NewsSignalCardData } from "@/components/news/news-signal-card";
 
+export type CiteSignalDetail = {
+  id: string;
+  source: string | null;
+  posted_at: string;
+  text: string;
+};
+
 export function citeSignal(signal: NewsSignalCardData) {
-  const handle = signal.source ? signal.source : "feed";
-  const ago = formatRelativeTime(signal.posted_at);
-  const excerpt = signal.text.replace(/\s+/g, " ").trim().slice(0, 180);
-  const ref = `[signal:${signal.id}] ${handle} · ${ago} — ${excerpt}`;
+  const detail: CiteSignalDetail = {
+    id: signal.id,
+    source: signal.source,
+    posted_at: signal.posted_at,
+    text: signal.text,
+  };
   window.dispatchEvent(
-    new CustomEvent("chat:input-paste", {
-      detail: { text: ref, append: true },
-    }),
+    new CustomEvent<CiteSignalDetail>("chat:cite-signal", { detail }),
   );
 }

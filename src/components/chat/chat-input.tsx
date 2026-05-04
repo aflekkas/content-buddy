@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ClipboardEvent, type DragEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowUp, Paperclip, Square, X } from "lucide-react";
+import { ArrowUp, Paperclip, Quote, Square, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ChatImage } from "./chat-image";
@@ -12,6 +12,8 @@ import {
   PromptInputActions,
   PromptInputAction,
 } from "@/components/ui/prompt-input";
+import { formatRelativeTime } from "@/lib/system-prompt";
+import type { CiteSignalDetail } from "@/lib/cite-signal";
 import { cn } from "@/lib/utils";
 
 export type ChatAttachment = {
@@ -31,6 +33,8 @@ type Props = {
   attachmentsDisabledReason?: string;
 };
 
+type CitedSignal = CiteSignalDetail;
+
 export function ChatInput({
   onSubmit,
   disabled,
@@ -42,6 +46,7 @@ export function ChatInput({
 }: Props) {
   const [value, setValue] = useState("");
   const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [citations, setCitations] = useState<CitedSignal[]>([]);
   const [uploading, setUploading] = useState(0);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -59,19 +64,45 @@ export function ChatInput({
         return text;
       });
     }
+    function onCite(event: Event) {
+      const detail = (event as CustomEvent<CitedSignal>).detail;
+      if (!detail?.id) return;
+      setCitations((prev) =>
+        prev.some((c) => c.id === detail.id) ? prev : [...prev, detail],
+      );
+    }
     window.addEventListener("chat:input-paste", onInsert);
-    return () => window.removeEventListener("chat:input-paste", onInsert);
+    window.addEventListener("chat:cite-signal", onCite);
+    return () => {
+      window.removeEventListener("chat:input-paste", onInsert);
+      window.removeEventListener("chat:cite-signal", onCite);
+    };
   }, []);
 
   function send() {
     const trimmed = value.trim();
-    if ((!trimmed && attachments.length === 0) || isStreaming || disabled) {
+    if (
+      (!trimmed && attachments.length === 0 && citations.length === 0) ||
+      isStreaming ||
+      disabled
+    ) {
       return;
     }
     if (uploading > 0) return;
-    onSubmit(trimmed, attachments);
+    const tokens = citations.map((c) => `[signal:${c.id}]`).join(" ");
+    const outgoing = tokens
+      ? trimmed
+        ? `${tokens}\n${trimmed}`
+        : tokens
+      : trimmed;
+    onSubmit(outgoing, attachments);
     setValue("");
     setAttachments([]);
+    setCitations([]);
+  }
+
+  function removeCitation(id: string) {
+    setCitations((prev) => prev.filter((c) => c.id !== id));
   }
 
   async function uploadFile(file: File) {
@@ -146,7 +177,7 @@ export function ChatInput({
     !isStreaming &&
     (disabled ||
       uploading > 0 ||
-      (!value.trim() && attachments.length === 0));
+      (!value.trim() && attachments.length === 0 && citations.length === 0));
 
   return (
     <div
@@ -188,6 +219,17 @@ export function ChatInput({
         disabled={disabled}
         className="flex flex-col gap-2 rounded-xl border-border bg-background shadow-sm hover:ring-primary/20 focus-within:ring-primary/40"
       >
+        {citations.length > 0 && (
+          <div className="flex flex-col gap-1 px-2 pt-2">
+            {citations.map((c) => (
+              <CitationChip
+                key={c.id}
+                signal={c}
+                onRemove={() => removeCitation(c.id)}
+              />
+            ))}
+          </div>
+        )}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 px-2 pt-2">
             {attachments.map((a) => (
@@ -273,6 +315,39 @@ export function ChatInput({
           </PromptInputAction>
         </PromptInputActions>
       </PromptInput>
+    </div>
+  );
+}
+
+function CitationChip({
+  signal,
+  onRemove,
+}: {
+  signal: CitedSignal;
+  onRemove: () => void;
+}) {
+  const handle = signal.source ?? "feed";
+  const ago = formatRelativeTime(signal.posted_at);
+  const excerpt = signal.text.replace(/\s+/g, " ").trim().slice(0, 140);
+  return (
+    <div className="flex items-start gap-2 rounded-md border bg-muted/40 px-2 py-1.5">
+      <Quote className="mt-0.5 size-3 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <span className="truncate font-medium text-foreground">{handle}</span>
+          <span>·</span>
+          <span>{ago}</span>
+        </div>
+        <p className="line-clamp-1 text-xs text-foreground">{excerpt}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove citation"
+        className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <X className="size-3" />
+      </button>
     </div>
   );
 }
