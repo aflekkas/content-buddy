@@ -533,7 +533,7 @@ function MessageRender({
         className={cn("flex w-full flex-col items-end gap-1.5")}
       >
         {userCitationIds.length > 0 ? (
-          <div className="flex w-full max-w-[80%] flex-col gap-1.5">
+          <div className="flex w-full max-w-md flex-col gap-1.5">
             {userCitationIds.map((id) => (
               <UserCitationCard key={id} signalId={id} />
             ))}
@@ -595,7 +595,7 @@ function MessageRender({
       ) : null}
 
       {newsCards.length > 0 ? (
-        <div className="flex w-full max-w-[85%] flex-col gap-1.5">
+        <div className="flex w-full max-w-md flex-col gap-1.5">
           {newsCards.map((c) => (
             <NewsSignalCard
               key={c.id}

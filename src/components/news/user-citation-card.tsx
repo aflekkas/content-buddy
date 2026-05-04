@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ExternalLink, Loader2, Quote } from "lucide-react";
+import { ExternalLink, Quote } from "lucide-react";
 import { formatRelativeTime } from "@/lib/system-prompt";
 import { cn } from "@/lib/utils";
 import type { SignalRow } from "@/lib/db/types";
@@ -41,9 +41,23 @@ export function UserCitationCard({ signalId }: { signalId: string }) {
 
   if (data === null) {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-[10px] text-muted-foreground">
-        <Loader2 className="size-3 animate-spin" />
-        Loading citation…
+      <div
+        className="rounded-md border bg-background p-2"
+        aria-label="Loading citation"
+        aria-busy="true"
+      >
+        <div className="flex items-center gap-1.5">
+          <Quote className="size-3 text-muted-foreground/50" />
+          <div className="h-2.5 w-20 animate-pulse rounded bg-muted" />
+          <div className="ml-auto h-3.5 w-9 animate-pulse rounded-full bg-muted" />
+        </div>
+        <div className="mt-2 space-y-1.5">
+          <div className="h-2.5 w-full animate-pulse rounded bg-muted" />
+          <div className="h-2.5 w-5/6 animate-pulse rounded bg-muted" />
+        </div>
+        <div className="mt-2 flex justify-end">
+          <div className="h-3 w-10 animate-pulse rounded bg-muted" />
+        </div>
       </div>
     );
   }
