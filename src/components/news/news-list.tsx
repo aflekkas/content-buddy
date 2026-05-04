@@ -26,10 +26,19 @@ import { formatRelativeTime } from "@/lib/system-prompt";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { MonitoredSourceRow, SignalRow } from "@/lib/db/types";
+import type { ScanEvent } from "@/app/api/cron/poll-sources/route";
 
 export type NewsSignal = SignalRow & {
   sourceHandle: string | null;
 };
+
+type ConsoleLine = {
+  id: number;
+  text: string;
+  tone: "info" | "muted" | "success" | "warn" | "error";
+};
+
+const CONSOLE_HIDE_DELAY_MS = 4000;
 
 type Props = {
   initialSources: MonitoredSourceRow[];
@@ -61,8 +70,13 @@ export function NewsList({
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(SOURCES_COLLAPSED_KEY) === "1";
   });
+  const [consoleVisible, setConsoleVisible] = useState(false);
+  const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
   const [, startTransition] = useTransition();
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const consoleScrollRef = useRef<HTMLDivElement | null>(null);
+  const consoleLineIdRef = useRef(0);
+  const consoleHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasMore = !exhausted && signals.length < totalCount;
 
@@ -253,31 +267,151 @@ export function NewsList({
     setSources((current) => current.filter((s) => s.id !== id));
   }
 
-  async function scanNow() {
-    setScanning(true);
-    try {
-      const res = await fetch(`/api/cron/poll-sources?user_id=${userId}`, {
-        method: "POST",
+  const pushConsole = useCallback(
+    (text: string, tone: ConsoleLine["tone"] = "info") => {
+      const id = ++consoleLineIdRef.current;
+      setConsoleLines((current) => {
+        const next = [...current, { id, text, tone }];
+        return next.length > 200 ? next.slice(next.length - 200) : next;
       });
-      const payload = await res.json().catch(() => null);
-      if (!res.ok) {
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!consoleVisible) return;
+    const node = consoleScrollRef.current;
+    if (node) node.scrollTop = node.scrollHeight;
+  }, [consoleLines, consoleVisible]);
+
+  useEffect(() => {
+    return () => {
+      if (consoleHideTimerRef.current) {
+        clearTimeout(consoleHideTimerRef.current);
+      }
+    };
+  }, []);
+
+  function formatEvent(event: ScanEvent): ConsoleLine | null {
+    switch (event.type) {
+      case "start":
+        return {
+          id: 0,
+          text: `> scanning ${event.sources} source${event.sources === 1 ? "" : "s"}`,
+          tone: "info",
+        };
+      case "source_skip":
+        return {
+          id: 0,
+          text: `- skip ${event.handle} (${event.reason === "not_due" ? "not due" : "no fetcher"})`,
+          tone: "muted",
+        };
+      case "fetch_start":
+        return { id: 0, text: `… fetch ${event.handle}`, tone: "info" };
+      case "fetch_done":
+        return {
+          id: 0,
+          text: `+ ${event.handle}: ${event.fetched} fetched, ${event.inserted} new`,
+          tone: event.inserted > 0 ? "success" : "muted",
+        };
+      case "score_done":
+        return {
+          id: 0,
+          text: `~ ${event.handle}: scored ${event.score.toFixed(2)} ${event.summary.slice(0, 60)}`,
+          tone: "muted",
+        };
+      case "source_done":
+        return { id: 0, text: `✓ ${event.handle} done`, tone: "success" };
+      case "source_error":
+        return {
+          id: 0,
+          text: `! ${event.handle}: ${event.message}`,
+          tone: "error",
+        };
+      case "user_error":
+        return { id: 0, text: `! ${event.message}`, tone: "error" };
+      case "summary":
+        return null;
+    }
+  }
+
+  async function scanNow() {
+    if (consoleHideTimerRef.current) {
+      clearTimeout(consoleHideTimerRef.current);
+      consoleHideTimerRef.current = null;
+    }
+    setScanning(true);
+    setConsoleLines([]);
+    setConsoleVisible(true);
+    try {
+      const res = await fetch(
+        `/api/cron/poll-sources?user_id=${userId}&stream=1`,
+        { method: "POST" },
+      );
+      if (!res.ok || !res.body) {
+        const payload = await res.json().catch(() => null);
         toast.error(payload?.message ?? "Scan failed.");
+        pushConsole(`! scan failed (${res.status})`, "error");
         return;
       }
-      const inserted = payload?.signals_inserted ?? 0;
-      const errors = (payload?.errors as string[] | undefined) ?? [];
-      if (errors.length > 0) {
-        toast.warning(
-          `Scan finished with ${errors.length} feed error${errors.length === 1 ? "" : "s"}.`,
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let summary: {
+        sources_polled: number;
+        signals_inserted: number;
+        errors: string[];
+      } | null = null;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n");
+        buffer = parts.pop() ?? "";
+        for (const line of parts) {
+          const trimmed = line.trim();
+          if (!trimmed) continue;
+          try {
+            const event = JSON.parse(trimmed) as ScanEvent;
+            if (event.type === "summary") {
+              summary = event.summary;
+            } else {
+              const formatted = formatEvent(event);
+              if (formatted) pushConsole(formatted.text, formatted.tone);
+            }
+          } catch {
+            pushConsole(trimmed, "muted");
+          }
+        }
+      }
+
+      if (summary) {
+        const { sources_polled, signals_inserted, errors } = summary;
+        pushConsole(
+          `= done · ${sources_polled} feed${sources_polled === 1 ? "" : "s"} polled · ${signals_inserted} new signal${signals_inserted === 1 ? "" : "s"}${errors.length > 0 ? ` · ${errors.length} error${errors.length === 1 ? "" : "s"}` : ""}`,
+          errors.length > 0 ? "warn" : "success",
         );
-      } else {
-        toast.success(
-          inserted > 0
-            ? `Scan done. ${inserted} new signal${inserted === 1 ? "" : "s"}.`
-            : "Scan done. No new signals.",
-        );
+        if (errors.length > 0) {
+          toast.warning(
+            `Scan finished with ${errors.length} feed error${errors.length === 1 ? "" : "s"}.`,
+          );
+        } else {
+          toast.success(
+            signals_inserted > 0
+              ? `Scan done. ${signals_inserted} new signal${signals_inserted === 1 ? "" : "s"}.`
+              : "Scan done. No new signals.",
+          );
+        }
       }
       startTransition(() => router.refresh());
+      consoleHideTimerRef.current = setTimeout(() => {
+        setConsoleVisible(false);
+      }, CONSOLE_HIDE_DELAY_MS);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "scan crashed";
+      pushConsole(`! ${message}`, "error");
+      toast.error(message);
     } finally {
       setScanning(false);
     }
@@ -341,6 +475,60 @@ export function NewsList({
             <RefreshCw className={cn("size-3", scanning && "animate-spin")} />
             {scanning ? "Scanning" : "Scan now"}
           </Button>
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          "shrink-0 overflow-hidden border-b bg-muted/40 transition-[max-height,opacity] duration-300 ease-out",
+          consoleVisible ? "max-h-44 opacity-100" : "max-h-0 opacity-0",
+        )}
+        aria-live="polite"
+      >
+        <div className="flex items-center justify-between border-b border-border/60 bg-background/40 px-3 py-1.5">
+          <span className="font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+            scan console
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              if (consoleHideTimerRef.current) {
+                clearTimeout(consoleHideTimerRef.current);
+                consoleHideTimerRef.current = null;
+              }
+              setConsoleVisible(false);
+            }}
+            className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+            aria-label="Hide scan console"
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+        <div
+          ref={consoleScrollRef}
+          className="max-h-32 overflow-y-auto px-3 py-2 font-mono text-[10.5px] leading-snug"
+        >
+          {consoleLines.map((line) => (
+            <div
+              key={line.id}
+              className={cn(
+                "whitespace-pre-wrap break-words",
+                line.tone === "info" && "text-foreground",
+                line.tone === "muted" && "text-muted-foreground",
+                line.tone === "success" && "text-emerald-600 dark:text-emerald-400",
+                line.tone === "warn" && "text-amber-600 dark:text-amber-400",
+                line.tone === "error" && "text-red-600 dark:text-red-400",
+              )}
+            >
+              {line.text}
+            </div>
+          ))}
+          {scanning && (
+            <div className="flex items-center gap-1.5 text-muted-foreground">
+              <Loader2 className="size-3 animate-spin" />
+              running…
+            </div>
+          )}
         </div>
       </div>
 
