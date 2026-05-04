@@ -441,7 +441,10 @@ function MessageRender({
         {message.parts.map((part, index) => {
           if (part.type === "text") {
             return message.role === "assistant" ? (
-              <Markdown key={index}>
+              <Markdown
+                key={index}
+                className="prose prose-sm prose-invert max-w-none break-words [&_p]:my-2 [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5 [&_h1]:mt-4 [&_h1]:mb-2 [&_h2]:mt-4 [&_h2]:mb-2 [&_h3]:mt-3 [&_h3]:mb-1.5 [&_pre]:my-2 [&_blockquote]:my-2 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+              >
                 {part.text}
               </Markdown>
             ) : (
