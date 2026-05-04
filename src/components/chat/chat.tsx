@@ -18,6 +18,10 @@ import {
   UserCitationCard,
   extractSignalIds,
 } from "@/components/news/user-citation-card";
+import {
+  UserDraftCard,
+  extractDraftIds,
+} from "@/components/drafts/user-draft-card";
 import { citeSignal } from "@/lib/cite-signal";
 import { Loader } from "@/components/ui/loader";
 import { Markdown } from "@/components/ui/markdown";
@@ -640,13 +644,11 @@ function MessageRender({
     key: number,
   ): React.ReactNode | null => {
     const labels: Record<string, string> = {
-      "tool-update_draft": "Updated draft body",
       "tool-read_signal": "Read signal",
       "tool-read_memory": "Read memory",
       "tool-write_memory": "Saved to memory",
       "tool-update_memory": "Updated memory",
       "tool-news_scan": "Scanned news",
-      "tool-save_as_draft": "Saved as draft",
       "tool-list_sources": "Listed feeds",
       "tool-add_source": "Added feed",
       "tool-remove_source": "Removed feed",
@@ -701,14 +703,41 @@ function MessageRender({
         (part as { state?: string }).state !== "output-available",
     );
 
+  const collectDraftIds = (parts: UIMessage["parts"]): string[] => {
+    const out: string[] = [];
+    for (const part of parts) {
+      if (
+        part.type !== "tool-save_as_draft" &&
+        part.type !== "tool-update_draft"
+      ) {
+        continue;
+      }
+      const p = part as {
+        state?: string;
+        output?: { ok?: boolean; id?: string };
+      };
+      if (p.state !== "output-available" || !p.output?.ok) continue;
+      const id = p.output.id;
+      if (typeof id !== "string" || !id) continue;
+      if (!out.includes(id)) out.push(id);
+    }
+    return out;
+  };
+
   if (isUser) {
     const userCitationIds: string[] = [];
+    const userDraftIds: string[] = [];
     const renderedParts = message.parts.map((part, index) => {
       if (part.type === "text") {
-        const { ids, cleanText } = extractSignalIds(part.text);
-        for (const id of ids) {
+        const sig = extractSignalIds(part.text);
+        for (const id of sig.ids) {
           if (!userCitationIds.includes(id)) userCitationIds.push(id);
         }
+        const drf = extractDraftIds(sig.cleanText);
+        for (const id of drf.ids) {
+          if (!userDraftIds.includes(id)) userDraftIds.push(id);
+        }
+        const cleanText = drf.cleanText;
         if (!cleanText) return null;
         return (
           <p key={index} className="whitespace-pre-wrap">
@@ -741,6 +770,13 @@ function MessageRender({
             ))}
           </div>
         ) : null}
+        {userDraftIds.length > 0 ? (
+          <div className="flex w-full max-w-md flex-col gap-1.5">
+            {userDraftIds.map((id) => (
+              <UserDraftCard key={id} draftId={id} />
+            ))}
+          </div>
+        ) : null}
         {hasBubbleContent ? (
           <div className="min-w-0 max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3 py-2 text-sm text-primary-foreground">
             {renderedParts}
@@ -752,6 +788,7 @@ function MessageRender({
 
   const newsCards = collectNewsCards(message.parts);
   const newsPending = newsCards.length === 0 && newsScanPending(message.parts);
+  const draftIds = collectDraftIds(message.parts);
   const hasAnyText = message.parts.some(
     (p) => p.type === "text" && (p as { text?: string }).text,
   );
@@ -789,6 +826,22 @@ function MessageRender({
 
         if (part.type === "tool-news_scan") return null;
 
+        if (
+          part.type === "tool-save_as_draft" ||
+          part.type === "tool-update_draft"
+        ) {
+          const p = part as {
+            state?: string;
+            output?: { ok?: boolean };
+          };
+          if (p.state === "output-available" && p.output?.ok) return null;
+          const label =
+            part.type === "tool-save_as_draft"
+              ? "Saving draft…"
+              : "Updating draft…";
+          return <ToolChip key={index} label={label} />;
+        }
+
         return renderToolChip(part.type, index);
       })}
 
@@ -805,6 +858,14 @@ function MessageRender({
               signal={c}
               onCite={citeSignal}
             />
+          ))}
+        </div>
+      ) : null}
+
+      {draftIds.length > 0 ? (
+        <div className="flex w-full max-w-md flex-col gap-1.5">
+          {draftIds.map((id) => (
+            <UserDraftCard key={id} draftId={id} />
           ))}
         </div>
       ) : null}
