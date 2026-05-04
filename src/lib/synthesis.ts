@@ -133,10 +133,14 @@ function extractJson(text: string): unknown {
   return JSON.parse(fenced?.[1] ?? trimmed);
 }
 
-function voiceFewShots(samples: string | null): string | null {
-  const trimmed = samples?.trim();
-  if (!trimmed) return null;
-  return `Here are examples of how the user writes on LinkedIn. Match this voice closely (cadence, sentence length, vocabulary, what they don't do):\n\n${trimmed.slice(0, 6000)}`;
+function voiceFewShots(profile: UserProfileRow | null): string | null {
+  const dna = profile?.voice_dna?.trim();
+  if (dna) {
+    return `<voice_dna>\nDistilled voice profile for this user. Treat as the canonical spec for their voice. The synthesis must match this profile in cadence, sentence length, vocabulary, signature openers, and avoidance patterns. If voice_dna and a creator_profile clash, voice_dna wins.\n\n${dna.slice(0, 8000)}\n</voice_dna>`;
+  }
+  const samples = profile?.voice_samples?.trim();
+  if (!samples) return null;
+  return `Here are examples of how the user writes on LinkedIn. Match this voice closely (cadence, sentence length, vocabulary, what they don't do):\n\n${samples.slice(0, 6000)}`;
 }
 
 export async function scoreRelevance(args: {
@@ -528,7 +532,7 @@ export async function synthesizeFromSignals(args: {
   }
 
   const model = getOpenAIModel();
-  const samples = voiceFewShots(args.profile?.voice_samples ?? null);
+  const samples = voiceFewShots(args.profile ?? null);
   const systemPrompt = buildSynthesisSystemPrompt({
     profile: args.profile,
     signals: args.signals,
