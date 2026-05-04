@@ -4,7 +4,7 @@ import {
   countSignals,
   listChats,
   listDrafts,
-  listFacts,
+  listMemories,
   listSignals,
   listSources,
 } from "@/lib/db/queries";
@@ -25,9 +25,9 @@ export default async function DashboardShellLayout({
   const user = await getCurrentUser();
   if (!user) redirect("/");
 
-  const [facts, drafts, chats, sources, signals, totalSignalCount] =
+  const [memories, drafts, chats, sources, signals, totalSignalCount] =
     await Promise.all([
-      listFacts(user.id),
+      listMemories(user.id),
       listDrafts(user.id),
       listChats(user.id),
       listSources(user.id),
@@ -50,7 +50,7 @@ export default async function DashboardShellLayout({
     <ActiveDraftsProvider>
       <CockpitShell
         user={{ id: user.id, email: user.email ?? "" }}
-        memorySlot={<MemoryRail initialFacts={facts} />}
+        memorySlot={<MemoryRail initialMemories={memories} />}
         draftsSlot={<DraftsList initialDrafts={drafts} />}
         newsSlot={
           <NewsRail

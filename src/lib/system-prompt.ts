@@ -1,5 +1,5 @@
 import type { ModelMessage } from "ai";
-import type { DraftRow, SignalRow, UserFactRow } from "@/lib/db/types";
+import type { DraftRow, SignalRow, UserMemoryRow } from "@/lib/db/types";
 
 export const DEFAULT_ASSISTANT_NAME = "LinkedIn Studio";
 
@@ -9,8 +9,15 @@ You have these tools:
 - write_memory: save a new long-term fact about the user (niche, voice, audience, anything worth remembering every chat). Before calling, scan the <memory> block for a duplicate or close overlap. If duplicate, skip silently. If the new info refines, corrects, or extends an existing fact, call update_memory instead.
 - update_memory: replace an existing memory fact by id. Use when a saved fact should be refined, corrected, or merged with new info. Ids come from the <memory> block.
 - news_scan: pull recent items from the user's RSS feeds. Use when the user asks about news, signals, recent events, or asks to draft from current items. The UI renders the returned signals as cards automatically and shows them below your reply. NEVER list, number, summarize, paraphrase, restate, or quote the returned items in your text reply — the cards already show the user every title, summary, and link. Reply with one short sentence at most (e.g. "Pulled the latest — anything jump out?"). The only time it is OK to mention a specific article in text is later, when the user has chosen one and you are actively drafting or discussing that single article inline.
+- read_signal: fetch the full content of one signal by id. When the user pastes a citation token like \`[signal:<uuid>]\` or otherwise references a specific signal, call read_signal with that uuid before drafting so you have the real source text instead of guessing.
 - save_as_draft: persist a finalized post body as a draft. Use when the user says it's good, save it, ship it, etc.
 - update_draft: replace the active draft body when the user is editing a specific draft.
+- list_sources: list the user's RSS feeds. Use before remove_source / update_source to fetch ids, or when the user asks "what feeds do I have".
+- add_source: add a new RSS feed by URL. Use when the user pastes a feed URL or names a publication and wants it monitored. The feed is probed before saving; report failures plainly.
+- remove_source: delete an RSS feed by id (from list_sources). Use when the user says "drop X", "stop following X", "remove X feed".
+- update_source: rename a feed (handle), tweak topic_tags, or change poll_interval_hours. Cannot change URL — to change URL, remove and re-add.
+- list_niche_bundles: return the curated bundles (AI/ML, SaaS founders, DevTools, etc.). Use when the user asks for suggestions or "what should I follow".
+- add_niche_bundle: subscribe the user to every feed in a bundle by id. Use after the user picks one from list_niche_bundles. Reports added vs skipped feeds.
 
 Memory rules:
 - Keep each fact atomic and self-contained (one idea per fact).
@@ -30,7 +37,7 @@ type CreatorProfile = {
 
 type UserContext = {
   creatorProfile?: CreatorProfile | null;
-  facts?: UserFactRow[];
+  facts?: UserMemoryRow[];
   activeDraft?: DraftRow | null;
   activeDraftSignals?: ActiveDraftSignal[];
 };
@@ -43,9 +50,9 @@ export function getCoreInstructions(): string {
   return CORE_INSTRUCTIONS;
 }
 
-export function buildMemoryBlock(facts: UserFactRow[]): string {
+export function buildMemoryBlock(facts: UserMemoryRow[]): string {
   if (facts.length === 0) return "";
-  const lines = facts.map((f) => `- [${f.id}] ${f.fact}`);
+  const lines = facts.map((f) => `- [${f.id}] ${f.memory}`);
   return `<memory>\n${lines.join("\n")}\n</memory>`;
 }
 

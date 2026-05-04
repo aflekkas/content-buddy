@@ -33,6 +33,7 @@ import { formatRelativeTime } from "@/lib/system-prompt";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { NewsSignalCard } from "@/components/news/news-signal-card";
+import { citeSignal } from "@/lib/cite-signal";
 import type { MonitoredSourceRow, SignalRow } from "@/lib/db/types";
 import type { ScanEvent } from "@/app/api/cron/poll-sources/route";
 
@@ -98,6 +99,16 @@ export function NewsList({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const consoleScrollRef = useRef<HTMLDivElement | null>(null);
   const consoleLineIdRef = useRef(0);
+  const railScrollRef = useRef<HTMLDivElement | null>(null);
+  const wasConsoleVisibleRef = useRef(false);
+
+  useEffect(() => {
+    if (consoleVisible && !wasConsoleVisibleRef.current) {
+      const node = railScrollRef.current;
+      if (node) node.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    wasConsoleVisibleRef.current = consoleVisible;
+  }, [consoleVisible]);
 
   const hasMore = !exhausted && signals.length < totalCount;
 
@@ -522,111 +533,111 @@ export function NewsList({
         </div>
       </div>
 
-      <div
-        className={cn(
-          "shrink-0 overflow-hidden transition-[max-height,opacity,padding] ease-out",
-          consoleVisible
-            ? "max-h-52 px-3 pt-3 pb-3 opacity-100"
-            : "max-h-0 px-3 pt-0 pb-0 opacity-0",
-        )}
-        style={{ transitionDuration: `${COLLAPSE_DURATION_MS}ms` }}
-        aria-live="polite"
-      >
-        <div className="overflow-hidden rounded-lg border bg-muted/40 shadow-sm">
-          <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-background/40 px-3 py-1.5">
-            <span
-              className="text-[10px] uppercase tracking-wide text-muted-foreground"
+      <div ref={railScrollRef} className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          className={cn(
+            "overflow-hidden transition-[max-height,opacity,padding] ease-out",
+            consoleVisible
+              ? "max-h-52 px-3 pt-3 pb-3 opacity-100"
+              : "max-h-0 px-3 pt-0 pb-0 opacity-0",
+          )}
+          style={{ transitionDuration: `${COLLAPSE_DURATION_MS}ms` }}
+          aria-live="polite"
+        >
+          <div className="overflow-hidden rounded-lg border bg-muted/40 shadow-sm">
+            <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-background/40 px-3 py-1.5">
+              <span
+                className="text-[10px] uppercase tracking-wide text-muted-foreground"
+                style={{ fontFamily: MONO_FONT_STACK }}
+              >
+                scan console
+              </span>
+              <div className="flex items-center gap-0.5">
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        onClick={sendConsoleToChat}
+                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        aria-label="Send console to chat"
+                        disabled={consoleLines.length === 0}
+                      >
+                        <Brain className="size-3" />
+                      </button>
+                    }
+                  />
+                  <TooltipContent side="bottom">Send to chat</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        onClick={() => void copyConsole()}
+                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        aria-label="Copy console output"
+                        disabled={consoleLines.length === 0}
+                      >
+                        {consoleCopied ? (
+                          <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
+                        ) : (
+                          <Copy className="size-3" />
+                        )}
+                      </button>
+                    }
+                  />
+                  <TooltipContent side="bottom">
+                    {consoleCopied ? "Copied" : "Copy"}
+                  </TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type="button"
+                        onClick={() => setConsoleVisible(false)}
+                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        aria-label="Hide scan console"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    }
+                  />
+                  <TooltipContent side="bottom">Close</TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
+            <div
+              ref={consoleScrollRef}
+              className="max-h-32 overflow-y-auto bg-background/20 px-3 py-2 text-[10.5px] leading-snug"
               style={{ fontFamily: MONO_FONT_STACK }}
             >
-              scan console
-            </span>
-            <div className="flex items-center gap-0.5">
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      onClick={sendConsoleToChat}
-                      className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-                      aria-label="Send console to chat"
-                      disabled={consoleLines.length === 0}
-                    >
-                      <Brain className="size-3" />
-                    </button>
-                  }
-                />
-                <TooltipContent side="bottom">Send to chat</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      onClick={() => void copyConsole()}
-                      className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-                      aria-label="Copy console output"
-                      disabled={consoleLines.length === 0}
-                    >
-                      {consoleCopied ? (
-                        <Check className="size-3 text-emerald-600 dark:text-emerald-400" />
-                      ) : (
-                        <Copy className="size-3" />
-                      )}
-                    </button>
-                  }
-                />
-                <TooltipContent side="bottom">
-                  {consoleCopied ? "Copied" : "Copy"}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      onClick={() => setConsoleVisible(false)}
-                      className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      aria-label="Hide scan console"
-                    >
-                      <X className="size-3" />
-                    </button>
-                  }
-                />
-                <TooltipContent side="bottom">Close</TooltipContent>
-              </Tooltip>
+              {consoleLines.map((line) => (
+                <div
+                  key={line.id}
+                  className={cn(
+                    "whitespace-pre-wrap break-words",
+                    line.tone === "info" && "text-foreground",
+                    line.tone === "muted" && "text-muted-foreground",
+                    line.tone === "success" && "text-emerald-600 dark:text-emerald-400",
+                    line.tone === "warn" && "text-amber-600 dark:text-amber-400",
+                    line.tone === "error" && "text-red-600 dark:text-red-400",
+                  )}
+                >
+                  {line.text}
+                </div>
+              ))}
+              {scanning && (
+                <div className="flex items-center gap-1.5 text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" />
+                  running…
+                </div>
+              )}
             </div>
           </div>
-          <div
-            ref={consoleScrollRef}
-            className="max-h-32 overflow-y-auto bg-background/20 px-3 py-2 text-[10.5px] leading-snug"
-            style={{ fontFamily: MONO_FONT_STACK }}
-          >
-            {consoleLines.map((line) => (
-              <div
-                key={line.id}
-                className={cn(
-                  "whitespace-pre-wrap break-words",
-                  line.tone === "info" && "text-foreground",
-                  line.tone === "muted" && "text-muted-foreground",
-                  line.tone === "success" && "text-emerald-600 dark:text-emerald-400",
-                  line.tone === "warn" && "text-amber-600 dark:text-amber-400",
-                  line.tone === "error" && "text-red-600 dark:text-red-400",
-                )}
-              >
-                {line.text}
-              </div>
-            ))}
-            {scanning && (
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <Loader2 className="size-3 animate-spin" />
-                running…
-              </div>
-            )}
-          </div>
         </div>
-      </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
         {sources.length === 0 ? (
           <p className="px-3 py-4 text-xs text-muted-foreground">
             No feeds yet. Paste an RSS URL above to start collecting signals.
@@ -751,6 +762,7 @@ export function NewsList({
                                     relevance_score: signal.relevance_score,
                                   }}
                                   onDismiss={(id) => void dismissSignal(id)}
+                                  onCite={citeSignal}
                                 />
                               </li>
                             );

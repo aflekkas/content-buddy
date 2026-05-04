@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ColumnHeader } from "@/components/cockpit/column-header";
 import { cn } from "@/lib/utils";
-import type { UserFactRow } from "@/lib/db/types";
+import type { UserMemoryRow } from "@/lib/db/types";
 
 type Props = {
-  initialFacts: UserFactRow[];
+  initialMemories: UserMemoryRow[];
 };
 
-export function MemoryRail({ initialFacts }: Props) {
-  const [facts, setFacts] = useState(initialFacts);
+export function MemoryRail({ initialMemories }: Props) {
+  const [memories, setMemories] = useState(initialMemories);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState("");
@@ -23,47 +23,49 @@ export function MemoryRail({ initialFacts }: Props) {
     async function refresh() {
       const res = await fetch("/api/memory");
       if (!res.ok) return;
-      const { facts: rows } = (await res.json()) as { facts: UserFactRow[] };
-      setFacts(rows);
+      const { memories: rows } = (await res.json()) as {
+        memories: UserMemoryRow[];
+      };
+      setMemories(rows);
     }
     window.addEventListener("memory:saved", refresh);
     return () => window.removeEventListener("memory:saved", refresh);
   }, []);
 
-  async function addFact(e: React.FormEvent) {
+  async function addMemory(e: React.FormEvent) {
     e.preventDefault();
-    const fact = draft.trim();
-    if (!fact) return;
+    const memory = draft.trim();
+    if (!memory) return;
     const res = await fetch("/api/memory", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ fact }),
+      body: JSON.stringify({ memory }),
     });
     if (!res.ok) return;
-    const { fact: row } = (await res.json()) as { fact: UserFactRow };
-    setFacts((current) => [row, ...current]);
+    const { memory: row } = (await res.json()) as { memory: UserMemoryRow };
+    setMemories((current) => [row, ...current]);
     setDraft("");
   }
 
   async function saveEdit(id: string) {
-    const fact = editingValue.trim();
-    if (!fact) return;
+    const memory = editingValue.trim();
+    if (!memory) return;
     const res = await fetch(`/api/memory/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ fact }),
+      body: JSON.stringify({ memory }),
     });
     if (!res.ok) return;
-    const { fact: row } = (await res.json()) as { fact: UserFactRow };
-    setFacts((current) => current.map((f) => (f.id === id ? row : f)));
+    const { memory: row } = (await res.json()) as { memory: UserMemoryRow };
+    setMemories((current) => current.map((m) => (m.id === id ? row : m)));
     setEditingId(null);
   }
 
-  async function removeFact(id: string) {
+  async function removeMemory(id: string) {
     startTransition(async () => {
       const res = await fetch(`/api/memory/${id}`, { method: "DELETE" });
       if (!res.ok) return;
-      setFacts((current) => current.filter((f) => f.id !== id));
+      setMemories((current) => current.filter((m) => m.id !== id));
     });
   }
 
@@ -72,9 +74,11 @@ export function MemoryRail({ initialFacts }: Props) {
       <ColumnHeader
         title="Memory"
         icon={Brain}
-        description={`${facts.length} fact${facts.length === 1 ? "" : "s"}`}
+        description={`${memories.length} ${
+          memories.length === 1 ? "memory" : "memories"
+        }`}
       />
-      <form onSubmit={addFact} className="flex shrink-0 gap-2 border-b p-3">
+      <form onSubmit={addMemory} className="flex shrink-0 gap-2 border-b p-3">
         <Input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -86,35 +90,35 @@ export function MemoryRail({ initialFacts }: Props) {
           type="submit"
           size="icon"
           disabled={!draft.trim()}
-          aria-label="Add fact"
+          aria-label="Add memory"
         >
           <Plus className="size-4" />
         </Button>
       </form>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {facts.length === 0 ? (
+        {memories.length === 0 ? (
           <p className="px-2 py-4 text-xs text-muted-foreground">
-            No facts yet. Tell the agent your niche, voice, or audience above.
-            It will use these every chat.
+            Nothing remembered yet. Tell the agent your niche, voice, audience,
+            or quirks above. It will use these every chat.
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5">
-            {facts.map((fact) => (
+            {memories.map((memory) => (
               <li
-                key={fact.id}
+                key={memory.id}
                 className={cn(
                   "group flex items-start gap-1.5 rounded-md border bg-background p-2",
                   pending && "opacity-50",
                 )}
               >
-                {editingId === fact.id ? (
+                {editingId === memory.id ? (
                   <>
                     <Input
                       autoFocus
                       value={editingValue}
                       onChange={(e) => setEditingValue(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter") void saveEdit(fact.id);
+                        if (e.key === "Enter") void saveEdit(memory.id);
                         if (e.key === "Escape") setEditingId(null);
                       }}
                       maxLength={500}
@@ -123,7 +127,7 @@ export function MemoryRail({ initialFacts }: Props) {
                     <Button
                       size="icon-xs"
                       variant="ghost"
-                      onClick={() => void saveEdit(fact.id)}
+                      onClick={() => void saveEdit(memory.id)}
                       aria-label="Save"
                     >
                       <Check className="size-3.5" />
@@ -140,15 +144,15 @@ export function MemoryRail({ initialFacts }: Props) {
                 ) : (
                   <>
                     <p className="min-w-0 flex-1 break-words text-xs leading-relaxed">
-                      {fact.fact}
+                      {memory.memory}
                     </p>
                     <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                       <Button
                         size="icon-xs"
                         variant="ghost"
                         onClick={() => {
-                          setEditingId(fact.id);
-                          setEditingValue(fact.fact);
+                          setEditingId(memory.id);
+                          setEditingValue(memory.memory);
                         }}
                         aria-label="Edit"
                       >
@@ -157,7 +161,7 @@ export function MemoryRail({ initialFacts }: Props) {
                       <Button
                         size="icon-xs"
                         variant="ghost"
-                        onClick={() => void removeFact(fact.id)}
+                        onClick={() => void removeMemory(memory.id)}
                         aria-label="Delete"
                         className="text-muted-foreground hover:text-destructive"
                       >

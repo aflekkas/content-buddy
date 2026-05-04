@@ -9,7 +9,7 @@ import type {
   MonitoredSourceRow,
   OnboardingProfileInput,
   SignalRow,
-  UserFactRow,
+  UserMemoryRow,
   UserProfileRow,
 } from "./types";
 
@@ -276,10 +276,10 @@ export async function upsertUserProfile(
   return data;
 }
 
-export async function listFacts(userId: string): Promise<UserFactRow[]> {
+export async function listMemories(userId: string): Promise<UserMemoryRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("user_facts")
+    .from("user_memories")
     .select("*")
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
@@ -288,15 +288,15 @@ export async function listFacts(userId: string): Promise<UserFactRow[]> {
   return data ?? [];
 }
 
-export async function createFact(
+export async function createMemory(
   userId: string,
-  fact: string,
-  source: UserFactRow["source"] = "user",
-): Promise<UserFactRow> {
+  memory: string,
+  source: UserMemoryRow["source"] = "user",
+): Promise<UserMemoryRow> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("user_facts")
-    .insert({ user_id: userId, fact, source })
+    .from("user_memories")
+    .insert({ user_id: userId, memory, source })
     .select()
     .single();
 
@@ -304,15 +304,15 @@ export async function createFact(
   return data;
 }
 
-export async function updateFact(
+export async function updateMemory(
   userId: string,
   id: string,
-  fact: string,
-): Promise<UserFactRow> {
+  memory: string,
+): Promise<UserMemoryRow> {
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("user_facts")
-    .update({ fact, updated_at: new Date().toISOString() })
+    .from("user_memories")
+    .update({ memory, updated_at: new Date().toISOString() })
     .eq("user_id", userId)
     .eq("id", id)
     .select()
@@ -322,10 +322,10 @@ export async function updateFact(
   return data;
 }
 
-export async function deleteFact(userId: string, id: string): Promise<void> {
+export async function deleteMemory(userId: string, id: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase
-    .from("user_facts")
+    .from("user_memories")
     .delete()
     .eq("user_id", userId)
     .eq("id", id);
@@ -397,6 +397,7 @@ export async function updateSource(
   patch: Partial<
     Pick<
       MonitoredSourceRow,
+      | "handle"
       | "topic_tags"
       | "poll_interval_hours"
       | "last_polled_at"
@@ -587,6 +588,28 @@ export async function listDrafts(userId: string): Promise<DraftRow[]> {
   return data ?? [];
 }
 
+export async function listRecentDrafts(
+  userId: string,
+  opts: { limit: number; status?: DraftRow["status"] | "any" },
+): Promise<DraftRow[]> {
+  const limit = Math.min(Math.max(opts.limit, 1), 20);
+  const supabase = await createClient();
+  let query = supabase
+    .from("drafts")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (opts.status && opts.status !== "any") {
+    query = query.eq("status", opts.status);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
 export async function getDraft(
   userId: string,
   id: string,
@@ -605,7 +628,12 @@ export async function getDraft(
 
 export async function createDraft(
   userId: string,
-  input: { signal_ids?: string[]; body: string; chat_id?: string | null },
+  input: {
+    signal_ids?: string[];
+    body: string;
+    chat_id?: string | null;
+    post_type?: DraftRow["post_type"];
+  },
 ): Promise<DraftRow> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -615,6 +643,7 @@ export async function createDraft(
       signal_ids: input.signal_ids ?? [],
       body: input.body,
       chat_id: input.chat_id ?? null,
+      post_type: input.post_type ?? null,
     })
     .select()
     .single();
@@ -626,7 +655,9 @@ export async function createDraft(
 export async function updateDraft(
   userId: string,
   id: string,
-  patch: Partial<Pick<DraftRow, "body" | "status" | "copied_at" | "chat_id">>,
+  patch: Partial<
+    Pick<DraftRow, "body" | "status" | "copied_at" | "chat_id" | "post_type">
+  >,
 ): Promise<DraftRow> {
   const supabase = createAdminClient();
   const { data, error } = await supabase

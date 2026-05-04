@@ -14,6 +14,7 @@ import {
   NewsSignalCard,
   type NewsSignalCardData,
 } from "@/components/news/news-signal-card";
+import { citeSignal } from "@/lib/cite-signal";
 import { Loader } from "@/components/ui/loader";
 import { Markdown } from "@/components/ui/markdown";
 import { Message } from "@/components/ui/message";
@@ -440,6 +441,12 @@ function MessageRender({
       "tool-update_memory": "Updated memory",
       "tool-news_scan": "Scanned news",
       "tool-save_as_draft": "Saved as draft",
+      "tool-list_sources": "Listed feeds",
+      "tool-add_source": "Added feed",
+      "tool-remove_source": "Removed feed",
+      "tool-update_source": "Updated feed",
+      "tool-list_niche_bundles": "Browsed bundles",
+      "tool-add_niche_bundle": "Added bundle",
     };
     const label = labels[type];
     return label ? <ToolChip key={key} label={label} /> : null;
@@ -569,7 +576,12 @@ function MessageRender({
       {newsCards.length > 0 ? (
         <div className="flex w-full max-w-[85%] flex-col gap-1.5">
           {newsCards.map((c) => (
-            <NewsSignalCard key={c.id} variant="chat" signal={c} />
+            <NewsSignalCard
+              key={c.id}
+              variant="chat"
+              signal={c}
+              onCite={citeSignal}
+            />
           ))}
         </div>
       ) : null}

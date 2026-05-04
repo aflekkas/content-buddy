@@ -36,18 +36,39 @@ export type MessageRow = {
   created_at: string;
 };
 
+export const POST_TYPES = [
+  "hot_take",
+  "story",
+  "framework",
+  "teardown",
+  "listicle",
+  "contrarian",
+  "question",
+  "lesson",
+] as const;
+
+export type PostType = (typeof POST_TYPES)[number];
+
 export type UserProfileRow = {
   user_id: string;
   updated_at: string;
   niche: string | null;
   voice_notes: string | null;
   voice_samples: string | null;
+  target_audience: string | null;
+  post_goal: string | null;
+  formality: number;
+  elaboration: number;
+  length_pref: number;
+  preferred_post_types: PostType[];
+  avoid_phrases: string | null;
+  include_links: boolean;
 };
 
-export type UserFactRow = {
+export type UserMemoryRow = {
   id: string;
   user_id: string;
-  fact: string;
+  memory: string;
   source: "user" | "agent";
   created_at: string;
   updated_at: string;
@@ -89,16 +110,28 @@ export type DraftRow = {
   chat_id: string | null;
   body: string;
   status: "draft" | "copied" | "dismissed";
+  post_type: PostType | null;
   copied_at: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type WritingPrefsInput = {
+  target_audience?: string | null;
+  post_goal?: string | null;
+  formality?: number;
+  elaboration?: number;
+  length_pref?: number;
+  preferred_post_types?: PostType[];
+  avoid_phrases?: string | null;
+  include_links?: boolean;
 };
 
 export type OnboardingProfileInput = {
   niche?: string | null;
   voice_notes?: string | null;
   voice_samples?: string | null;
-};
+} & WritingPrefsInput;
 
 export type MessagesPage = {
   messages: MessageRow[];

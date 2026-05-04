@@ -16,20 +16,25 @@ import {
   addChatUsage,
   appendMessageWithParts,
   createDraft,
-  createFact,
+  createMemory,
+  createSource,
+  deleteSource,
   getChat,
   getDraft,
   getUserProfile,
   getSignal,
-  listFacts,
+  listMemories,
   listSignals,
   listSignalsByIds,
   listSources,
   setChatTitleIfEmpty,
   updateDraft,
-  updateFact,
+  updateMemory,
   updateSignal,
+  updateSource,
 } from "@/lib/db/queries";
+import { probeFeed } from "@/lib/sources/rss";
+import { NICHE_BUNDLES } from "@/lib/sources/niche-bundles";
 import { extractText, filterPersistableParts } from "@/lib/message-parts";
 import { encodeProviderError, mapProviderError } from "@/lib/provider-errors";
 import { buildRateLimitHeaders, checkChatRateLimit } from "@/lib/rate-limit";
@@ -95,7 +100,7 @@ export async function POST(req: Request) {
 
   const [profile, facts, draftSignals, sources] = await Promise.all([
     getUserProfile(user.id),
-    listFacts(user.id),
+    listMemories(user.id),
     draft ? listSignalsByIds(user.id, draft.signal_ids) : Promise.resolve([]),
     listSources(user.id),
   ]);
@@ -145,10 +150,10 @@ export async function POST(req: Request) {
           "Return all of the user's saved long-term memory facts. Call this if you want a fresh read of memory; current memory is already in the system prompt.",
         inputSchema: z.object({}),
         execute: async () => {
-          const rows = await listFacts(user.id);
+          const rows = await listMemories(user.id);
           return {
             ok: true,
-            facts: rows.map((r) => ({ id: r.id, fact: r.fact, source: r.source })),
+            facts: rows.map((r) => ({ id: r.id, fact: r.memory, source: r.source })),
           };
         },
       }),
@@ -159,7 +164,7 @@ export async function POST(req: Request) {
           fact: z.string().min(1).max(500),
         }),
         execute: async ({ fact }) => {
-          const row = await createFact(user.id, fact, "agent");
+          const row = await createMemory(user.id, fact, "agent");
           return { ok: true, id: row.id };
         },
       }),
@@ -172,7 +177,7 @@ export async function POST(req: Request) {
         }),
         execute: async ({ id, fact }) => {
           try {
-            const row = await updateFact(user.id, id, fact);
+            const row = await updateMemory(user.id, id, fact);
             return { ok: true, id: row.id };
           } catch {
             return { ok: false, error: "update_failed" };
@@ -296,6 +301,174 @@ export async function POST(req: Request) {
               summary: signal.summary,
               relevance_score: signal.relevance_score,
             },
+          };
+        },
+      }),
+      list_sources: tool({
+        description:
+          "List the user's monitored RSS feeds. Use when they ask what feeds they have, want to manage feeds, or before removing/updating one (so you have the id).",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const rows = await listSources(user.id);
+          return {
+            ok: true,
+            sources: rows.map((s) => ({
+              id: s.id,
+              handle: s.handle,
+              url: s.url,
+              topic_tags: s.topic_tags,
+              poll_interval_hours: s.poll_interval_hours,
+              last_polled_at: s.last_polled_at,
+            })),
+          };
+        },
+      }),
+      add_source: tool({
+        description:
+          "Add a new RSS feed for the user. Validates the feed first via probe; on success the feed is saved and will be polled on the next cron tick.",
+        inputSchema: z.object({
+          url: z.string().url().max(500),
+          topic_tags: z.array(z.string().min(1).max(64)).max(20).optional(),
+        }),
+        execute: async ({ url, topic_tags }) => {
+          const probe = await probeFeed(url);
+          if (!probe.ok) {
+            return { ok: false, error: "probe_failed", message: probe.message };
+          }
+          try {
+            const row = await createSource(user.id, {
+              kind: "rss_feed",
+              handle: probe.title.slice(0, 80),
+              url,
+              topic_tags,
+            });
+            return { ok: true, id: row.id, handle: row.handle };
+          } catch (error) {
+            return {
+              ok: false,
+              error: "create_failed",
+              message:
+                error instanceof Error ? error.message : "create failed",
+            };
+          }
+        },
+      }),
+      remove_source: tool({
+        description:
+          "Remove an RSS feed by id. Get ids from list_sources. Confirms with the user before destructive action when in doubt.",
+        inputSchema: z.object({
+          id: z.uuid(),
+        }),
+        execute: async ({ id }) => {
+          try {
+            await deleteSource(user.id, id);
+            return { ok: true };
+          } catch {
+            return { ok: false, error: "delete_failed" };
+          }
+        },
+      }),
+      update_source: tool({
+        description:
+          "Update fields on an existing RSS feed (rename via handle, change topic_tags, or change poll_interval_hours). Cannot change the feed URL — to switch URL, remove and re-add.",
+        inputSchema: z.object({
+          id: z.uuid(),
+          patch: z
+            .object({
+              handle: z.string().min(1).max(80).optional(),
+              topic_tags: z
+                .array(z.string().min(1).max(64))
+                .max(20)
+                .optional(),
+              poll_interval_hours: z.number().int().min(1).max(168).optional(),
+            })
+            .refine((p) => Object.keys(p).length > 0, {
+              message: "patch must have at least one field",
+            }),
+        }),
+        execute: async ({ id, patch }) => {
+          try {
+            const row = await updateSource(user.id, id, patch);
+            return {
+              ok: true,
+              id: row.id,
+              handle: row.handle,
+              topic_tags: row.topic_tags,
+              poll_interval_hours: row.poll_interval_hours,
+            };
+          } catch {
+            return { ok: false, error: "update_failed" };
+          }
+        },
+      }),
+      list_niche_bundles: tool({
+        description:
+          "Return the curated niche feed bundles available for one-click subscribe (AI/ML, SaaS founders, DevTools, etc.). Use when the user asks what to follow or wants suggestions.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          return {
+            ok: true,
+            bundles: NICHE_BUNDLES.map((b) => ({
+              id: b.id,
+              label: b.label,
+              description: b.description,
+              feeds: b.feeds.map((f) => ({ url: f.url, title: f.title })),
+            })),
+          };
+        },
+      }),
+      add_niche_bundle: tool({
+        description:
+          "Subscribe the user to all feeds in a niche bundle by id (use list_niche_bundles to discover ids). Probes each URL and inserts the ones that respond.",
+        inputSchema: z.object({
+          bundle_id: z.string().min(1).max(64),
+        }),
+        execute: async ({ bundle_id }) => {
+          const bundle = NICHE_BUNDLES.find((b) => b.id === bundle_id);
+          if (!bundle) return { ok: false, error: "bundle_not_found" };
+
+          const results = await Promise.all(
+            bundle.feeds.map(async (feed) => {
+              const probe = await probeFeed(feed.url);
+              if (!probe.ok) {
+                return {
+                  ok: false as const,
+                  url: feed.url,
+                  reason: probe.message,
+                };
+              }
+              try {
+                const row = await createSource(user.id, {
+                  kind: "rss_feed",
+                  handle: probe.title.slice(0, 80),
+                  url: feed.url,
+                  topic_tags: [bundle.id],
+                });
+                return {
+                  ok: true as const,
+                  url: feed.url,
+                  handle: row.handle,
+                };
+              } catch (error) {
+                return {
+                  ok: false as const,
+                  url: feed.url,
+                  reason:
+                    error instanceof Error ? error.message : "create failed",
+                };
+              }
+            }),
+          );
+
+          return {
+            ok: true,
+            bundle_id: bundle.id,
+            added: results
+              .filter((r) => r.ok)
+              .map((r) => ({ url: r.url, handle: r.handle })),
+            skipped: results
+              .filter((r) => !r.ok)
+              .map((r) => ({ url: r.url, reason: r.reason })),
           };
         },
       }),
