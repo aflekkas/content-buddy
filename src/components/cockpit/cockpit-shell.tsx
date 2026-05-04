@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   FileText,
   Newspaper,
+  Settings as SettingsIcon,
   Sparkles,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -33,16 +34,18 @@ type Props = {
   memorySlot: ReactNode;
   draftsSlot: ReactNode;
   newsSlot: ReactNode;
+  settingsSlot: ReactNode;
   chatSwitcherSlot: ReactNode;
   children: ReactNode;
 };
 
-type MobilePanel = "memory" | "drafts" | "news" | "chat";
+type MobilePanel = "memory" | "drafts" | "news" | "settings" | "chat";
 
 const MOBILE_PANELS = [
   { id: "memory", label: "Memory", icon: Brain },
   { id: "drafts", label: "Drafts", icon: FileText },
   { id: "news", label: "News", icon: Newspaper },
+  { id: "settings", label: "Settings", icon: SettingsIcon },
   { id: "chat", label: "Chat", icon: Sparkles },
 ] as const satisfies ReadonlyArray<{
   id: MobilePanel;
@@ -53,14 +56,17 @@ const MOBILE_PANELS = [
 const MEMORY_PANEL_WIDTH = 320;
 const DRAFTS_PANEL_WIDTH = 320;
 const NEWS_PANEL_WIDTH = 340;
+const SETTINGS_PANEL_WIDTH = 380;
 const RAIL_WIDTH = 56;
-const PANEL_STATE_STORAGE_KEY = "linkedin-studio:cockpit-panels:v2";
+const PANEL_STATE_STORAGE_KEY = "linkedin-studio:cockpit-panels:v3";
 const MEMORY_ICON_BUTTON_CLASS =
   "text-sky-600 hover:text-sky-700 dark:text-sky-300";
 const DRAFTS_ICON_BUTTON_CLASS =
   "text-amber-600 hover:text-amber-700 dark:text-amber-300";
 const NEWS_ICON_BUTTON_CLASS =
   "text-emerald-600 hover:text-emerald-700 dark:text-emerald-300";
+const SETTINGS_ICON_BUTTON_CLASS =
+  "text-rose-600 hover:text-rose-700 dark:text-rose-300";
 const HEADER_ICON_BUTTON_CLASS =
   "inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
@@ -74,6 +80,7 @@ type StoredPanelState = {
   memoryCollapsed?: boolean;
   draftsCollapsed?: boolean;
   newsCollapsed?: boolean;
+  settingsCollapsed?: boolean;
   chatCollapsed?: boolean;
 };
 
@@ -81,6 +88,7 @@ const DEFAULT_PANEL_STATE = {
   memoryCollapsed: true,
   draftsCollapsed: false,
   newsCollapsed: true,
+  settingsCollapsed: true,
   chatCollapsed: false,
 } as const;
 
@@ -89,6 +97,7 @@ export function CockpitShell({
   memorySlot,
   draftsSlot,
   newsSlot,
+  settingsSlot,
   chatSwitcherSlot,
   children,
 }: Props) {
@@ -102,6 +111,9 @@ export function CockpitShell({
   );
   const [newsCollapsed, setNewsCollapsed] = useState<boolean>(
     DEFAULT_PANEL_STATE.newsCollapsed,
+  );
+  const [settingsCollapsed, setSettingsCollapsed] = useState<boolean>(
+    DEFAULT_PANEL_STATE.settingsCollapsed,
   );
   const [chatCollapsed, setChatCollapsed] = useState<boolean>(
     DEFAULT_PANEL_STATE.chatCollapsed,
@@ -117,16 +129,22 @@ export function CockpitShell({
     setMemoryCollapsed(stored.memoryCollapsed);
     setDraftsCollapsed(stored.draftsCollapsed);
     setNewsCollapsed(stored.newsCollapsed);
+    setSettingsCollapsed(stored.settingsCollapsed);
     setChatCollapsed(stored.chatCollapsed);
   }, []);
 
   const hasActiveDrafts = activeDraftIds.length > 0;
   const hasCollapsedRail =
-    memoryCollapsed || draftsCollapsed || newsCollapsed || chatCollapsed;
+    memoryCollapsed ||
+    draftsCollapsed ||
+    newsCollapsed ||
+    settingsCollapsed ||
+    chatCollapsed;
   const showEmptyCanvas =
     memoryCollapsed &&
     draftsCollapsed &&
     newsCollapsed &&
+    settingsCollapsed &&
     chatCollapsed &&
     !hasActiveDrafts;
   const reducedMotion = useReducedMotionSafe();
@@ -143,10 +161,17 @@ export function CockpitShell({
         memoryCollapsed,
         draftsCollapsed,
         newsCollapsed,
+        settingsCollapsed,
         chatCollapsed,
       }),
     );
-  }, [chatCollapsed, draftsCollapsed, memoryCollapsed, newsCollapsed]);
+  }, [
+    chatCollapsed,
+    draftsCollapsed,
+    memoryCollapsed,
+    newsCollapsed,
+    settingsCollapsed,
+  ]);
 
   function expandMemoryPanel() {
     setMemoryCollapsed(false);
@@ -156,6 +181,9 @@ export function CockpitShell({
   }
   function expandNewsPanel() {
     setNewsCollapsed(false);
+  }
+  function expandSettingsPanel() {
+    setSettingsCollapsed(false);
   }
   function expandChatPanel() {
     setChatCollapsed(false);
@@ -167,7 +195,7 @@ export function CockpitShell({
 
       <nav
         aria-label="Dashboard sections"
-        className="grid h-11 shrink-0 grid-cols-4 border-b bg-background p-1 lg:hidden"
+        className="grid h-11 shrink-0 grid-cols-5 border-b bg-background p-1 lg:hidden"
       >
         {MOBILE_PANELS.map((panel) => {
           const Icon = panel.icon;
@@ -182,6 +210,7 @@ export function CockpitShell({
                 if (panel.id === "memory") expandMemoryPanel();
                 if (panel.id === "drafts") expandDraftsPanel();
                 if (panel.id === "news") expandNewsPanel();
+                if (panel.id === "settings") expandSettingsPanel();
                 if (panel.id === "chat") expandChatPanel();
               }}
               className={cn(
@@ -261,6 +290,23 @@ export function CockpitShell({
                       icon={Newspaper}
                       className={NEWS_ICON_BUTTON_CLASS}
                       onClick={expandNewsPanel}
+                    />
+                  </motion.div>
+                ) : null}
+                {settingsCollapsed ? (
+                  <motion.div
+                    key="settings"
+                    layout
+                    initial={reducedMotion ? false : { opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
+                    transition={railTransition}
+                  >
+                    <RailButton
+                      label="Expand settings"
+                      icon={SettingsIcon}
+                      className={SETTINGS_ICON_BUTTON_CLASS}
+                      onClick={expandSettingsPanel}
                     />
                   </motion.div>
                 ) : null}
@@ -384,6 +430,40 @@ export function CockpitShell({
               icon={ChevronLeft}
               onClick={() => setNewsCollapsed(true)}
               className={newsCollapsed && "lg:hidden"}
+            />
+          </motion.div>
+
+          <motion.div
+            initial={false}
+            animate={{
+              "--settings-panel-width": `${
+                settingsCollapsed ? 0 : SETTINGS_PANEL_WIDTH
+              }px`,
+            }}
+            transition={panelTransition}
+            className={cn(
+              "relative min-h-0 flex-1 overflow-hidden",
+              activePanel === "settings" ? "flex" : "hidden",
+              "lg:flex lg:h-full lg:w-[var(--settings-panel-width)] lg:flex-none lg:border-r",
+              settingsCollapsed && "lg:border-r-0",
+            )}
+          >
+            <aside
+              aria-hidden={settingsCollapsed}
+              inert={settingsCollapsed ? true : undefined}
+              className={cn(
+                "flex min-h-0 flex-1 flex-col transition-opacity duration-150 lg:w-[380px] lg:flex-none",
+                settingsCollapsed && "lg:pointer-events-none lg:opacity-0",
+              )}
+            >
+              {settingsSlot}
+            </aside>
+
+            <PanelButton
+              label="Collapse settings"
+              icon={ChevronLeft}
+              onClick={() => setSettingsCollapsed(true)}
+              className={settingsCollapsed && "lg:hidden"}
             />
           </motion.div>
 
@@ -536,6 +616,7 @@ export function CockpitShell({
                     setMemoryCollapsed(false);
                     setDraftsCollapsed(false);
                     setNewsCollapsed(false);
+                    setSettingsCollapsed(false);
                     setChatCollapsed(false);
                   }}
                 />
@@ -567,6 +648,10 @@ function getStoredPanelState() {
         typeof stored.newsCollapsed === "boolean"
           ? stored.newsCollapsed
           : DEFAULT_PANEL_STATE.newsCollapsed,
+      settingsCollapsed:
+        typeof stored.settingsCollapsed === "boolean"
+          ? stored.settingsCollapsed
+          : DEFAULT_PANEL_STATE.settingsCollapsed,
       chatCollapsed:
         typeof stored.chatCollapsed === "boolean"
           ? stored.chatCollapsed

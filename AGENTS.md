@@ -64,7 +64,7 @@ LinkedIn Studio uses a single shared OpenAI key set in the server env. There is 
 - Server-side AI calls read the env key directly: `process.env.OPENAI_API_KEY`. Never reintroduce per-user key tables, encrypted credentials, or BYOK UI surfaces.
 - Provider catalogue (supported providers and models) is the single source of truth in `src/lib/providers.ts`. Use `getModel("openai", "gpt-4o-mini", apiKey)` from `src/lib/model-dispatch.ts`. Do not import provider SDKs directly in route or feature code.
 - Onboarding is 3 steps: welcome, profile (niche + voice notes + voice samples), sources (RSS feeds + niche bundles). No keys step.
-- Settings is a single dialog with the creator profile form only.
+- Settings live in the Settings rail panel (5th cockpit tab, default collapsed). Edits PATCH `/api/profile` and feed both the chat system prompt and the synthesis prompt as soft hints (target audience, post goal, formality 1-5, elaboration 1-3, target length, preferred post types, avoid phrases, include links). Audience/goal are framed as soft hints — never name-drop or shoehorn.
 
 ## Pipeline Invariants
 
@@ -73,6 +73,8 @@ LinkedIn Studio uses a single shared OpenAI key set in the server env. There is 
 - `/api/journal` POST appends a `life_journal` signal for the user.
 - `/api/scan` POST with `mode: "news" | "life" | "mix"` synthesizes a draft on demand. This is the only synthesis trigger.
 - Draft chat is scoped to `/dashboard/drafts/[id]`; do not add a standalone dashboard chat route.
+- Long-term memory lives in `user_memories` (renamed from `user_facts`). Chat tools `write_memory` / `update_memory` accept a `memory` field. UI labels use "Memory" everywhere.
+- Synthesis prompt (`src/lib/synthesis.ts`) returns `{post_type, body}` JSON. The chosen `post_type` is persisted on the draft. Style/audience fields from `user_profiles` are passed as soft-hint XML blocks, never as hard constraints.
 
 ## Chat Invariants
 

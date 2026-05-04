@@ -40,16 +40,15 @@ export async function POST() {
   }
 
   try {
-    const { body } = await synthesizeFromSignals({
+    const { body, post_type } = await synthesizeFromSignals({
       mode: "news",
       signals: chosen,
-      niche: profile?.niche ?? null,
-      voiceNotes: profile?.voice_notes ?? null,
-      voiceSamples: profile?.voice_samples ?? null,
+      profile,
     });
     const draft = await createDraft(userId, {
       body,
       signal_ids: chosen.map((s) => s.id),
+      post_type,
     });
     await Promise.all(
       chosen.map((s) => updateSignal(userId, s.id, { status: "drafted" })),

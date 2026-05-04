@@ -24,6 +24,7 @@ import {
   getUserProfile,
   getSignal,
   listMemories,
+  listRecentDrafts,
   listSignals,
   listSignalsByIds,
   listSources,
@@ -39,7 +40,7 @@ import { extractText, filterPersistableParts } from "@/lib/message-parts";
 import { encodeProviderError, mapProviderError } from "@/lib/provider-errors";
 import { buildRateLimitHeaders, checkChatRateLimit } from "@/lib/rate-limit";
 import { synthesizeFromSignals } from "@/lib/synthesis";
-import type { SignalRow } from "@/lib/db/types";
+import { POST_TYPES, type PostType, type SignalRow } from "@/lib/db/types";
 
 export const maxDuration = 60;
 
@@ -98,7 +99,7 @@ export async function POST(req: Request) {
     return errorResponse("image_not_supported", 415, { provider });
   }
 
-  const [profile, facts, draftSignals, sources] = await Promise.all([
+  const [profile, memories, draftSignals, sources] = await Promise.all([
     getUserProfile(user.id),
     listMemories(user.id),
     draft ? listSignalsByIds(user.id, draft.signal_ids) : Promise.resolve([]),
@@ -135,7 +136,7 @@ export async function POST(req: Request) {
               voice_notes: profile.voice_notes,
             }
           : null,
-        facts,
+        memories,
         activeDraft: draft,
         activeDraftSignals: draftSignals.map((signal) => ({
           ...signal,
@@ -147,41 +148,68 @@ export async function POST(req: Request) {
     tools: {
       read_memory: tool({
         description:
-          "Return all of the user's saved long-term memory facts. Call this if you want a fresh read of memory; current memory is already in the system prompt.",
+          "Return all of the user's saved long-term memories. Call this if you want a fresh read of memory; current memory is already in the system prompt.",
         inputSchema: z.object({}),
         execute: async () => {
           const rows = await listMemories(user.id);
           return {
             ok: true,
-            facts: rows.map((r) => ({ id: r.id, fact: r.memory, source: r.source })),
+            memories: rows.map((r) => ({
+              id: r.id,
+              memory: r.memory,
+              source: r.source,
+            })),
           };
         },
       }),
       write_memory: tool({
         description:
-          "Save a new long-term memory fact about the user (niche, voice, audience, preferences). Before calling, check the <memory> block for duplicates or overlap; if the new info refines an existing fact, call update_memory instead.",
+          "Save a new long-term memory about the user (niche, voice, audience, preferences, quirks, dislikes). Before calling, check the <memory> block for duplicates or overlap; if the new info refines an existing memory, call update_memory instead.",
         inputSchema: z.object({
-          fact: z.string().min(1).max(500),
+          memory: z.string().min(1).max(500),
         }),
-        execute: async ({ fact }) => {
-          const row = await createMemory(user.id, fact, "agent");
+        execute: async ({ memory }) => {
+          const row = await createMemory(user.id, memory, "agent");
           return { ok: true, id: row.id };
         },
       }),
       update_memory: tool({
         description:
-          "Update an existing memory fact by id. Use when a previously saved fact needs refinement, correction, or merging with new info. Get ids from the <memory> block.",
+          "Update an existing memory by id. Use when a previously saved memory needs refinement, correction, or merging with new info. Get ids from the <memory> block.",
         inputSchema: z.object({
           id: z.uuid(),
-          fact: z.string().min(1).max(500),
+          memory: z.string().min(1).max(500),
         }),
-        execute: async ({ id, fact }) => {
+        execute: async ({ id, memory }) => {
           try {
-            const row = await updateMemory(user.id, id, fact);
+            const row = await updateMemory(user.id, id, memory);
             return { ok: true, id: row.id };
           } catch {
             return { ok: false, error: "update_failed" };
           }
+        },
+      }),
+      read_past_drafts: tool({
+        description:
+          "Fetch the user's recent draft bodies to sample their writing voice. Use when asked to match the style of recent posts, when synthesizing fresh drafts and wanting voice calibration, or when the user references 'how I usually write'.",
+        inputSchema: z.object({
+          limit: z.number().int().min(1).max(20).default(5),
+          status: z
+            .enum(["any", "draft", "copied", "dismissed"])
+            .default("any"),
+        }),
+        execute: async ({ limit, status }) => {
+          const rows = await listRecentDrafts(user.id, { limit, status });
+          return {
+            ok: true,
+            drafts: rows.map((r) => ({
+              id: r.id,
+              body: r.body,
+              status: r.status,
+              post_type: r.post_type,
+              created_at: r.created_at,
+            })),
+          };
         },
       }),
       news_scan: tool({
@@ -242,24 +270,26 @@ export async function POST(req: Request) {
       }),
       synthesize_from_news: tool({
         description:
-          "Generate a LinkedIn draft from recent news signals using the user's niche and voice. Returns the draft body. The user can then ask you to save it.",
+          "Generate a LinkedIn draft from recent news signals using the user's niche, voice, and writing preferences. Returns the draft body. Pass an optional post_type to force a specific post shape; otherwise the synthesis picks one based on the source and the user's preferred_post_types.",
         inputSchema: z.object({
           signal_ids: z.array(z.uuid()).min(1).max(5),
+          post_type: z.enum(POST_TYPES).optional(),
         }),
-        execute: async ({ signal_ids }) => {
+        execute: async ({ signal_ids, post_type }) => {
           const signals = await listSignalsByIds(user.id, signal_ids);
           if (signals.length === 0) {
             return { ok: false, error: "no_signals_found" };
           }
           try {
-            const { body } = await synthesizeFromSignals({
-              mode: "news",
-              signals,
-              niche: profile?.niche ?? null,
-              voiceNotes: profile?.voice_notes ?? null,
-              voiceSamples: profile?.voice_samples ?? null,
-            });
-            return { ok: true, body, signal_ids };
+            const { body, post_type: chosenType } = await synthesizeFromSignals(
+              {
+                mode: "news",
+                signals,
+                profile,
+                postType: post_type as PostType | undefined,
+              },
+            );
+            return { ok: true, body, signal_ids, post_type: chosenType };
           } catch (error) {
             return {
               ok: false,

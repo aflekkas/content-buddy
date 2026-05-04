@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
 import {
   countSignals,
+  getUserProfile,
   listChats,
   listDrafts,
   listMemories,
@@ -14,6 +15,7 @@ import { ChatSwitcherMount } from "@/components/cockpit/chat-switcher-mount";
 import { MemoryRail } from "@/components/memory/memory-rail";
 import { DraftsList } from "@/components/drafts/drafts-list";
 import { NewsRail } from "@/components/news/news-rail";
+import { SettingsRail } from "@/components/settings/settings-rail";
 
 const SIGNALS_PAGE_SIZE = 10;
 
@@ -25,7 +27,7 @@ export default async function DashboardShellLayout({
   const user = await getCurrentUser();
   if (!user) redirect("/");
 
-  const [memories, drafts, chats, sources, signals, totalSignalCount] =
+  const [memories, drafts, chats, sources, signals, totalSignalCount, profile] =
     await Promise.all([
       listMemories(user.id),
       listDrafts(user.id),
@@ -36,6 +38,7 @@ export default async function DashboardShellLayout({
         statusNot: "dismissed",
       }),
       countSignals(user.id, { statusNot: "dismissed" }),
+      getUserProfile(user.id),
     ]);
 
   const sourceHandles = new Map(
@@ -61,6 +64,7 @@ export default async function DashboardShellLayout({
             userId={user.id}
           />
         }
+        settingsSlot={<SettingsRail initialProfile={profile} />}
         chatSwitcherSlot={<ChatSwitcherMount chats={chats} />}
       >
         {children}

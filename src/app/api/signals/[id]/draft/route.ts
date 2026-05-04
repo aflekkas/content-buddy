@@ -20,16 +20,15 @@ export async function POST(
 
   const profile = await getUserProfile(auth.user.id);
   try {
-    const { body } = await synthesizeFromSignals({
+    const { body, post_type } = await synthesizeFromSignals({
       mode: "news",
       signals: [signal],
-      niche: profile?.niche ?? null,
-      voiceNotes: profile?.voice_notes ?? null,
-      voiceSamples: profile?.voice_samples ?? null,
+      profile,
     });
     const draft = await createDraft(auth.user.id, {
       body,
       signal_ids: [signal.id],
+      post_type,
     });
     await updateSignal(auth.user.id, signal.id, { status: "drafted" });
     return jsonResponse(draft, { status: 201 });
