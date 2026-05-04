@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { BRAND_NAME } from "@/lib/brand";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
@@ -32,14 +33,15 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://api.fontshare.com/v2/css?f[]=open-sauce-sans@300,400,500,600,700&f[]=sentient@300,301,400,401,500,501,700,701&display=swap"
         />
+        <script
+          // Runs before React hydrates so the user never sees a theme flash.
+          // Lives in <head> (not the React body tree) so React 19 does not
+          // warn about scripts inside components.
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
       </head>
       <body className="h-svh overflow-hidden flex flex-col font-sans">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
+        <ThemeProvider>
           <NextTopLoader
             color="#0A66C2"
             height={4}

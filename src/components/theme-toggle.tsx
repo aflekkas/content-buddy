@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/lib/theme";
 import { Moon, Sun } from "lucide-react";
 
 type DocWithVT = Document & {
