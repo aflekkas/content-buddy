@@ -156,6 +156,8 @@ export function Chat({
 
   const seenMemorySavesRef = useRef<Set<string>>(new Set());
   const seenDraftSavesRef = useRef<Set<string>>(new Set());
+  const seenStreamingEndsRef = useRef<Set<string>>(new Set());
+  const lastStreamingBodyRef = useRef<Map<string, string>>(new Map());
   useEffect(() => {
     for (const m of messages) {
       if (m.role !== "assistant") continue;
@@ -164,9 +166,44 @@ export function Chat({
           type: string;
           toolCallId?: string;
           state?: string;
+          input?: { body?: unknown; id?: unknown };
           output?: { ok?: boolean; id?: string };
         };
         if (!p.toolCallId) continue;
+
+        const isDraftSave = p.type === "tool-save_as_draft";
+        const isDraftUpdate = p.type === "tool-update_draft";
+        const isDraftTool = isDraftSave || isDraftUpdate;
+
+        // Streaming tool-arg updates: surface partial body live.
+        if (
+          isDraftTool &&
+          p.state === "input-streaming" &&
+          typeof p.input?.body === "string"
+        ) {
+          const partialBody = p.input.body;
+          const prev = lastStreamingBodyRef.current.get(p.toolCallId);
+          if (prev === partialBody) continue;
+          lastStreamingBodyRef.current.set(p.toolCallId, partialBody);
+          const kind = isDraftSave ? "save" : "update";
+          const targetId = isDraftUpdate
+            ? typeof p.input?.id === "string"
+              ? p.input.id
+              : draftId
+            : undefined;
+          window.dispatchEvent(
+            new CustomEvent("linkedin-studio:draft:streaming", {
+              detail: {
+                kind,
+                id: targetId,
+                body: partialBody,
+                toolCallId: p.toolCallId,
+              },
+            }),
+          );
+          continue;
+        }
+
         if (p.state !== "output-available") continue;
         if (p.output?.ok !== true) continue;
 
@@ -177,10 +214,28 @@ export function Chat({
           if (seenMemorySavesRef.current.has(p.toolCallId)) continue;
           seenMemorySavesRef.current.add(p.toolCallId);
           window.dispatchEvent(new CustomEvent("memory:saved"));
-        } else if (
-          p.type === "tool-save_as_draft" ||
-          p.type === "tool-update_draft"
-        ) {
+        } else if (isDraftTool) {
+          // streaming-end fires once per toolCallId regardless of drafts:changed dedupe.
+          if (!seenStreamingEndsRef.current.has(p.toolCallId)) {
+            seenStreamingEndsRef.current.add(p.toolCallId);
+            const kind = isDraftSave ? "save" : "update";
+            const finalId =
+              p.output?.id ??
+              (isDraftUpdate
+                ? typeof p.input?.id === "string"
+                  ? p.input.id
+                  : draftId
+                : undefined);
+            window.dispatchEvent(
+              new CustomEvent("linkedin-studio:draft:streaming-end", {
+                detail: {
+                  kind,
+                  id: finalId,
+                  toolCallId: p.toolCallId,
+                },
+              }),
+            );
+          }
           if (seenDraftSavesRef.current.has(p.toolCallId)) continue;
           seenDraftSavesRef.current.add(p.toolCallId);
           window.dispatchEvent(
@@ -191,7 +246,7 @@ export function Chat({
         }
       }
     }
-  }, [messages]);
+  }, [messages, draftId]);
 
   const totalUsage: TokenUsage = useMemo(() => {
     const total: TokenUsage = { ...initialUsage };

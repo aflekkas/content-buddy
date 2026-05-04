@@ -54,7 +54,7 @@ export default async function DashboardShellLayout({
       <CockpitShell
         user={{ id: user.id, email: user.email ?? "" }}
         memorySlot={<MemoryRail initialMemories={memories} />}
-        draftsSlot={<DraftsList initialDrafts={drafts} />}
+        draftsSlot={<DraftsList initialDrafts={drafts} userId={user.id} />}
         newsSlot={
           <NewsRail
             initialSources={sources}

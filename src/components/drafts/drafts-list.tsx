@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ColumnHeader } from "@/components/cockpit/column-header";
 import { useActiveDrafts } from "@/components/cockpit/active-drafts-context";
 import { formatRelativeTime } from "@/lib/system-prompt";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { DraftRow } from "@/lib/db/types";
 
@@ -14,6 +15,7 @@ type Filter = "all" | "draft" | "copied";
 
 type Props = {
   initialDrafts: DraftRow[];
+  userId: string;
 };
 
 const FILTERS: Array<{ id: Filter; label: string }> = [
@@ -22,13 +24,92 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: "copied", label: "Copied" },
 ];
 
-export function DraftsList({ initialDrafts }: Props) {
+type StreamingDetail = {
+  kind: "save" | "update";
+  id?: string;
+  body: string;
+  toolCallId: string;
+};
+
+type StreamingEndDetail = {
+  kind: "save" | "update";
+  id?: string;
+  toolCallId: string;
+};
+
+export function DraftsList({ initialDrafts, userId }: Props) {
   const router = useRouter();
   const [drafts, setDrafts] = useState<DraftRow[]>(initialDrafts);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
+  const [pendingSaves, setPendingSaves] = useState<
+    Map<string, { body: string }>
+  >(() => new Map());
+  const [liveUpdateBodies, setLiveUpdateBodies] = useState<Map<string, string>>(
+    () => new Map(),
+  );
   const { activeDraftIds, openDraft } = useActiveDrafts();
 
+  // Realtime subscribe to drafts inserts/updates/deletes for this user.
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`drafts-rail:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "drafts",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const row = payload.new as DraftRow;
+          setDrafts((current) => {
+            if (current.some((d) => d.id === row.id)) return current;
+            return [row, ...current];
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "drafts",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const row = payload.new as DraftRow;
+          setDrafts((current) => {
+            const exists = current.some((d) => d.id === row.id);
+            if (!exists) return [row, ...current];
+            return current.map((d) => (d.id === row.id ? row : d));
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "drafts",
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          const row = payload.old as Partial<DraftRow>;
+          if (!row.id) return;
+          setDrafts((current) => current.filter((d) => d.id !== row.id));
+        },
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
+  // Same-tab fast-path: refetch on chat tool-finish event (covers eventual consistency gap).
   useEffect(() => {
     async function refresh() {
       try {
@@ -42,6 +123,63 @@ export function DraftsList({ initialDrafts }: Props) {
     window.addEventListener("linkedin-studio:drafts:changed", refresh);
     return () =>
       window.removeEventListener("linkedin-studio:drafts:changed", refresh);
+  }, []);
+
+  // Live preview while agent's tool args are streaming.
+  useEffect(() => {
+    function onStreaming(event: Event) {
+      const detail = (event as CustomEvent<StreamingDetail>).detail;
+      if (!detail) return;
+      if (detail.kind === "save") {
+        setPendingSaves((current) => {
+          const next = new Map(current);
+          next.set(detail.toolCallId, { body: detail.body });
+          return next;
+        });
+      } else if (detail.kind === "update" && detail.id) {
+        const id = detail.id;
+        setLiveUpdateBodies((current) => {
+          const next = new Map(current);
+          next.set(id, detail.body);
+          return next;
+        });
+      }
+    }
+    function onStreamingEnd(event: Event) {
+      const detail = (event as CustomEvent<StreamingEndDetail>).detail;
+      if (!detail) return;
+      if (detail.kind === "save") {
+        setPendingSaves((current) => {
+          if (!current.has(detail.toolCallId)) return current;
+          const next = new Map(current);
+          next.delete(detail.toolCallId);
+          return next;
+        });
+      } else if (detail.kind === "update" && detail.id) {
+        const id = detail.id;
+        setLiveUpdateBodies((current) => {
+          if (!current.has(id)) return current;
+          const next = new Map(current);
+          next.delete(id);
+          return next;
+        });
+      }
+    }
+    window.addEventListener("linkedin-studio:draft:streaming", onStreaming);
+    window.addEventListener(
+      "linkedin-studio:draft:streaming-end",
+      onStreamingEnd,
+    );
+    return () => {
+      window.removeEventListener(
+        "linkedin-studio:draft:streaming",
+        onStreaming,
+      );
+      window.removeEventListener(
+        "linkedin-studio:draft:streaming-end",
+        onStreamingEnd,
+      );
+    };
   }, []);
 
   const visible = useMemo(() => {
@@ -60,6 +198,7 @@ export function DraftsList({ initialDrafts }: Props) {
   }
 
   const totalActive = drafts.filter((d) => d.status !== "dismissed").length;
+  const pendingArr = Array.from(pendingSaves.entries());
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -98,7 +237,7 @@ export function DraftsList({ initialDrafts }: Props) {
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {visible.length === 0 ? (
+        {pendingArr.length === 0 && visible.length === 0 ? (
           <p className="px-2 py-4 text-xs text-muted-foreground">
             {drafts.length === 0
               ? "No drafts yet. Ask the agent in chat to draft a post — it will land here automatically."
@@ -106,9 +245,39 @@ export function DraftsList({ initialDrafts }: Props) {
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5">
+            {pendingArr.map(([toolCallId, { body }]) => {
+              const preview = body.slice(0, 140);
+              return (
+                <li key={`pending:${toolCallId}`}>
+                  <div className="block w-full rounded-md border border-primary/40 bg-primary/5 p-2 text-left">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1 font-medium uppercase tracking-wide text-primary">
+                        <span className="relative flex size-1.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/60 opacity-75" />
+                          <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
+                        </span>
+                        Writing
+                      </span>
+                    </div>
+                    <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-foreground">
+                      {preview ||
+                        (
+                          <em className="text-muted-foreground">
+                            agent is typing…
+                          </em>
+                        )}
+                      {body.length > preview.length && "..."}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
             {visible.map((draft) => {
               const active = activeDraftIds.includes(draft.id);
-              const preview = draft.body.slice(0, 140);
+              const live = liveUpdateBodies.get(draft.id);
+              const renderBody = live ?? draft.body;
+              const preview = renderBody.slice(0, 140);
+              const streaming = live !== undefined;
               return (
                 <li key={draft.id}>
                   <button
@@ -117,17 +286,23 @@ export function DraftsList({ initialDrafts }: Props) {
                     className={cn(
                       "block w-full rounded-md border bg-background p-2 text-left transition-colors hover:bg-muted/40",
                       active && "border-primary/40 bg-primary/5",
+                      streaming && "border-primary/40",
                     )}
                   >
                     <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                      <span className="font-medium uppercase tracking-wide">
-                        {draft.status}
+                      <span
+                        className={cn(
+                          "font-medium uppercase tracking-wide",
+                          streaming && "text-primary",
+                        )}
+                      >
+                        {streaming ? "Rewriting" : draft.status}
                       </span>
                       <span>{formatRelativeTime(draft.created_at)}</span>
                     </div>
                     <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-foreground">
                       {preview || <em className="text-muted-foreground">empty</em>}
-                      {draft.body.length > preview.length && "..."}
+                      {renderBody.length > preview.length && "..."}
                     </p>
                   </button>
                 </li>
