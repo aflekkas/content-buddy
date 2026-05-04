@@ -435,7 +435,7 @@ function MessageRender({
           "min-w-0 rounded-2xl px-3 py-2 text-sm",
           message.role === "user"
             ? "max-w-[80%] bg-primary text-primary-foreground"
-            : "w-full bg-transparent px-0",
+            : "max-w-[85%] bg-muted text-foreground",
         )}
       >
         {message.parts.map((part, index) => {
