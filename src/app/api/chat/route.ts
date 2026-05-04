@@ -136,6 +136,7 @@ export async function POST(req: Request) {
               voice_notes: profile.voice_notes,
             }
           : null,
+        profile,
         memories,
         activeDraft: draft,
         activeDraftSignals: draftSignals.map((signal) => ({

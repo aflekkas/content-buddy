@@ -3,6 +3,7 @@
 import { Settings as SettingsIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ColumnHeader } from "@/components/cockpit/column-header";
+import { PromptViewer } from "@/components/settings/prompt-viewer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -280,9 +281,103 @@ export function SettingsRail({ initialProfile }: Props) {
               </button>
             </div>
           </Section>
+
+          <PromptViewer />
         </div>
       </div>
     </div>
+  );
+}
+
+function PromptViewer() {
+  const [open, setOpen] = useState(false);
+  const [data, setData] = useState<{
+    chat_prompt: string;
+    synthesis_prompt: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [tab, setTab] = useState<"chat" | "synthesis">("chat");
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/debug/prompt");
+      if (res.ok) setData(await res.json());
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function toggle() {
+    const next = !open;
+    setOpen(next);
+    if (next && !data) await load();
+  }
+
+  return (
+    <section className="flex flex-col gap-2 border-t border-border/60 pt-7">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            System prompt
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Exactly what the agent sees, with your settings inlined.
+          </p>
+        </div>
+        <Button
+          type="button"
+          size="xs"
+          variant="outline"
+          onClick={() => void toggle()}
+        >
+          {open ? "Hide" : "View"}
+        </Button>
+      </div>
+
+      {open ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-1">
+            <Button
+              type="button"
+              size="xs"
+              variant={tab === "chat" ? "secondary" : "outline"}
+              onClick={() => setTab("chat")}
+            >
+              Chat
+            </Button>
+            <Button
+              type="button"
+              size="xs"
+              variant={tab === "synthesis" ? "secondary" : "outline"}
+              onClick={() => setTab("synthesis")}
+            >
+              Synthesis
+            </Button>
+            {data && (
+              <Button
+                type="button"
+                size="xs"
+                variant="ghost"
+                className="ml-auto"
+                onClick={() => void load()}
+              >
+                Refresh
+              </Button>
+            )}
+          </div>
+          <pre className="max-h-96 overflow-auto rounded border border-border bg-muted/40 p-3 text-[11px] leading-relaxed whitespace-pre-wrap break-words">
+            {loading
+              ? "Loading…"
+              : data
+                ? tab === "chat"
+                  ? data.chat_prompt
+                  : data.synthesis_prompt
+                : "(failed to load)"}
+          </pre>
+        </div>
+      ) : null}
+    </section>
   );
 }
 

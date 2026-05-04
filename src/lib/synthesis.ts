@@ -85,7 +85,7 @@ export async function scoreRelevance(args: {
   return { score: parsed.score, summary: parsed.summary };
 }
 
-const BEST_PRACTICES = `LinkedIn craft, 2025-2026, distilled from algorithm reverse-engineers (van der Blom, AuthoredUp, Originality.AI) and top operator-voice ghostwriters (Welsh, Acosta, Alic, Sordell, Reed). Treat every rule as load-bearing.
+export const BEST_PRACTICES = `LinkedIn craft, 2025-2026, distilled from algorithm reverse-engineers (van der Blom, AuthoredUp, Originality.AI) and top operator-voice ghostwriters (Welsh, Acosta, Alic, Sordell, Reed). Treat every rule as load-bearing.
 
 1. First line is the hook. Under 140 chars so it never wraps on mobile. 8-12 words ideal. Hook patterns: contrarian, curiosity gap, stat shock, story cold open, list promise, vulnerability, before/after. Never open with "Are you a [audience]?" or "In today's [anything]." Reread line 1 alone before shipping — if it could title a generic blog post, rewrite it.
 2. Default length 1200-1800 chars. Hot takes are the only exception (under 400). Case studies stretch to 2500 only when the specifics earn it.
@@ -106,7 +106,7 @@ const BEST_PRACTICES = `LinkedIn craft, 2025-2026, distilled from algorithm reve
 14. No three-bullet lists where every bullet is the same length. No paragraph stacks where every paragraph starts with the same verb form. No closing "summary" line that restates the post.
 15. If the post is a hot_take, ship it short and skip the CTA. Invite pushback in tone, don't beg for it in copy.`;
 
-const POST_TYPE_FRAMEWORK = `Choose ONE post_type that best fits the source signal AND the user's preferred_post_types. If a postType override is provided, use it. Each shape:
+export const POST_TYPE_FRAMEWORK = `Choose ONE post_type that best fits the source signal AND the user's preferred_post_types. If a postType override is provided, use it. Each shape:
 
 - hot_take: punchy opinion, no scaffolding. 150-400 chars. State the take, give the one-sentence rationale. No CTA.
 - story: scene -> conflict -> turn -> takeaway -> 1 actionable line -> question. Personal, vulnerable, specific. 1000-1800 chars.
@@ -119,7 +119,7 @@ const POST_TYPE_FRAMEWORK = `Choose ONE post_type that best fits the source sign
 
 If the source is a news/announcement signal, default to hot_take or contrarian (industry commentary). If the source has hard numbers, lean teardown or framework. If the source is a milestone/launch, lean story or build-in-public-style lesson.`;
 
-function styleBlock(profile: UserProfileRow | null): string {
+export function styleBlock(profile: UserProfileRow | null): string {
   const formality = profile?.formality ?? 3;
   const elaboration = profile?.elaboration ?? 2;
   const lengthPref = profile?.length_pref ?? 1500;
@@ -140,7 +140,7 @@ function styleBlock(profile: UserProfileRow | null): string {
   return `<style_preferences type="soft_hints">\n${lines.join("\n")}\n</style_preferences>`;
 }
 
-function audienceBlock(profile: UserProfileRow | null): string {
+export function audienceBlock(profile: UserProfileRow | null): string {
   const audience = profile?.target_audience?.trim() || "general professional";
   const goal = profile?.post_goal?.trim() || "informative";
 

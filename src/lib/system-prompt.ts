@@ -1,5 +1,11 @@
 import type { ModelMessage } from "ai";
-import type { DraftRow, SignalRow, UserMemoryRow } from "@/lib/db/types";
+import type {
+  DraftRow,
+  SignalRow,
+  UserMemoryRow,
+  UserProfileRow,
+} from "@/lib/db/types";
+import { audienceBlock, styleBlock } from "@/lib/synthesis";
 
 export const DEFAULT_ASSISTANT_NAME = "LinkedIn Studio";
 
@@ -47,6 +53,7 @@ type CreatorProfile = {
 
 type UserContext = {
   creatorProfile?: CreatorProfile | null;
+  profile?: UserProfileRow | null;
   memories?: UserMemoryRow[];
   activeDraft?: DraftRow | null;
   activeDraftSignals?: ActiveDraftSignal[];
@@ -119,6 +126,11 @@ export function buildSystemMessages(user: UserContext): ModelMessage[] {
     if (profileBlock) {
       messages.push({ role: "system", content: profileBlock });
     }
+  }
+
+  if (user.profile) {
+    messages.push({ role: "system", content: styleBlock(user.profile) });
+    messages.push({ role: "system", content: audienceBlock(user.profile) });
   }
 
   if (user.activeDraft) {
