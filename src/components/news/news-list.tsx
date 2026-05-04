@@ -38,8 +38,6 @@ type ConsoleLine = {
   tone: "info" | "muted" | "success" | "warn" | "error";
 };
 
-const CONSOLE_HIDE_DELAY_MS = 4000;
-
 type Props = {
   initialSources: MonitoredSourceRow[];
   initialSignals: NewsSignal[];
@@ -76,7 +74,6 @@ export function NewsList({
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const consoleScrollRef = useRef<HTMLDivElement | null>(null);
   const consoleLineIdRef = useRef(0);
-  const consoleHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasMore = !exhausted && signals.length < totalCount;
 
@@ -284,14 +281,6 @@ export function NewsList({
     if (node) node.scrollTop = node.scrollHeight;
   }, [consoleLines, consoleVisible]);
 
-  useEffect(() => {
-    return () => {
-      if (consoleHideTimerRef.current) {
-        clearTimeout(consoleHideTimerRef.current);
-      }
-    };
-  }, []);
-
   function formatEvent(event: ScanEvent): ConsoleLine | null {
     switch (event.type) {
       case "start":
@@ -336,10 +325,6 @@ export function NewsList({
   }
 
   async function scanNow() {
-    if (consoleHideTimerRef.current) {
-      clearTimeout(consoleHideTimerRef.current);
-      consoleHideTimerRef.current = null;
-    }
     setScanning(true);
     setConsoleLines([]);
     setConsoleVisible(true);
@@ -405,9 +390,6 @@ export function NewsList({
         }
       }
       startTransition(() => router.refresh());
-      consoleHideTimerRef.current = setTimeout(() => {
-        setConsoleVisible(false);
-      }, CONSOLE_HIDE_DELAY_MS);
     } catch (error) {
       const message = error instanceof Error ? error.message : "scan crashed";
       pushConsole(`! ${message}`, "error");
@@ -491,13 +473,7 @@ export function NewsList({
           </span>
           <button
             type="button"
-            onClick={() => {
-              if (consoleHideTimerRef.current) {
-                clearTimeout(consoleHideTimerRef.current);
-                consoleHideTimerRef.current = null;
-              }
-              setConsoleVisible(false);
-            }}
+            onClick={() => setConsoleVisible(false)}
             className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
             aria-label="Hide scan console"
           >
