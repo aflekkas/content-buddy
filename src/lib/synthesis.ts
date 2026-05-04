@@ -13,19 +13,94 @@ const RelevanceSchema = z.object({
   summary: z.string().min(1).max(240),
 });
 
-const SynthesisOutputSchema = z.object({
-  post_type: z.enum(POST_TYPES),
-  body: z.string().min(1),
-});
-
 export type SynthMode = "news";
 
-const FORMALITY_DESCRIPTORS: Record<number, string> = {
-  1: "ultra-casual, lowercase asides welcome, talks like a DM",
-  2: "casual, contraction-heavy, conversational",
-  3: "neutral operator voice, confident but not stiff",
-  4: "polished, occasional contractions, executive-presentation tight",
-  5: "formal-exec, no contractions, full sentences, board-ready",
+export const FORMALITY_DESCRIPTORS: Record<number, string> = {
+  1: "ultra-casual, lowercase asides welcome, talks like a voice memo on a walk",
+  2: "casual operator, sentence case, contractions, mixed-rhythm",
+  3: "neutral confident, mostly full sentences with occasional fragments",
+  4: "polished and observational, full sentences, restrained contractions",
+  5: "formal exec, no contractions, board-ready",
+};
+
+// Per-tier voice spec. Sourced from harvested high-engagement posts of named
+// creators across the formality spectrum (Sahil Bloom, Jasmin Alic, Justin
+// Welsh, Lara Acosta, Devin Reed, Adam Grant, Rand Fishkin, Reid Hoffman,
+// Satya Nadella). When user picks a non-default tier, this block REPLACES
+// <house_voice> in the prompt rather than stacking with it.
+export const FORMALITY_VOICE_BLOCKS: Record<1 | 2 | 3 | 4 | 5, string> = {
+  1: `Tier 1 — ultra-casual. Voice memo on a walk. Lowercase asides are fine. Fragments are fine. Starting sentences with "and" or "but" is fine. Heavy contractions. Short lines, frequent line breaks, one-liner punches that could screenshot on their own. First person, raw. No corporate verbs ("leverage", "unlock", "empower", "navigate", "delve"). No "save this post" or "follow for more" CTAs — close with a naked takeaway, a try-it nudge, or a question. Reference: Jasmin Alic, Sahil Bloom short-form.`,
+  2: `Tier 2 — casual operator. Sentence case, contractions, first person. Mix one-liners with short hyphen-bullet groups. Hook on line 1, parenthetical sub-hook on line 2. Use hyphenated mini-bullets inside body sections. End with a "Try this" nudge or a personable PS. Avoid academic vocab and avoid stiff connective tissue ("furthermore", "in conclusion"). Reference: Justin Welsh, Lara Acosta default.`,
+  3: `Tier 3 — neutral confident. Confident and balanced. Mostly full sentences, occasional fragment for rhythm. Light contractions. Lead with receipts or a clear contrarian frame. Numbered or bulleted body when the content is genuinely list-shaped, prose otherwise — never all bullets. Close with a single-line takeaway or a soft question. No engagement-bait CTAs ("comment X to get the doc"). Reference: Devin Reed, Welsh framework posts.`,
+  4: `Tier 4 — polished. Measured and observational. Full sentences with tight parallel structure. Occasional contractions only. No fragments, no emojis, no ALL CAPS. Open with a reframed observation or a paradox in one sentence; the body unpacks the mechanism with one concrete example, then names the implication. End either with no CTA or with a low-key "What's been your experience?". Avoid confessional tone, avoid "save this". Reference: Adam Grant, Rand Fishkin.`,
+  5: `Tier 5 — formal exec. Board-ready. No contractions. No fragments. No emojis. No first-person anecdotes unless they make an institutional point. Use full sentences with formal connective tissue. Name the initiative, the team, the timeframe, the metric. Close with gratitude to a named group, a forward-looking commitment, or a single relevant hashtag — never an ask, never "follow for more". Keep it press-release-adjacent but human enough to feel written by the executive, not by Comms. Reference: Satya Nadella, Reid Hoffman long-form.`,
+};
+
+export const FORMALITY_EXEMPLARS: Record<1 | 2 | 3 | 4 | 5, { creator: string; body: string }> = {
+  1: {
+    creator: "Jasmin Alic",
+    body: `i guarantee this will help you write faster.
+
+the 1-3-1:
+- 1 one-liner summary
+- 3 key messages
+- 1 closing question
+
+example:
+"commenting takes time, but it's worth it"
+- builds reach
+- builds rapport
+- builds reps
+"how many comments do you leave per day?"
+
+took me 7 minutes. try it.`,
+  },
+  2: {
+    creator: "Lara Acosta",
+    body: `How I grew my LinkedIn 10x faster:
+(Without having to post 7x a week)
+
+I call it the 'Educational Storyteller' method.
+
+Each post I write has:
+- A platitude → makes it broad
+- A story → adds personality
+- A lesson → keeps it niche
+
+Try this for the next 60 days, see what happens!`,
+  },
+  3: {
+    creator: "Devin Reed",
+    body: `My 6-figure side hustle, The Reeder, now has 7 revenue streams (on top of my full-time job):
+
+1. Consulting
+2. Newsletter ad sales
+3. LinkedIn course sales
+4. Sponsored LinkedIn posts
+5. Speaking gigs
+6. Ebook sales
+7. Ad sales for a new channel
+
+All inbound. All from carefully curating a reputation and consistently publishing valuable content.
+
+The takeaway: build a useful reputation, then let it compound.`,
+  },
+  4: {
+    creator: "Adam Grant",
+    body: `Changing the culture of an organization is daunting. Changing the culture of a team is doable.
+
+1. Model the values you want to see.
+2. Identify and praise others who exemplify them.
+3. Build a coalition of colleagues who are committed to the change.`,
+  },
+  5: {
+    creator: "Satya Nadella",
+    body: `Security remains our top priority as a company, and we are sharing an update on the progress we are making across the objectives we outlined a year ago.
+
+The Secure Future Initiative is a multiyear effort to revolutionize the way we design, build, test, and operate our products. In our latest progress report, the team details 11 innovations across Azure, Microsoft 365, Security, and Windows, including phishing-resistant MFA and managed-identity adoption at scale.
+
+Thank you to everyone advancing this work across the company and our partner ecosystem. #SecureByDesign`,
+  },
 };
 
 const ELABORATION_DESCRIPTORS: Record<number, string> = {
@@ -103,7 +178,13 @@ export const BEST_PRACTICES = `LinkedIn craft, 2025-2026, distilled from algorit
     - phrases: "in today's fast-paced world," "let's dive in," "let's unpack," "let's explore," "it's important to note that," "in essence," "in conclusion," "to summarize," "game-changer," "game-changing," "unlock the power of," "unlock your potential," "navigate the complexities of," "at its core," "when it comes to," "I hope this helps!", "Remember: ...". Avoid "It's not about X. It's about Y." as a recurring pattern (a single intentional use is fine).
     - words used as a tic: delve, leverage, utilize, harness, streamline, underscore, pivotal, robust, seamless, cutting-edge, landscape, realm, tapestry, synergy, testament, multifaceted, foster, paramount, comprehensive, holistic, ecosystem (when not literal), journey (metaphorical), elevate.
     - punctuation: NO em dashes — use commas, periods, parentheses, or colons instead. No smart/curly quotes from a paste.
-14. No three-bullet lists where every bullet is the same length. No paragraph stacks where every paragraph starts with the same verb form. No closing "summary" line that restates the post.
+14. Structural anti-patterns — these are LOUDER AI tells than vocabulary. Hard ban:
+    - "Not X, but Y." / "It's not about X. It's about Y." / "X isn't Y. It's Z." Parallel-negation pattern is 5-10x more common in AI text than human text. Single intentional use over multiple posts is fine, but never as a recurring tic and never twice in one post. Replace with a direct positive statement.
+    - Forced rule-of-three / tricolons. AI loves "fast, reliable, and scalable" three-noun rhythms. If a list could be 2 or 4 instead of 3, make it 2 or 4. Mix lengths inside any list of three.
+    - Identical-shape parallel structures across paragraphs. If paragraph 1 is "verb + noun + result" and paragraph 2 is "verb + noun + result", rewrite one.
+    - Three-bullet lists where every bullet is the same length.
+    - Paragraph stacks where every paragraph starts with the same verb form.
+    - Closing "summary" line that restates the post.
 15. If the post is a hot_take, ship it short and skip the CTA. Invite pushback in tone, don't beg for it in copy.
 16. Replacement phrasings (use these instead of the AI-tells):
     - instead of "It's important to note that..." -> just state it.
@@ -118,7 +199,14 @@ export const BEST_PRACTICES = `LinkedIn craft, 2025-2026, distilled from algorit
     - instead of "seamless" -> "no setup," "one click," "you don't notice it."
     - instead of "comprehensive" -> name what it covers ("everything from auth to billing").
     - instead of em dash — use comma, period, parentheses, or colon.
-17. Self-critique pass before returning: reread your draft once. If line 1 is generic, rewrite it. If any banned word slipped in, swap it. If three lines in a row are the same length, rewrite one. If the close restates what you already said, cut it. Only then return.`;
+17. Self-critique pass before returning. Reread your draft once and check ALL of:
+    a. Line 1: if it could title a generic blog post, rewrite. Under 140 chars.
+    b. Banned words/phrases: scan for AI-tells (rule 13) AND structural anti-patterns (rule 14). Swap any that slipped in.
+    c. Sentence-length variance: count words per sentence. If three consecutive sentences are within 2 words of each other, rewrite one to break the pattern. Aim for a histogram with at least three different "buckets" (short <8, medium 8-15, long 16+).
+    d. Paragraph-shape variance: if two consecutive paragraphs share the same shape (same number of sentences, same opening verb form, same length within 10%), rewrite one. Structure is the loudest detection signal.
+    e. Close: does it restate the post? Cut it. The last line should land somewhere new.
+    f. Specificity: every concrete claim (number, name, date) must trace to <facts> or the user's own context. If you wrote a number you can't source, replace with a qualitative observation or remove.
+    Only then return.`;
 
 export const POST_TYPE_FRAMEWORK = `Choose ONE post_type that best fits the source signal AND the user's preferred_post_types. If a postType override is provided, use it. Each shape:
 
@@ -293,6 +381,26 @@ ${sources.slice(0, 12000)}
 </facts>`;
 }
 
+function isFormalityTier(n: number): n is 1 | 2 | 3 | 4 | 5 {
+  return n === 1 || n === 2 || n === 3 || n === 4 || n === 5;
+}
+
+function voiceBlocks(profile: UserProfileRow | null): string[] {
+  const tier = profile?.formality ?? 3;
+  // Tier 3 == default operator voice == HOUSE_VOICE. Use house_voice alone.
+  // Non-default tier: replace house_voice with the tier-specific spec + an
+  // exemplar from a named creator at that tier so the model has shape memory.
+  if (tier === 3 || !isFormalityTier(tier)) {
+    return [`<house_voice>\n${HOUSE_VOICE}\n</house_voice>`];
+  }
+  const formalityBlock = FORMALITY_VOICE_BLOCKS[tier];
+  const exemplar = FORMALITY_EXEMPLARS[tier];
+  return [
+    `<formality_voice tier="${tier}">\n${formalityBlock}\n</formality_voice>`,
+    `<tier_exemplar tier="${tier}" creator="${exemplar.creator}">\n${exemplar.body}\n</tier_exemplar>`,
+  ];
+}
+
 function buildSynthesisSystemPrompt(args: {
   profile: UserProfileRow | null;
   signals: SignalRow[];
@@ -307,7 +415,7 @@ function buildSynthesisSystemPrompt(args: {
 You are a LinkedIn ghostwriter for one operator. Convert the source signals into ONE publish-ready LinkedIn post in the operator's voice. Your output will be posted as-is. The bar is parity with a top human ghostwriter — generic LinkedIn-AI slop is failure.${overrideClause}
 </role>`,
     `<best_practices>\n${BEST_PRACTICES}\n</best_practices>`,
-    `<house_voice>\n${HOUSE_VOICE}\n</house_voice>`,
+    ...voiceBlocks(args.profile),
     `<exemplars>\n${EXEMPLARS}\n</exemplars>`,
     `<post_type_framework>\n${POST_TYPE_FRAMEWORK}\n</post_type_framework>`,
     factsBlock(args.signals),
@@ -315,15 +423,46 @@ You are a LinkedIn ghostwriter for one operator. Convert the source signals into
     styleBlock(args.profile),
     audienceBlock(args.profile),
     `<output_contract>
-Return ONLY a JSON object with two fields, no markdown fences, no preamble, no commentary:
-{
-  "post_type": one of ${POST_TYPES.map((t) => `"${t}"`).join(" | ")},
-  "body": the publish-ready LinkedIn post body as a single string with real line breaks (use \\n in JSON)
-}
+Return the post body as plain text. No JSON. No markdown fences. No preamble ("Here's a draft:" / "Sure, here's the post:"). No headings wrapping it.
 
-The body must be the post body itself — no headings, no quotes wrapping it, no "Here's a draft:". Lead with a sharp first line under 140 chars (the hook decides whether anyone reads line 2). Use line breaks liberally for scannability.
+After the post body, on a new line, append exactly one tag: <post_type>${POST_TYPES.join("|")}</post_type> — pick the canonical type that best fits what you wrote.
+
+Example output shape:
+
+[the publish-ready post body, multiple paragraphs, real line breaks]
+
+<post_type>hot_take</post_type>
+
+That is the entire output. Nothing before the body. Nothing after the </post_type> tag.
 </output_contract>`,
   ].join("\n\n");
+}
+
+function parseSynthesisOutput(
+  raw: string,
+  fallbackType: PostType,
+): { body: string; post_type: PostType } {
+  const text = raw.trim();
+  const tagMatch = text.match(/<post_type>\s*([a-z_]+)\s*<\/post_type>\s*$/i);
+  if (tagMatch) {
+    const candidate = tagMatch[1].toLowerCase() as PostType;
+    const post_type = (POST_TYPES as readonly string[]).includes(candidate)
+      ? candidate
+      : fallbackType;
+    const body = text
+      .slice(0, tagMatch.index ?? text.length)
+      .replace(/^```(?:\w+)?\s*/i, "")
+      .replace(/```$/i, "")
+      .trim();
+    return { body, post_type };
+  }
+  // Fallback path: model didn't emit the tag. Strip any fences and use the
+  // override (or hot_take) as the post type.
+  const body = text
+    .replace(/^```(?:\w+)?\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
+  return { body, post_type: fallbackType };
 }
 
 export async function synthesizeFromSignals(args: {
@@ -353,24 +492,18 @@ export async function synthesizeFromSignals(args: {
   messages.push({
     role: "user",
     content:
-      "Write the post now. Return only the JSON object specified in <output_contract>.",
+      "Write the post now. Plain text body, then the <post_type>...</post_type> tag on its own line. Nothing else.",
   });
 
-  const { text } = await generateText({ model, messages });
+  // Sampling tuned for creative copy per Buildmvpfast / Promptingguide
+  // consensus: temp 0.8 + top_p 0.95 reduces median-LLM mush without
+  // breaking voice. Default 1.0/1.0 makes the model regress to the mean.
+  const { text } = await generateText({
+    model,
+    messages,
+    temperature: 0.8,
+    topP: 0.95,
+  });
 
-  try {
-    const parsed = SynthesisOutputSchema.parse(extractJson(text));
-    return { body: parsed.body.trim(), post_type: parsed.post_type };
-  } catch {
-    // Fallback: model returned bare body instead of JSON. Salvage it.
-    const fallbackBody = text
-      .trim()
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/```$/i, "")
-      .trim();
-    return {
-      body: fallbackBody,
-      post_type: args.postType ?? "hot_take",
-    };
-  }
+  return parseSynthesisOutput(text, args.postType ?? "hot_take");
 }

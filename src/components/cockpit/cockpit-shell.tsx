@@ -42,10 +42,10 @@ type Props = {
 type MobilePanel = "memory" | "drafts" | "news" | "settings" | "chat";
 
 const MOBILE_PANELS = [
-  { id: "memory", label: "Memory", icon: Brain },
-  { id: "drafts", label: "Drafts", icon: FileText },
-  { id: "news", label: "News", icon: Newspaper },
   { id: "settings", label: "Settings", icon: SettingsIcon },
+  { id: "memory", label: "Memory", icon: Brain },
+  { id: "news", label: "News", icon: Newspaper },
+  { id: "drafts", label: "Drafts", icon: FileText },
   { id: "chat", label: "Chat", icon: Sparkles },
 ] as const satisfies ReadonlyArray<{
   id: MobilePanel;
@@ -242,6 +242,23 @@ export function CockpitShell({
           >
             <div className="flex w-14 shrink-0 flex-col items-center gap-2 px-2 py-3">
               <AnimatePresence initial={false} mode="popLayout">
+                {settingsCollapsed ? (
+                  <motion.div
+                    key="settings"
+                    layout
+                    initial={reducedMotion ? false : { opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
+                    transition={railTransition}
+                  >
+                    <RailButton
+                      label="Expand settings"
+                      icon={SettingsIcon}
+                      className={SETTINGS_ICON_BUTTON_CLASS}
+                      onClick={expandSettingsPanel}
+                    />
+                  </motion.div>
+                ) : null}
                 {memoryCollapsed ? (
                   <motion.div
                     key="memory"
@@ -256,23 +273,6 @@ export function CockpitShell({
                       icon={Brain}
                       className={MEMORY_ICON_BUTTON_CLASS}
                       onClick={expandMemoryPanel}
-                    />
-                  </motion.div>
-                ) : null}
-                {draftsCollapsed ? (
-                  <motion.div
-                    key="drafts"
-                    layout
-                    initial={reducedMotion ? false : { opacity: 0, scale: 0.94 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
-                    transition={railTransition}
-                  >
-                    <RailButton
-                      label="Expand drafts"
-                      icon={FileText}
-                      className={DRAFTS_ICON_BUTTON_CLASS}
-                      onClick={expandDraftsPanel}
                     />
                   </motion.div>
                 ) : null}
@@ -293,9 +293,9 @@ export function CockpitShell({
                     />
                   </motion.div>
                 ) : null}
-                {settingsCollapsed ? (
+                {draftsCollapsed ? (
                   <motion.div
-                    key="settings"
+                    key="drafts"
                     layout
                     initial={reducedMotion ? false : { opacity: 0, scale: 0.94 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -303,10 +303,10 @@ export function CockpitShell({
                     transition={railTransition}
                   >
                     <RailButton
-                      label="Expand settings"
-                      icon={SettingsIcon}
-                      className={SETTINGS_ICON_BUTTON_CLASS}
-                      onClick={expandSettingsPanel}
+                      label="Expand drafts"
+                      icon={FileText}
+                      className={DRAFTS_ICON_BUTTON_CLASS}
+                      onClick={expandDraftsPanel}
                     />
                   </motion.div>
                 ) : null}
@@ -330,6 +330,40 @@ export function CockpitShell({
               </AnimatePresence>
             </div>
           </motion.aside>
+
+          <motion.div
+            initial={false}
+            animate={{
+              "--settings-panel-width": `${
+                settingsCollapsed ? 0 : SETTINGS_PANEL_WIDTH
+              }px`,
+            }}
+            transition={panelTransition}
+            className={cn(
+              "relative min-h-0 flex-1 overflow-hidden",
+              activePanel === "settings" ? "flex" : "hidden",
+              "lg:flex lg:h-full lg:w-[var(--settings-panel-width)] lg:flex-none lg:border-r",
+              settingsCollapsed && "lg:border-r-0",
+            )}
+          >
+            <aside
+              aria-hidden={settingsCollapsed}
+              inert={settingsCollapsed ? true : undefined}
+              className={cn(
+                "flex min-h-0 flex-1 flex-col transition-opacity duration-150 lg:w-[380px] lg:flex-none",
+                settingsCollapsed && "lg:pointer-events-none lg:opacity-0",
+              )}
+            >
+              {settingsSlot}
+            </aside>
+
+            <PanelButton
+              label="Collapse settings"
+              icon={ChevronLeft}
+              onClick={() => setSettingsCollapsed(true)}
+              className={settingsCollapsed && "lg:hidden"}
+            />
+          </motion.div>
 
           <motion.div
             initial={false}
@@ -362,40 +396,6 @@ export function CockpitShell({
               icon={ChevronLeft}
               onClick={() => setMemoryCollapsed(true)}
               className={memoryCollapsed && "lg:hidden"}
-            />
-          </motion.div>
-
-          <motion.div
-            initial={false}
-            animate={{
-              "--drafts-panel-width": `${
-                draftsCollapsed ? 0 : DRAFTS_PANEL_WIDTH
-              }px`,
-            }}
-            transition={panelTransition}
-            className={cn(
-              "relative min-h-0 flex-1 overflow-hidden",
-              activePanel === "drafts" ? "flex" : "hidden",
-              "lg:flex lg:h-full lg:w-[var(--drafts-panel-width)] lg:flex-none lg:border-r",
-              draftsCollapsed && "lg:border-r-0",
-            )}
-          >
-            <aside
-              aria-hidden={draftsCollapsed}
-              inert={draftsCollapsed ? true : undefined}
-              className={cn(
-                "flex min-h-0 flex-1 flex-col transition-opacity duration-150 lg:w-[320px] lg:flex-none",
-                draftsCollapsed && "lg:pointer-events-none lg:opacity-0",
-              )}
-            >
-              {draftsSlot}
-            </aside>
-
-            <PanelButton
-              label="Collapse drafts"
-              icon={ChevronLeft}
-              onClick={() => setDraftsCollapsed(true)}
-              className={draftsCollapsed && "lg:hidden"}
             />
           </motion.div>
 
@@ -436,34 +436,34 @@ export function CockpitShell({
           <motion.div
             initial={false}
             animate={{
-              "--settings-panel-width": `${
-                settingsCollapsed ? 0 : SETTINGS_PANEL_WIDTH
+              "--drafts-panel-width": `${
+                draftsCollapsed ? 0 : DRAFTS_PANEL_WIDTH
               }px`,
             }}
             transition={panelTransition}
             className={cn(
               "relative min-h-0 flex-1 overflow-hidden",
-              activePanel === "settings" ? "flex" : "hidden",
-              "lg:flex lg:h-full lg:w-[var(--settings-panel-width)] lg:flex-none lg:border-r",
-              settingsCollapsed && "lg:border-r-0",
+              activePanel === "drafts" ? "flex" : "hidden",
+              "lg:flex lg:h-full lg:w-[var(--drafts-panel-width)] lg:flex-none lg:border-r",
+              draftsCollapsed && "lg:border-r-0",
             )}
           >
             <aside
-              aria-hidden={settingsCollapsed}
-              inert={settingsCollapsed ? true : undefined}
+              aria-hidden={draftsCollapsed}
+              inert={draftsCollapsed ? true : undefined}
               className={cn(
-                "flex min-h-0 flex-1 flex-col transition-opacity duration-150 lg:w-[380px] lg:flex-none",
-                settingsCollapsed && "lg:pointer-events-none lg:opacity-0",
+                "flex min-h-0 flex-1 flex-col transition-opacity duration-150 lg:w-[320px] lg:flex-none",
+                draftsCollapsed && "lg:pointer-events-none lg:opacity-0",
               )}
             >
-              {settingsSlot}
+              {draftsSlot}
             </aside>
 
             <PanelButton
-              label="Collapse settings"
+              label="Collapse drafts"
               icon={ChevronLeft}
-              onClick={() => setSettingsCollapsed(true)}
-              className={settingsCollapsed && "lg:hidden"}
+              onClick={() => setDraftsCollapsed(true)}
+              className={draftsCollapsed && "lg:hidden"}
             />
           </motion.div>
 

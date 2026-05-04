@@ -73,18 +73,16 @@ export function ColumnHeader({
             )}
           >
             <AnimatePresence initial={false} mode="wait">
-              {description ? (
-                <motion.p
-                  key={description}
-                  initial={{ opacity: 0, y: 2 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -2 }}
-                  transition={{ duration: 0.18, ease: "easeOut" }}
-                  className="absolute inset-0 truncate"
-                >
-                  {description}
-                </motion.p>
-              ) : null}
+              <motion.p
+                key={description || "__empty__"}
+                initial={{ opacity: 0, y: 2 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -2 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+                className="absolute inset-0 truncate"
+              >
+                {description}
+              </motion.p>
             </AnimatePresence>
           </div>
         ) : null}

@@ -155,23 +155,40 @@ export function Chat({
   const missingKey = !hasActiveKey || keyErrorFrom402;
 
   const seenMemorySavesRef = useRef<Set<string>>(new Set());
+  const seenDraftSavesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     for (const m of messages) {
       if (m.role !== "assistant") continue;
       for (const part of m.parts) {
-        if (
-          part.type !== "tool-write_memory" &&
-          part.type !== "tool-update_memory"
-        ) {
-          continue;
-        }
-        const p = part as { toolCallId?: string; state?: string; output?: { ok?: boolean } };
+        const p = part as {
+          type: string;
+          toolCallId?: string;
+          state?: string;
+          output?: { ok?: boolean; id?: string };
+        };
         if (!p.toolCallId) continue;
         if (p.state !== "output-available") continue;
         if (p.output?.ok !== true) continue;
-        if (seenMemorySavesRef.current.has(p.toolCallId)) continue;
-        seenMemorySavesRef.current.add(p.toolCallId);
-        window.dispatchEvent(new CustomEvent("memory:saved"));
+
+        if (
+          p.type === "tool-write_memory" ||
+          p.type === "tool-update_memory"
+        ) {
+          if (seenMemorySavesRef.current.has(p.toolCallId)) continue;
+          seenMemorySavesRef.current.add(p.toolCallId);
+          window.dispatchEvent(new CustomEvent("memory:saved"));
+        } else if (
+          p.type === "tool-save_as_draft" ||
+          p.type === "tool-update_draft"
+        ) {
+          if (seenDraftSavesRef.current.has(p.toolCallId)) continue;
+          seenDraftSavesRef.current.add(p.toolCallId);
+          window.dispatchEvent(
+            new CustomEvent("linkedin-studio:drafts:changed", {
+              detail: { id: p.output?.id ?? null },
+            }),
+          );
+        }
       }
     }
   }, [messages]);
@@ -354,10 +371,6 @@ export function Chat({
           )}
         </div>
       </ScrollArea>
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-background to-transparent"
-        />
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background to-transparent"

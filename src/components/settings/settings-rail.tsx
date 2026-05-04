@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { POST_TYPES, type PostType, type UserProfileRow } from "@/lib/db/types";
+import { FORMALITY_EXEMPLARS } from "@/lib/synthesis";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -78,6 +79,7 @@ export function SettingsRail({ initialProfile }: Props) {
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved">(
     "idle",
   );
+  const [promptRefreshKey, setPromptRefreshKey] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -109,6 +111,7 @@ export function SettingsRail({ initialProfile }: Props) {
         });
         if (!res.ok) throw new Error("save_failed");
         setSavingState("saved");
+        setPromptRefreshKey((k) => k + 1);
         if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
         savedTimerRef.current = setTimeout(() => setSavingState("idle"), 1200);
       } catch {
@@ -176,6 +179,7 @@ export function SettingsRail({ initialProfile }: Props) {
                 labels={FORMALITY_LABELS}
                 onChange={(v) => patch("formality", v)}
               />
+              <FormalityPreview tier={settings.formality} />
             </Field>
             <Field
               label={`Elaboration · ${ELABORATION_LABELS[settings.elaboration - 1]}`}
@@ -282,7 +286,7 @@ export function SettingsRail({ initialProfile }: Props) {
             </div>
           </Section>
 
-          <PromptViewer />
+          <PromptViewer refreshKey={promptRefreshKey} />
         </div>
       </div>
     </div>
@@ -299,7 +303,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-4 border-t border-border/60 pt-7 first:border-t-0 first:pt-0">
+    <section className="flex flex-col gap-4 border-t border-border/60 pb-7 pt-7 first:border-t-0 first:pt-0 last:pb-0">
       <div>
         <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           {title}
@@ -326,6 +330,19 @@ function Field({
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       {children}
     </div>
+  );
+}
+
+function FormalityPreview({ tier }: { tier: number }) {
+  const t = (tier as 1 | 2 | 3 | 4 | 5) ?? 3;
+  const exemplar = FORMALITY_EXEMPLARS[t];
+  if (!exemplar) return null;
+  const firstLine = exemplar.body.split("\n")[0]?.slice(0, 110) ?? "";
+  return (
+    <p className="mt-1.5 text-[11px] text-muted-foreground">
+      <span className="font-medium text-foreground/70">{exemplar.creator}:</span>{" "}
+      &quot;{firstLine}&quot;
+    </p>
   );
 }
 

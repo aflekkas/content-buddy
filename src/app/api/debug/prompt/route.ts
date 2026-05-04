@@ -8,6 +8,8 @@ import {
 import {
   BEST_PRACTICES,
   EXEMPLARS,
+  FORMALITY_EXEMPLARS,
+  FORMALITY_VOICE_BLOCKS,
   HOUSE_VOICE,
   POST_TYPE_FRAMEWORK,
   audienceBlock,
@@ -32,6 +34,16 @@ export async function GET() {
   const memoryBlock = buildMemoryBlock(memories);
   const styleText = styleBlock(profile);
   const audienceText = audienceBlock(profile);
+
+  const tier = profile?.formality ?? 3;
+  const isCustomTier = tier !== 3 && tier >= 1 && tier <= 5;
+  const tierKey = (isCustomTier ? tier : 3) as 1 | 2 | 3 | 4 | 5;
+  const formalityVoiceText = isCustomTier
+    ? `<formality_voice tier="${tier}">\n${FORMALITY_VOICE_BLOCKS[tierKey]}\n</formality_voice>`
+    : null;
+  const tierExemplarText = isCustomTier
+    ? `<tier_exemplar tier="${tier}" creator="${FORMALITY_EXEMPLARS[tierKey].creator}">\n${FORMALITY_EXEMPLARS[tierKey].body}\n</tier_exemplar>`
+    : null;
 
   const chatPrompt = [
     "## Chat system prompt (every turn)",
@@ -59,9 +71,10 @@ export async function GET() {
     "### <best_practices>",
     BEST_PRACTICES,
     "",
-    "### <house_voice>",
-    HOUSE_VOICE,
-    "",
+    isCustomTier ? "### <formality_voice> (replaces <house_voice> at this tier)" : "### <house_voice>",
+    isCustomTier ? formalityVoiceText! : HOUSE_VOICE,
+    isCustomTier ? "" : "",
+    ...(isCustomTier ? ["### <tier_exemplar>", tierExemplarText!, ""] : []),
     "### <exemplars>",
     EXEMPLARS,
     "",
@@ -81,7 +94,7 @@ export async function GET() {
     audienceText,
     "",
     "### <output_contract>",
-    'Return ONLY a JSON object: { "post_type": one of the canonical types, "body": LinkedIn post body }. No markdown fences, no preamble.',
+    "Return the post body as plain text, then on a new line append <post_type>...</post_type>. No JSON, no markdown fences, no preamble.",
   ].join("\n");
 
   return jsonResponse({

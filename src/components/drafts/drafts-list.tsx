@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -24,17 +24,33 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
 
 export function DraftsList({ initialDrafts }: Props) {
   const router = useRouter();
+  const [drafts, setDrafts] = useState<DraftRow[]>(initialDrafts);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const { activeDraftIds, openDraft } = useActiveDrafts();
 
+  useEffect(() => {
+    async function refresh() {
+      try {
+        const res = await fetch("/api/drafts", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { drafts?: DraftRow[] } | DraftRow[];
+        const rows = Array.isArray(data) ? data : (data.drafts ?? []);
+        setDrafts(rows);
+      } catch {}
+    }
+    window.addEventListener("linkedin-studio:drafts:changed", refresh);
+    return () =>
+      window.removeEventListener("linkedin-studio:drafts:changed", refresh);
+  }, []);
+
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return initialDrafts
+    return drafts
       .filter((d) => d.status !== "dismissed")
       .filter((d) => (filter === "all" ? true : d.status === filter))
       .filter((d) => (q ? d.body.toLowerCase().includes(q) : true));
-  }, [initialDrafts, filter, search]);
+  }, [drafts, filter, search]);
 
   function handleClick(draft: DraftRow) {
     openDraft(draft.id);
@@ -43,9 +59,7 @@ export function DraftsList({ initialDrafts }: Props) {
     }
   }
 
-  const totalActive = initialDrafts.filter(
-    (d) => d.status !== "dismissed",
-  ).length;
+  const totalActive = drafts.filter((d) => d.status !== "dismissed").length;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -86,8 +100,8 @@ export function DraftsList({ initialDrafts }: Props) {
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {visible.length === 0 ? (
           <p className="px-2 py-4 text-xs text-muted-foreground">
-            {initialDrafts.length === 0
-              ? "No drafts yet. Ask the agent in chat to draft a post and save it."
+            {drafts.length === 0
+              ? "No drafts yet. Ask the agent in chat to draft a post — it will land here automatically."
               : "No matches for that filter."}
           </p>
         ) : (
