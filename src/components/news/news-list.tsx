@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Tooltip,
@@ -93,6 +94,8 @@ export function NewsList({
     return window.localStorage.getItem(SIGNALS_COLLAPSED_KEY) === "1";
   });
   const [consoleVisible, setConsoleVisible] = useState(false);
+  const [pendingDelete, setPendingDelete] =
+    useState<MonitoredSourceRow | null>(null);
   const [consoleLines, setConsoleLines] = useState<ConsoleLine[]>([]);
   const [consoleCopied, setConsoleCopied] = useState(false);
   const [, startTransition] = useTransition();
@@ -531,15 +534,12 @@ export function NewsList({
             {scanning ? "Scanning" : "Scan now"}
           </Button>
         </div>
-      </div>
-
-      <div ref={railScrollRef} className="min-h-0 flex-1 overflow-y-auto">
         <div
           className={cn(
-            "overflow-hidden transition-[max-height,opacity,padding] ease-out",
+            "overflow-hidden transition-[max-height,opacity,margin] ease-out",
             consoleVisible
-              ? "max-h-52 px-3 pt-3 pb-3 opacity-100"
-              : "max-h-0 px-3 pt-0 pb-0 opacity-0",
+              ? "mt-1 max-h-52 opacity-100"
+              : "mt-0 max-h-0 opacity-0",
           )}
           style={{ transitionDuration: `${COLLAPSE_DURATION_MS}ms` }}
           aria-live="polite"
@@ -693,7 +693,7 @@ export function NewsList({
                           type="button"
                           size="icon-xs"
                           variant="ghost"
-                          onClick={() => void removeFeed(source.id)}
+                          onClick={() => setPendingDelete(source)}
                           aria-label={`Remove ${source.handle}`}
                           className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
                         >
@@ -791,6 +791,22 @@ export function NewsList({
           </>
         )}
       </div>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDelete(null);
+        }}
+        title="Remove feed?"
+        description={
+          pendingDelete
+            ? `${pendingDelete.handle} will stop polling. Past signals stay.`
+            : undefined
+        }
+        confirmLabel="Remove"
+        onConfirm={async () => {
+          if (pendingDelete) await removeFeed(pendingDelete.id);
+        }}
+      />
     </div>
   );
 }
