@@ -54,7 +54,7 @@ const MEMORY_PANEL_WIDTH = 320;
 const DRAFTS_PANEL_WIDTH = 320;
 const NEWS_PANEL_WIDTH = 340;
 const RAIL_WIDTH = 56;
-const PANEL_STATE_STORAGE_KEY = "linkedin-studio:cockpit-panels";
+const PANEL_STATE_STORAGE_KEY = "linkedin-studio:cockpit-panels:v2";
 const MEMORY_ICON_BUTTON_CLASS =
   "text-sky-600 hover:text-sky-700 dark:text-sky-300";
 const DRAFTS_ICON_BUTTON_CLASS =
