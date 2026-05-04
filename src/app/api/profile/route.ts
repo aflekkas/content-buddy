@@ -1,29 +1,11 @@
-import { z } from "zod";
 import { errorResponse, jsonResponse, parseBody, requireAuth } from "@/lib/api";
 import { getUserProfile, upsertUserProfile } from "@/lib/db/queries";
-import { POST_TYPES } from "@/lib/db/types";
 import {
   defaultModel,
   isModelForProvider,
   isProviderId,
-  PROVIDER_IDS,
 } from "@/lib/providers";
-
-const PatchBody = z.object({
-  niche: z.string().trim().max(240).nullable().optional(),
-  voice_notes: z.string().trim().max(1000).nullable().optional(),
-  voice_samples: z.string().trim().max(20000).nullable().optional(),
-  target_audience: z.string().trim().max(500).nullable().optional(),
-  post_goal: z.string().trim().max(500).nullable().optional(),
-  formality: z.number().int().min(1).max(5).optional(),
-  elaboration: z.number().int().min(1).max(3).optional(),
-  length_pref: z.number().int().min(200).max(5000).optional(),
-  preferred_post_types: z.array(z.enum(POST_TYPES)).optional(),
-  avoid_phrases: z.string().trim().max(1000).nullable().optional(),
-  include_links: z.boolean().optional(),
-  active_provider_id: z.enum(PROVIDER_IDS as [string, ...string[]]).optional(),
-  active_model_id: z.string().min(1).max(64).optional(),
-});
+import { ProfilePatchBody } from "@/lib/settings-schema";
 
 function projectProfile(profile: {
   niche: string | null;
@@ -82,7 +64,7 @@ export async function PATCH(req: Request) {
   const auth = await requireAuth();
   if (!auth.ok) return auth.response;
 
-  const parsed = await parseBody(req, PatchBody);
+  const parsed = await parseBody(req, ProfilePatchBody);
   if (!parsed.ok) return parsed.response;
 
   const patch = parsed.data;

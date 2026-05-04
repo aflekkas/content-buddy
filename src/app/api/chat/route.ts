@@ -38,7 +38,9 @@ import {
   updateMemory,
   updateSignal,
   updateSource,
+  upsertUserProfile,
 } from "@/lib/db/queries";
+import { ProfileSettingsBody, SETTINGS_FIELDS } from "@/lib/settings-schema";
 import { probeFeed } from "@/lib/sources/rss";
 import { NICHE_BUNDLES } from "@/lib/sources/niche-bundles";
 import { extractText, filterPersistableParts } from "@/lib/message-parts";
@@ -202,6 +204,54 @@ export async function POST(req: Request) {
           }
         },
       }),
+      read_settings: tool({
+        description:
+          "Return the user's current writing settings. Current values are already injected via <writing_style> and <audience>; call only to re-confirm after an update_settings.",
+        inputSchema: z.object({}),
+        execute: async () => {
+          const p = await getUserProfile(user.id);
+          if (!p) return { ok: true, settings: null };
+          const settings = Object.fromEntries(
+            SETTINGS_FIELDS.map((k) => [k, p[k] ?? null]),
+          );
+          return { ok: true, settings };
+        },
+      }),
+      update_settings: tool({
+        description:
+          "Update one or more structured writing settings: target_audience, post_goal, formality (1-5), elaboration (1-3), length_pref (200-5000 chars), preferred_post_types, avoid_phrases, include_links, niche, voice_notes, voice_samples. Pass only fields that change. Do NOT use for freeform durable facts — that's write_memory. After calling, briefly tell the user what changed in one sentence.",
+        inputSchema: ProfileSettingsBody,
+        execute: async (patch) => {
+          const parsed = ProfileSettingsBody.safeParse(patch);
+          if (!parsed.success) {
+            return {
+              ok: false,
+              error: "validation_failed",
+              issues: parsed.error.issues,
+            };
+          }
+          const before = await getUserProfile(user.id);
+          try {
+            const updated = await upsertUserProfile(user.id, parsed.data);
+            const changed = SETTINGS_FIELDS.filter((k) => {
+              if (!(k in parsed.data)) return false;
+              const prev = before?.[k] ?? null;
+              const next = updated[k] ?? null;
+              return JSON.stringify(prev) !== JSON.stringify(next);
+            });
+            const settings = Object.fromEntries(
+              SETTINGS_FIELDS.map((k) => [k, updated[k] ?? null]),
+            );
+            return { ok: true, changed, settings };
+          } catch (err) {
+            return {
+              ok: false,
+              error: "update_failed",
+              message: err instanceof Error ? err.message : "update failed",
+            };
+          }
+        },
+      }),
       read_past_drafts: tool({
         description:
           "Fetch the user's recent draft bodies to sample their writing voice. Use when asked to match the style of recent posts, when synthesizing fresh drafts and wanting voice calibration, or when the user references 'how I usually write'.",
@@ -314,14 +364,18 @@ export async function POST(req: Request) {
       }),
       update_draft: tool({
         description:
-          "Replace the active draft body with the edited body. Only works when an active draft is in scope.",
+          "Replace a draft body. Pass the id returned by a prior save_as_draft to revise that exact draft, or omit id to update the active draft from the chat URL. Use this for revisions instead of save_as_draft so the Drafts rail shows one card that evolves rather than a pile of versions.",
         inputSchema: z.object({
           body: z.string().min(1).max(20000),
+          id: z.uuid().optional(),
         }),
-        execute: async ({ body }) => {
-          if (!activeDraftId) return { ok: false, error: "no_active_draft" };
-          await updateDraft(user.id, activeDraftId, { body });
-          return { ok: true };
+        execute: async ({ body, id }) => {
+          const target = id ?? activeDraftId;
+          if (!target) return { ok: false, error: "no_target_draft" };
+          const owned = await getDraft(user.id, target);
+          if (!owned) return { ok: false, error: "not_found" };
+          await updateDraft(user.id, target, { body });
+          return { ok: true, id: target };
         },
       }),
       read_signal: tool({
