@@ -6,6 +6,7 @@ import type {
   UserProfileRow,
 } from "@/lib/db/types";
 import {
+  ANTI_EXEMPLARS,
   BEST_PRACTICES,
   EXEMPLARS,
   HOUSE_VOICE,
@@ -139,6 +140,10 @@ export function buildSystemMessages(user: UserContext): ModelMessage[] {
     {
       role: "system",
       content: `<exemplars>\n${EXEMPLARS}\n</exemplars>`,
+    },
+    {
+      role: "system",
+      content: `<anti_exemplars>\n${ANTI_EXEMPLARS}\n</anti_exemplars>`,
     },
   ];
 

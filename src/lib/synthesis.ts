@@ -233,6 +233,57 @@ export const HOUSE_VOICE = `Default voice baseline (use when voice_samples is em
 - Lowercase asides are fine ("brutal."). Single-sentence paragraphs are fine. Half-sentence fragments are fine when they hit.
 - The reader should be able to imagine you saying it out loud.`;
 
+export const ANTI_EXEMPLARS = `Anti-exemplars. These are deliberately AI-flavored versions of common shapes. Do NOT write like this. Each one is annotated with what specifically makes it slop. Contrastive in-context learning literature (Yan et al. 2024, https://arxiv.org/pdf/2401.17390) shows that pairing positive exemplars with labeled negative ones improves stylistic alignment more than positive-only few-shot.
+
+--- anti_example reason="generic AI hook + leverage tic + em dashes + parallel-negation pattern" ---
+In today's fast-paced world, building a personal brand on LinkedIn is more important than ever — and yet most professionals still get it wrong.
+
+Let's dive in.
+
+It's not about posting more. It's about posting smarter.
+
+To truly leverage the platform, you need to:
+- Be authentic
+- Be consistent
+- Be valuable
+
+When it comes to LinkedIn, the key is to delve into what your audience truly cares about and unlock the power of meaningful engagement.
+
+In essence, building a robust personal brand requires a holistic approach that streamlines your content strategy and elevates your professional presence.
+
+Save this post if you found it helpful! And follow for more insights on building your brand. ↓
+
+--- anti_example reason="rule-of-three + identical-shape paragraphs + neat summary close + corporate hedging" ---
+Hiring is hard. Onboarding is harder. Retaining great people is the hardest of all.
+
+I've been thinking a lot about this lately, and it's worth noting that there are three things every leader should focus on:
+
+1. Clarity of role and expectations
+2. Consistent feedback and recognition
+3. Career growth and development
+
+In many ways, these three pillars form the foundation of every great team.
+
+At the end of the day, the leaders who get this right will navigate the complexities of the modern workplace and build the cultures that win.
+
+What are your thoughts?
+
+--- anti_example reason="vague specifics + abstractions over concretes + hashtag spam" ---
+Recently, I had an interesting conversation with a senior leader at a major tech company about the future of AI.
+
+We talked about how transformative this technology will be for businesses across various industries. The potential is truly game-changing.
+
+A few key takeaways:
+- AI will reshape how we work
+- Companies need to adapt quickly
+- The leaders who embrace change will win
+
+Curious to hear what others are seeing in this space.
+
+#AI #Leadership #FutureOfWork #Innovation #Tech #Business #DigitalTransformation #Strategy
+
+When you read these, your task is the OPPOSITE: name the specific company, name the specific decision, replace "transformative" with the concrete change, kill the hashtag pile, drop the throat-clear opener, never end on a "what are your thoughts" beg.`;
+
 export const EXEMPLARS = `Worked exemplars. Each is one full post showing what good looks like for that type. Match the *shape, density, and voice signature* — not the topic or word choice.
 
 --- hot_take ---
@@ -417,6 +468,7 @@ You are a LinkedIn ghostwriter for one operator. Convert the source signals into
     `<best_practices>\n${BEST_PRACTICES}\n</best_practices>`,
     ...voiceBlocks(args.profile),
     `<exemplars>\n${EXEMPLARS}\n</exemplars>`,
+    `<anti_exemplars>\n${ANTI_EXEMPLARS}\n</anti_exemplars>`,
     `<post_type_framework>\n${POST_TYPE_FRAMEWORK}\n</post_type_framework>`,
     factsBlock(args.signals),
     creatorProfileBlock(args.profile),

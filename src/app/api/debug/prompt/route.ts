@@ -6,6 +6,7 @@ import {
   getCoreInstructions,
 } from "@/lib/system-prompt";
 import {
+  ANTI_EXEMPLARS,
   BEST_PRACTICES,
   EXEMPLARS,
   FORMALITY_EXEMPLARS,
@@ -56,6 +57,8 @@ export async function GET() {
     HOUSE_VOICE,
     "\n### <exemplars>",
     EXEMPLARS,
+    "\n### <anti_exemplars>",
+    ANTI_EXEMPLARS,
     memoryBlock ? `\n### <memory>\n${memoryBlock}` : "\n### <memory>\n(empty — no memories yet)",
     creatorBlock ? `\n### <creator_profile>\n${creatorBlock}` : "\n### <creator_profile>\n(empty — set niche / voice_notes via Memory rail)",
     `\n### <style_preferences>\n${styleText}`,
@@ -77,6 +80,9 @@ export async function GET() {
     ...(isCustomTier ? ["### <tier_exemplar>", tierExemplarText!, ""] : []),
     "### <exemplars>",
     EXEMPLARS,
+    "",
+    "### <anti_exemplars>",
+    ANTI_EXEMPLARS,
     "",
     "### <post_type_framework>",
     POST_TYPE_FRAMEWORK,
