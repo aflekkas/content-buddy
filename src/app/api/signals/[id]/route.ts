@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonResponse, notFound, parseBody, requireAuth } from "@/lib/api";
-import { getSignal, updateSignal } from "@/lib/db/queries";
+import { getSignal, getSource, updateSignal } from "@/lib/db/queries";
 
 const PatchBody = z.object({
   status: z.enum(["queued", "dismissed"]),
@@ -16,7 +16,8 @@ export async function GET(
   const { id } = await params;
   const signal = await getSignal(auth.user.id, id);
   if (!signal) return notFound();
-  return jsonResponse(signal);
+  const source = await getSource(auth.user.id, signal.source_id);
+  return jsonResponse({ ...signal, sourceHandle: source?.handle ?? null });
 }
 
 export async function PATCH(

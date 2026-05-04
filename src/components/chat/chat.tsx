@@ -14,6 +14,10 @@ import {
   NewsSignalCard,
   type NewsSignalCardData,
 } from "@/components/news/news-signal-card";
+import {
+  UserCitationCard,
+  extractSignalIds,
+} from "@/components/news/user-citation-card";
 import { citeSignal } from "@/lib/cite-signal";
 import { Loader } from "@/components/ui/loader";
 import { Markdown } from "@/components/ui/markdown";
@@ -496,33 +500,50 @@ function MessageRender({
     );
 
   if (isUser) {
+    const userCitationIds: string[] = [];
+    const renderedParts = message.parts.map((part, index) => {
+      if (part.type === "text") {
+        const { ids, cleanText } = extractSignalIds(part.text);
+        for (const id of ids) {
+          if (!userCitationIds.includes(id)) userCitationIds.push(id);
+        }
+        if (!cleanText) return null;
+        return (
+          <p key={index} className="whitespace-pre-wrap">
+            {cleanText}
+          </p>
+        );
+      }
+      if (part.type === "file") {
+        return (
+          <ChatImage
+            key={index}
+            url={part.url}
+            alt={part.filename ?? "Attachment"}
+            className="mt-2 max-h-64 w-auto"
+          />
+        );
+      }
+      return null;
+    });
+    const hasBubbleContent = renderedParts.some((n) => n !== null);
     return (
       <Message
         data-from="user"
-        className={cn("w-full flex justify-end")}
+        className={cn("flex w-full flex-col items-end gap-1.5")}
       >
-        <div className="min-w-0 max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3 py-2 text-sm text-primary-foreground">
-          {message.parts.map((part, index) => {
-            if (part.type === "text") {
-              return (
-                <p key={index} className="whitespace-pre-wrap">
-                  {part.text}
-                </p>
-              );
-            }
-            if (part.type === "file") {
-              return (
-                <ChatImage
-                  key={index}
-                  url={part.url}
-                  alt={part.filename ?? "Attachment"}
-                  className="mt-2 max-h-64 w-auto"
-                />
-              );
-            }
-            return null;
-          })}
-        </div>
+        {userCitationIds.length > 0 ? (
+          <div className="flex w-full max-w-[80%] flex-col gap-1.5">
+            {userCitationIds.map((id) => (
+              <UserCitationCard key={id} signalId={id} />
+            ))}
+          </div>
+        ) : null}
+        {hasBubbleContent ? (
+          <div className="min-w-0 max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3 py-2 text-sm text-primary-foreground">
+            {renderedParts}
+          </div>
+        ) : null}
       </Message>
     );
   }
