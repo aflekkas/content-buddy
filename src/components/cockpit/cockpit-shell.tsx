@@ -484,14 +484,16 @@ export function CockpitShell({
 
           <motion.div
             initial={false}
-            animate={{ opacity: chatCollapsed ? 0 : 1 }}
+            animate={{
+              flexGrow: chatCollapsed ? 0 : 1,
+              minWidth: chatCollapsed ? 0 : 480,
+              opacity: chatCollapsed ? 0 : 1,
+            }}
             transition={panelTransition}
             className={cn(
               "min-h-0 overflow-hidden",
               activePanel === "chat" ? "flex" : "hidden",
-              chatCollapsed
-                ? "lg:w-0 lg:flex-none"
-                : "lg:flex lg:flex-1 lg:min-w-[480px]",
+              "lg:flex lg:basis-0",
             )}
           >
             <section
