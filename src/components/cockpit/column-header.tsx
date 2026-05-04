@@ -7,7 +7,7 @@ type Props = {
   titleSlot?: ReactNode;
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
   iconClassName?: string;
-  iconTone?: "neutral" | "memory" | "queue" | "news" | "chat";
+  iconTone?: "neutral" | "memory" | "queue" | "news" | "chat" | "settings";
   density?: "compact" | "comfortable";
   left?: ReactNode;
   right?: ReactNode;
@@ -84,6 +84,7 @@ function inferIconTone(title: string | undefined): NonNullable<Props["iconTone"]
   if (title === "Memory") return "memory";
   if (title === "Drafts") return "queue";
   if (title === "News") return "news";
+  if (title === "Settings") return "settings";
   return "neutral";
 }
 
@@ -97,6 +98,8 @@ function iconToneClassName(tone: NonNullable<Props["iconTone"]>) {
       return "text-emerald-600 dark:text-emerald-300";
     case "chat":
       return "text-violet-600 dark:text-violet-300";
+    case "settings":
+      return "text-rose-600 dark:text-rose-300";
     default:
       return null;
   }
