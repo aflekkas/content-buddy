@@ -5,7 +5,13 @@ import type {
   UserMemoryRow,
   UserProfileRow,
 } from "@/lib/db/types";
-import { audienceBlock, styleBlock } from "@/lib/synthesis";
+import {
+  BEST_PRACTICES,
+  EXEMPLARS,
+  HOUSE_VOICE,
+  audienceBlock,
+  styleBlock,
+} from "@/lib/synthesis";
 
 export const DEFAULT_ASSISTANT_NAME = "LinkedIn Studio";
 
@@ -111,6 +117,18 @@ export function buildSystemMessages(user: UserContext): ModelMessage[] {
     {
       role: "system",
       content: CORE_INSTRUCTIONS,
+    },
+    {
+      role: "system",
+      content: `<best_practices>\n${BEST_PRACTICES}\n</best_practices>`,
+    },
+    {
+      role: "system",
+      content: `<house_voice>\n${HOUSE_VOICE}\n</house_voice>`,
+    },
+    {
+      role: "system",
+      content: `<exemplars>\n${EXEMPLARS}\n</exemplars>`,
     },
   ];
 
