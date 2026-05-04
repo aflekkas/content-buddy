@@ -91,17 +91,26 @@ async function handlePollSources(req: Request) {
   for (const [userId, userSources] of groupByUser(sources)) {
     summary.users_processed += 1;
 
+    let profile: Awaited<ReturnType<typeof getUserProfileForCron>> = null;
     try {
-      const profile = await getUserProfileForCron(userId);
+      profile = await getUserProfileForCron(userId);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "profile load failed";
+      console.error("[cron/poll-sources] profile", userId, error);
+      summary.errors.push(`${userId}: profile: ${message}`);
+      continue;
+    }
 
-      for (const source of userSources) {
-        if (!isDue(source.last_polled_at, source.poll_interval_hours, now)) {
-          continue;
-        }
+    for (const source of userSources) {
+      if (!isDue(source.last_polled_at, source.poll_interval_hours, now)) {
+        continue;
+      }
 
-        const fetcher = FETCHERS[source.kind];
-        if (!fetcher) continue;
+      const fetcher = FETCHERS[source.kind];
+      if (!fetcher) continue;
 
+      try {
         const posts = await fetcher.fetch(
           source.url ?? source.handle,
           source.last_polled_at ? new Date(source.last_polled_at) : null,
@@ -133,12 +142,12 @@ async function handlePollSources(req: Request) {
         await updateSource(userId, source.id, {
           last_polled_at: now.toISOString(),
         });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "unknown source error";
+        console.error("[cron/poll-sources]", userId, source.handle, error);
+        summary.errors.push(`${userId}: ${source.handle}: ${message}`);
       }
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "unknown cron error";
-      console.error("[cron/poll-sources]", userId, error);
-      summary.errors.push(`${userId}: ${message}`);
     }
   }
 

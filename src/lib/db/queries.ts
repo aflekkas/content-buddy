@@ -444,8 +444,10 @@ export async function listSignals(
   opts?: {
     limit?: number;
     status?: SignalStatus;
+    statusNot?: SignalStatus;
     sourceId?: string;
     postedAfter?: string;
+    postedBefore?: string;
   },
 ): Promise<SignalRow[]> {
   const limit = Math.min(Math.max(opts?.limit ?? 100, 1), 500);
@@ -458,12 +460,30 @@ export async function listSignals(
     .limit(limit);
 
   if (opts?.status) query = query.eq("status", opts.status);
+  if (opts?.statusNot) query = query.neq("status", opts.statusNot);
   if (opts?.sourceId) query = query.eq("source_id", opts.sourceId);
   if (opts?.postedAfter) query = query.gt("posted_at", opts.postedAfter);
+  if (opts?.postedBefore) query = query.lt("posted_at", opts.postedBefore);
 
   const { data, error } = await query;
   if (error) throw error;
   return data ?? [];
+}
+
+export async function countSignals(
+  userId: string,
+  opts?: { statusNot?: SignalStatus; status?: SignalStatus },
+): Promise<number> {
+  const supabase = createAdminClient();
+  let query = supabase
+    .from("signals")
+    .select("*", { count: "exact", head: true })
+    .eq("user_id", userId);
+  if (opts?.statusNot) query = query.neq("status", opts.statusNot);
+  if (opts?.status) query = query.eq("status", opts.status);
+  const { count, error } = await query;
+  if (error) throw error;
+  return count ?? 0;
 }
 
 export async function getSignal(
