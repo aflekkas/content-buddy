@@ -354,6 +354,15 @@ export function Chat({
           )}
         </div>
       </ScrollArea>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-6 bg-gradient-to-b from-background to-transparent"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-background to-transparent"
+        />
+      </div>
 
       <div className="relative shrink-0">
         <AnimatePresence initial={false}>
@@ -488,7 +497,9 @@ function TierIcons({
           key={i}
           className={cn(
             "size-3",
-            i < safeLevel ? "text-foreground/80" : "text-muted-foreground/30",
+            i < safeLevel
+              ? "!text-foreground/80"
+              : "!text-muted-foreground/30",
           )}
           aria-hidden
         />

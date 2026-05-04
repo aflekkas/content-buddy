@@ -12,9 +12,7 @@ export const PROVIDERS = {
       { id: "gpt-5", label: "GPT-5", intelligence: 2, cost: 2 },
       { id: "gpt-5-mini", label: "GPT-5 Mini", intelligence: 2, cost: 1 },
       { id: "gpt-5.5", label: "GPT-5.5", intelligence: 3, cost: 3 },
-      { id: "gpt-5.4-nano", label: "GPT-5.4 Nano", intelligence: 1, cost: 1 },
-      { id: "gpt-5-nano", label: "GPT-5 Nano", intelligence: 1, cost: 1 },
-      { id: "gpt-4o-mini", label: "GPT-4o Mini", intelligence: 1, cost: 1 },
+      { id: "gpt-5-codex", label: "GPT-5 Codex", intelligence: 3, cost: 2 },
     ],
   },
 } as const;

@@ -37,6 +37,7 @@ const PRICES: Partial<Record<ProviderId, Record<string, ModelPrice>>> = {
     "gpt-5": standardPrice(1.25, 10, 0.125),
     "gpt-5-mini": standardPrice(0.25, 2, 0.025),
     "gpt-5-nano": standardPrice(0.05, 0.4, 0.005),
+    "gpt-5-codex": standardPrice(1.25, 10, 0.125),
   },
 };
 
