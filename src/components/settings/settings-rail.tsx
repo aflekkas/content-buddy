@@ -3,7 +3,9 @@
 import { Settings as SettingsIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ColumnHeader } from "@/components/cockpit/column-header";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { POST_TYPES, type PostType, type UserProfileRow } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
@@ -140,8 +142,8 @@ export function SettingsRail({ initialProfile }: Props) {
         }
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        <div className="flex flex-col gap-5 text-sm">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
+        <div className="flex flex-col text-sm">
           <Section title="Audience" hint="Free-form. Soft hints, not callouts.">
             <Field label="Target audience">
               <Textarea
@@ -185,7 +187,7 @@ export function SettingsRail({ initialProfile }: Props) {
               />
             </Field>
             <Field label="Target length (chars)">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-3">
                 <Input
                   type="number"
                   min={200}
@@ -197,21 +199,19 @@ export function SettingsRail({ initialProfile }: Props) {
                   }}
                   className="h-8 w-24 text-sm"
                 />
-                <div className="flex gap-1">
+                <div className="flex flex-wrap gap-1.5">
                   {LENGTH_PRESETS.map((preset) => (
-                    <button
+                    <Button
                       key={preset}
                       type="button"
+                      size="xs"
+                      variant={
+                        settings.length_pref === preset ? "secondary" : "outline"
+                      }
                       onClick={() => patch("length_pref", preset)}
-                      className={cn(
-                        "rounded border px-2 py-0.5 text-xs",
-                        settings.length_pref === preset
-                          ? "border-foreground bg-foreground text-background"
-                          : "border-border text-muted-foreground hover:bg-muted",
-                      )}
                     >
                       {preset}
-                    </button>
+                    </Button>
                   ))}
                 </div>
               </div>
@@ -222,23 +222,20 @@ export function SettingsRail({ initialProfile }: Props) {
             title="Preferred post types"
             hint="None = let the writer choose per source."
           >
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap gap-2">
               {POST_TYPES.map((type) => {
                 const active = settings.preferred_post_types.includes(type);
                 return (
-                  <button
+                  <Button
                     key={type}
                     type="button"
+                    size="xs"
+                    shape="pill"
+                    variant={active ? "secondary" : "outline"}
                     onClick={() => togglePostType(type)}
-                    className={cn(
-                      "rounded-full border px-2.5 py-1 text-xs transition-colors",
-                      active
-                        ? "border-foreground bg-foreground text-background"
-                        : "border-border text-muted-foreground hover:bg-muted",
-                    )}
                   >
                     {POST_TYPE_LABELS[type]}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -258,27 +255,30 @@ export function SettingsRail({ initialProfile }: Props) {
                 className="text-sm"
               />
             </Field>
-            <Field label="Include source links when relevant">
+            <div className="flex items-center justify-between gap-4">
+              <Label htmlFor="include-links-toggle" className="text-xs font-medium">
+                Include source links when relevant
+              </Label>
               <button
+                id="include-links-toggle"
                 type="button"
                 onClick={() => patch("include_links", !settings.include_links)}
                 className={cn(
-                  "inline-flex h-6 w-11 items-center rounded-full border transition-colors",
-                  settings.include_links
-                    ? "border-foreground bg-foreground"
-                    : "border-border bg-muted",
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  settings.include_links ? "bg-primary" : "bg-input",
                 )}
-                aria-pressed={settings.include_links}
+                role="switch"
+                aria-checked={settings.include_links}
                 aria-label="Toggle include links"
               >
                 <span
                   className={cn(
-                    "inline-block size-4 rounded-full bg-background transition-transform",
-                    settings.include_links ? "translate-x-6" : "translate-x-1",
+                    "pointer-events-none inline-block size-4 rounded-full bg-background shadow-sm ring-0 transition-transform",
+                    settings.include_links ? "translate-x-[18px]" : "translate-x-0.5",
                   )}
                 />
               </button>
-            </Field>
+            </div>
           </Section>
         </div>
       </div>
@@ -296,14 +296,14 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-2.5">
+    <section className="flex flex-col gap-4 border-t border-border/60 pt-7 first:border-t-0 first:pt-0">
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           {title}
         </h3>
-        {hint && <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p>}
+        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
       </div>
-      <div className="flex flex-col gap-3">{children}</div>
+      <div className="flex flex-col gap-4">{children}</div>
     </section>
   );
 }
@@ -318,9 +318,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-xs font-medium text-foreground">{label}</label>
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+    <div className="flex flex-col gap-2">
+      <Label className="text-xs font-medium text-foreground">{label}</Label>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
       {children}
     </div>
   );
@@ -338,7 +338,7 @@ function Segmented({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="inline-flex rounded-md border border-border p-0.5">
+    <div className="inline-flex w-fit rounded-md bg-muted p-1">
       {values.map((v, idx) => {
         const active = current === v;
         return (
@@ -348,10 +348,10 @@ function Segmented({
             onClick={() => onChange(v)}
             title={labels[idx]}
             className={cn(
-              "min-w-7 rounded px-2 py-1 text-xs transition-colors",
+              "rounded-sm px-3 py-1 text-xs font-medium transition-colors",
               active
-                ? "bg-foreground text-background"
-                : "text-muted-foreground hover:bg-muted",
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {v}
