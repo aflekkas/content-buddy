@@ -293,7 +293,7 @@ export function Chat({
               <AnimatePresence initial={false}>
                 {showThinking && (
                   <motion.div
-                    layout
+                    layout="position"
                     key="thinking"
                     initial={CHAT_ROW_MOTION.initial}
                     animate={CHAT_ROW_MOTION.animate}
@@ -627,7 +627,7 @@ function ChatMessageFrame({
 }) {
   return (
     <motion.div
-      layout
+      layout="position"
       initial={animateIn ? CHAT_ROW_MOTION.initial : false}
       animate={CHAT_ROW_MOTION.animate}
       exit={CHAT_ROW_MOTION.exit}
