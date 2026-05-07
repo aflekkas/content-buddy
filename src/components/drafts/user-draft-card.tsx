@@ -73,7 +73,7 @@ export function UserDraftCard({ draftId }: { draftId: string }) {
     post_type: data.post_type,
     updated_at: data.updated_at,
   };
-  return <DraftCard draft={cardData} variant="chat" />;
+  return <DraftCard draft={cardData} cacheDraft={data} variant="chat" />;
 }
 
 export function extractDraftIds(text: string): {

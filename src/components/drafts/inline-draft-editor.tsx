@@ -42,6 +42,7 @@ export function InlineDraftEditor({ draftId }: Props) {
     draft?.status ?? "draft",
   );
   const [loading, setLoading] = useState(!draft);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [streamingBody, setStreamingBody] = useState<string | null>(null);
   const [conflictBody, setConflictBody] = useState<string | null>(null);
 
@@ -50,18 +51,31 @@ export function InlineDraftEditor({ draftId }: Props) {
     let cancelled = false;
     void (async () => {
       setLoading(true);
-      const res = await fetch(`/api/drafts/${draftId}`);
-      if (!res.ok || cancelled) {
-        if (!cancelled) setLoading(false);
+      setLoadFailed(false);
+      try {
+        const res = await fetch(`/api/drafts/${draftId}`);
+        if (!res.ok || cancelled) {
+          if (!cancelled) {
+            setLoadFailed(true);
+            setLoading(false);
+          }
+          return;
+        }
+        const row = (await res.json()) as DraftRow;
+        if (cancelled) return;
+        setDraft(row);
+        setBody(row.body);
+        setLastSavedBody(row.body);
+        setStatus(row.status);
+        setLoadFailed(false);
+        setLoading(false);
+      } catch {
+        if (!cancelled) {
+          setLoadFailed(true);
+          setLoading(false);
+        }
         return;
       }
-      const row = (await res.json()) as DraftRow;
-      if (cancelled) return;
-      setDraft(row);
-      setBody(row.body);
-      setLastSavedBody(row.body);
-      setStatus(row.status);
-      setLoading(false);
     })();
     return () => {
       cancelled = true;
@@ -236,7 +250,9 @@ export function InlineDraftEditor({ draftId }: Props) {
       <ColumnHeader
         title={draft ? `Draft · ${formatRelativeTime(draft.created_at)}` : "Draft"}
         description={
-          isAgentWriting
+          loadFailed
+            ? "Unavailable"
+            : isAgentWriting
             ? "Agent writing…"
             : saveState === "saving"
               ? "Saving..."
@@ -280,67 +296,86 @@ export function InlineDraftEditor({ draftId }: Props) {
           </div>
         </div>
       )}
-      {loading || !draft ? (
+      {loading ? (
         <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-sm text-muted-foreground">
           <Loader2 className="size-4 animate-spin" />
         </div>
-      ) : (
-        <Textarea
-          value={renderedBody}
-          onChange={(event) => {
-            if (isAgentWriting) return;
-            setBody(event.target.value);
-          }}
-          readOnly={isAgentWriting}
-          className={cn(
-            "min-h-0 flex-1 resize-none rounded-none border-0 p-3 text-sm leading-6 shadow-none focus-visible:ring-0",
-            isAgentWriting && "opacity-80",
-          )}
-        />
-      )}
-      <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-muted/30 p-2">
-        <span className="text-[10px] text-muted-foreground">
-          {charCount.toLocaleString()} chars
-        </span>
-        <div className="flex items-center gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => void handleDismiss()}
-            className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-          >
-            Dismiss
-          </Button>
+      ) : !draft ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-6 text-center text-sm text-muted-foreground">
+          <div>
+            <p className="font-medium text-foreground">Draft unavailable</p>
+            <p className="mt-1 text-xs">
+              This draft may have been dismissed, deleted, or failed to load.
+            </p>
+          </div>
           <Button
             type="button"
             size="sm"
-            onClick={() => void handleCopy()}
-            disabled={!body.trim() || isAgentWriting}
+            variant="secondary"
+            onClick={() => closeDraft(draftId)}
           >
-            {copied ? (
-              <Check className={cn("size-3.5")} />
-            ) : (
-              <Clipboard className="size-3.5" />
-            )}
-            {copied ? "Copied" : "Copy"}
-          </Button>
-          <Button
-            type="button"
-            variant={posted ? "secondary" : "ghost"}
-            size="sm"
-            onClick={() => void handlePostedToggle()}
-            disabled={!body.trim() || isAgentWriting}
-            className={cn(
-              !posted && "text-muted-foreground",
-              posted && "text-foreground",
-            )}
-          >
-            <CheckCircle2 className="size-3.5" />
-            Posted
+            Close
           </Button>
         </div>
-      </div>
+      ) : (
+        <>
+          <Textarea
+            value={renderedBody}
+            onChange={(event) => {
+              if (isAgentWriting) return;
+              setBody(event.target.value);
+            }}
+            readOnly={isAgentWriting}
+            className={cn(
+              "min-h-0 flex-1 resize-none rounded-none border-0 p-3 text-sm leading-6 shadow-none focus-visible:ring-0",
+              isAgentWriting && "opacity-80",
+            )}
+          />
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t bg-muted/30 p-2">
+            <span className="text-[10px] text-muted-foreground">
+              {charCount.toLocaleString()} chars
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => void handleDismiss()}
+                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+              >
+                Dismiss
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => void handleCopy()}
+                disabled={!body.trim() || isAgentWriting}
+              >
+                {copied ? (
+                  <Check className={cn("size-3.5")} />
+                ) : (
+                  <Clipboard className="size-3.5" />
+                )}
+                {copied ? "Copied" : "Copy"}
+              </Button>
+              <Button
+                type="button"
+                variant={posted ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => void handlePostedToggle()}
+                disabled={!body.trim() || isAgentWriting}
+                className={cn(
+                  !posted && "text-muted-foreground",
+                  posted && "text-foreground",
+                )}
+              >
+                <CheckCircle2 className="size-3.5" />
+                Posted
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

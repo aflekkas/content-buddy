@@ -46,6 +46,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import type { DraftRow } from "@/lib/db/types";
 
 type Props = {
   chatId: string;
@@ -175,7 +176,7 @@ export function Chat({
           toolCallId?: string;
           state?: string;
           input?: { body?: unknown; id?: unknown };
-          output?: { ok?: boolean; id?: string };
+          output?: { ok?: boolean; id?: string; draft?: DraftRow };
         };
         if (!p.toolCallId) continue;
 
@@ -234,11 +235,19 @@ export function Chat({
                   ? p.input.id
                   : draftId
                 : undefined);
+            if (p.output.draft) {
+              window.dispatchEvent(
+                new CustomEvent("linkedin-studio:draft", {
+                  detail: { type: "updated", draft: p.output.draft },
+                }),
+              );
+            }
             window.dispatchEvent(
               new CustomEvent("linkedin-studio:draft:streaming-end", {
                 detail: {
                   kind,
                   id: finalId,
+                  draft: p.output.draft,
                   toolCallId: p.toolCallId,
                 },
               }),

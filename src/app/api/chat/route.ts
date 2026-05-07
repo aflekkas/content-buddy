@@ -286,14 +286,7 @@ export async function POST(req: Request) {
           if (!row) return { ok: false, error: "not_found" };
           return {
             ok: true,
-            draft: {
-              id: row.id,
-              body: row.body,
-              status: row.status,
-              post_type: row.post_type,
-              created_at: row.created_at,
-              updated_at: row.updated_at,
-            },
+            draft: row,
           };
         },
       }),
@@ -350,7 +343,7 @@ export async function POST(req: Request) {
               ),
             );
           }
-          return { ok: true, id: row.id };
+          return { ok: true, id: row.id, draft: row };
         },
       }),
       synthesize_from_news: tool({
@@ -396,8 +389,8 @@ export async function POST(req: Request) {
           if (!target) return { ok: false, error: "no_target_draft" };
           const owned = await getDraft(user.id, target);
           if (!owned) return { ok: false, error: "not_found" };
-          await updateDraft(user.id, target, { body });
-          return { ok: true, id: target };
+          const row = await updateDraft(user.id, target, { body });
+          return { ok: true, id: row.id, draft: row };
         },
       }),
       read_signal: tool({

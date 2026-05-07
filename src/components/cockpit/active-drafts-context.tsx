@@ -25,7 +25,7 @@ type DraftEvent =
 
 type ContextValue = {
   activeDraftIds: string[];
-  openDraft: (id: string) => void;
+  openDraft: (id: string, draft?: DraftRow) => void;
   closeDraft: (id: string) => void;
   reorderDrafts: (fromIndex: number, toIndex: number) => void;
   closeAllDrafts: () => void;
@@ -100,7 +100,8 @@ export function ActiveDraftsProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(DRAFT_EVENT_NAME, onDraftEvent);
   }, []);
 
-  const openDraft = useCallback((id: string) => {
+  const openDraft = useCallback((id: string, draft?: DraftRow) => {
+    if (draft) cacheRef.current.set(draft.id, draft);
     setActiveDraftIds((current) =>
       current.includes(id) ? current : [...current, id],
     );

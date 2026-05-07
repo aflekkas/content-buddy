@@ -34,6 +34,7 @@ type StreamingDetail = {
 type StreamingEndDetail = {
   kind: "save" | "update";
   id?: string;
+  draft?: DraftRow;
   toolCallId: string;
 };
 
@@ -197,7 +198,7 @@ export function DraftsList({ initialDrafts, userId }: Props) {
           return next;
         });
         // Brand-new draft: open it now that we have the persisted id.
-        if (detail.id) openDraft(detail.id);
+        if (detail.id) openDraft(detail.id, detail.draft);
       } else if (detail.kind === "update" && detail.id) {
         const id = detail.id;
         setLiveUpdateBodies((current) => {
@@ -234,7 +235,7 @@ export function DraftsList({ initialDrafts, userId }: Props) {
   }, [drafts, filter, search]);
 
   function handleClick(draft: DraftRow) {
-    openDraft(draft.id);
+    openDraft(draft.id, draft);
   }
 
   const totalActive = drafts.filter((d) => d.status !== "dismissed").length;
