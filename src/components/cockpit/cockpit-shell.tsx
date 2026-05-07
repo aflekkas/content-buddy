@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import type { ReactNode } from "react";
+import type { ReactNode, WheelEvent } from "react";
 import { useEffect, useState } from "react";
 import { ColumnHeader } from "@/components/cockpit/column-header";
 import {
@@ -228,7 +228,10 @@ export function CockpitShell({
       </nav>
 
       <TooltipProvider>
-        <div className="min-h-0 flex-1 lg:flex lg:flex-row lg:overflow-x-auto">
+        <div
+          onWheelCapture={handleWorkspaceWheel}
+          className="min-h-0 flex-1 lg:flex lg:min-w-0 lg:flex-row lg:overflow-x-auto lg:overflow-y-hidden"
+        >
           <motion.aside
             aria-label="Collapsed workspace panels"
             initial={false}
@@ -661,6 +664,49 @@ function getStoredPanelState() {
     window.localStorage.removeItem(PANEL_STATE_STORAGE_KEY);
     return DEFAULT_PANEL_STATE;
   }
+}
+
+function handleWorkspaceWheel(event: WheelEvent<HTMLDivElement>) {
+  if (
+    event.defaultPrevented ||
+    event.ctrlKey ||
+    Math.abs(event.deltaX) <= Math.abs(event.deltaY)
+  ) {
+    return;
+  }
+
+  const workspace = event.currentTarget;
+  if (
+    workspace.scrollWidth <= workspace.clientWidth ||
+    hasHorizontalScrollableAncestor(event.target, workspace)
+  ) {
+    return;
+  }
+
+  event.preventDefault();
+  workspace.scrollLeft += event.deltaX;
+}
+
+function hasHorizontalScrollableAncestor(
+  target: EventTarget | null,
+  boundary: HTMLElement,
+) {
+  if (!(target instanceof HTMLElement)) return false;
+
+  for (let node: HTMLElement | null = target; node; node = node.parentElement) {
+    if (node === boundary) return false;
+
+    const { overflowX } = window.getComputedStyle(node);
+    const canScrollHorizontally =
+      (overflowX === "auto" ||
+        overflowX === "scroll" ||
+        overflowX === "overlay") &&
+      node.scrollWidth > node.clientWidth;
+
+    if (canScrollHorizontally) return true;
+  }
+
+  return false;
 }
 
 const EMPTY_CANVAS_MESSAGES = [

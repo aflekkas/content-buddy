@@ -365,6 +365,7 @@ export function Chat({
       <div className="relative min-h-0 flex-1">
       <ScrollArea
         className="h-full"
+        viewportClassName="!overflow-x-hidden"
         viewportRef={viewportRef}
         onViewportScroll={handleViewportScroll}
       >
