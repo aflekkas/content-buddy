@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Check, Clipboard, Loader2, X } from "lucide-react";
+import { Check, CheckCircle2, Clipboard, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ColumnHeader } from "@/components/cockpit/column-header";
@@ -38,7 +38,9 @@ export function InlineDraftEditor({ draftId }: Props) {
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
     "idle",
   );
-  const [copied, setCopied] = useState(draft?.status === "copied");
+  const [status, setStatus] = useState<DraftRow["status"]>(
+    draft?.status ?? "draft",
+  );
   const [loading, setLoading] = useState(!draft);
   const [streamingBody, setStreamingBody] = useState<string | null>(null);
   const [conflictBody, setConflictBody] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export function InlineDraftEditor({ draftId }: Props) {
       setDraft(row);
       setBody(row.body);
       setLastSavedBody(row.body);
-      setCopied(row.status === "copied");
+      setStatus(row.status);
       setLoading(false);
     })();
     return () => {
@@ -107,6 +109,7 @@ export function InlineDraftEditor({ draftId }: Props) {
           // No state to merge if local matches incoming.
           if (row.body === body && row.body === lastSavedBody) {
             setDraft(row);
+            setStatus(row.status);
             return;
           }
           const localDirty = body !== lastSavedBody;
@@ -114,12 +117,13 @@ export function InlineDraftEditor({ draftId }: Props) {
             // User has unsaved edits; surface a conflict banner instead of stomping.
             setConflictBody(row.body);
             setDraft(row);
+            setStatus(row.status);
             return;
           }
           setDraft(row);
           setBody(row.body);
           setLastSavedBody(row.body);
-          setCopied(row.status === "copied");
+          setStatus(row.status);
           setSaveState("saved");
           window.setTimeout(() => setSaveState("idle"), 1200);
         },
@@ -175,12 +179,31 @@ export function InlineDraftEditor({ draftId }: Props) {
 
   async function handleCopy() {
     await navigator.clipboard.writeText(body);
+    if (status === "posted") return;
     const res = await fetch(`/api/drafts/${draftId}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ status: "copied" }),
     });
-    if (res.ok) setCopied(true);
+    if (res.ok) {
+      const row = (await res.json()) as DraftRow;
+      setDraft(row);
+      setStatus(row.status);
+    }
+  }
+
+  async function handlePostedToggle() {
+    const nextStatus: DraftRow["status"] =
+      status === "posted" ? "copied" : "posted";
+    const res = await fetch(`/api/drafts/${draftId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status: nextStatus }),
+    });
+    if (!res.ok) return;
+    const row = (await res.json()) as DraftRow;
+    setDraft(row);
+    setStatus(row.status);
   }
 
   async function handleDismiss() {
@@ -204,6 +227,9 @@ export function InlineDraftEditor({ draftId }: Props) {
   function dismissConflict() {
     setConflictBody(null);
   }
+
+  const copied = status === "copied" || status === "posted";
+  const posted = status === "posted";
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -298,6 +324,20 @@ export function InlineDraftEditor({ draftId }: Props) {
               <Clipboard className="size-3.5" />
             )}
             {copied ? "Copied" : "Copy"}
+          </Button>
+          <Button
+            type="button"
+            variant={posted ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => void handlePostedToggle()}
+            disabled={!body.trim() || isAgentWriting}
+            className={cn(
+              !posted && "text-muted-foreground",
+              posted && "text-foreground",
+            )}
+          >
+            <CheckCircle2 className="size-3.5" />
+            Posted
           </Button>
         </div>
       </div>

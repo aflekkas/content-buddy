@@ -656,7 +656,10 @@ export async function updateDraft(
   userId: string,
   id: string,
   patch: Partial<
-    Pick<DraftRow, "body" | "status" | "copied_at" | "chat_id" | "post_type">
+    Pick<
+      DraftRow,
+      "body" | "status" | "copied_at" | "posted_at" | "chat_id" | "post_type"
+    >
   >,
 ): Promise<DraftRow> {
   const supabase = createAdminClient();
@@ -682,4 +685,3 @@ export async function deleteDraft(userId: string, id: string): Promise<void> {
 
   if (error) throw error;
 }
-

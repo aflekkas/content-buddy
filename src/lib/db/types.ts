@@ -112,9 +112,10 @@ export type DraftRow = {
   signal_ids: string[];
   chat_id: string | null;
   body: string;
-  status: "draft" | "copied" | "dismissed";
+  status: "draft" | "copied" | "posted" | "dismissed";
   post_type: PostType | null;
   copied_at: string | null;
+  posted_at: string | null;
   created_at: string;
   updated_at: string;
 };

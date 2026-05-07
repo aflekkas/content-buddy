@@ -4,7 +4,7 @@ import { deleteDraft, getDraft, updateDraft } from "@/lib/db/queries";
 
 const PatchBody = z.object({
   body: z.string().trim().min(1).max(20000).optional(),
-  status: z.enum(["draft", "copied", "dismissed"]).optional(),
+  status: z.enum(["draft", "copied", "posted", "dismissed"]).optional(),
 });
 
 export async function GET(
@@ -35,6 +35,12 @@ export async function PATCH(
     ...parsed.data,
     copied_at:
       parsed.data.status === "copied" ? new Date().toISOString() : undefined,
+    posted_at:
+      parsed.data.status === "posted"
+        ? new Date().toISOString()
+        : parsed.data.status
+          ? null
+          : undefined,
   };
   const draft = await updateDraft(auth.user.id, id, patch);
   return jsonResponse(draft);
