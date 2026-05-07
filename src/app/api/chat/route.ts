@@ -254,7 +254,7 @@ export async function POST(req: Request) {
       }),
       read_past_drafts: tool({
         description:
-          "Fetch the user's recent draft bodies to sample their writing voice. Use when asked to match the style of recent posts, when synthesizing fresh drafts and wanting voice calibration, or when the user references 'how I usually write'.",
+          "Fetch the user's recent draft bodies for discovery and voice calibration. Use when asked to match recent style, synthesize with voice calibration, or find likely drafts before reading a specific one. For showing, embedding, opening, revising, or comparing an exact draft, call read_draft with that draft id.",
         inputSchema: z.object({
           limit: z.number().int().min(1).max(20).default(5),
           status: z
@@ -272,6 +272,28 @@ export async function POST(req: Request) {
               post_type: r.post_type,
               created_at: r.created_at,
             })),
+          };
+        },
+      }),
+      read_draft: tool({
+        description:
+          "Fetch one saved draft by id, including the full body, so the model can work from it and the chat UI can render it as an embedded draft. Use for [draft:<uuid>] tokens, 'pull it up', 'show/embed/open that draft', revisions, and comparisons that need the exact draft body.",
+        inputSchema: z.object({
+          id: z.uuid(),
+        }),
+        execute: async ({ id }) => {
+          const row = await getDraft(user.id, id);
+          if (!row) return { ok: false, error: "not_found" };
+          return {
+            ok: true,
+            draft: {
+              id: row.id,
+              body: row.body,
+              status: row.status,
+              post_type: row.post_type,
+              created_at: row.created_at,
+              updated_at: row.updated_at,
+            },
           };
         },
       }),

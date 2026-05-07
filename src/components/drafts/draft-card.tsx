@@ -14,6 +14,11 @@ export type DraftCardData = {
   updated_at: string | null;
 };
 
+export type EmbeddedDraftData = DraftCardData & {
+  status?: string | null;
+  created_at?: string | null;
+};
+
 type Props = {
   draft: DraftCardData;
   variant?: "rail" | "chat";
@@ -92,6 +97,59 @@ export function DraftCard({ draft, variant = "chat", onCite, onDismiss }: Props)
             Dismiss
           </button>
         ) : null}
+      </div>
+    </Link>
+  );
+}
+
+export function EmbeddedDraftCard({ draft }: { draft: EmbeddedDraftData }) {
+  const { openDraft } = useActiveDrafts();
+  const href = `/dashboard/drafts/${draft.id}`;
+  const body = draft.body.trim() || "(empty draft)";
+  const timestamp = draft.updated_at ?? draft.created_at ?? null;
+
+  return (
+    <Link
+      href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        openDraft(draft.id);
+      }}
+      className={cn(
+        "block rounded-md border bg-background p-3 text-foreground transition-colors",
+        "cursor-pointer hover:border-primary/40 hover:bg-muted/40",
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+        <FileText className="size-3" />
+        <span className="font-medium text-foreground">Draft</span>
+        {draft.status ? (
+          <>
+            <span>·</span>
+            <span className="capitalize">{draft.status}</span>
+          </>
+        ) : null}
+        {draft.post_type ? (
+          <>
+            <span>·</span>
+            <span className="capitalize">{draft.post_type.replace(/_/g, " ")}</span>
+          </>
+        ) : null}
+        {timestamp ? (
+          <>
+            <span>·</span>
+            <span>{formatRelativeTime(timestamp)}</span>
+          </>
+        ) : null}
+      </div>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+        {body}
+      </p>
+      <div className="mt-2 flex items-center justify-end">
+        <span className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          <ExternalLink className="size-3" />
+          Open
+        </span>
       </div>
     </Link>
   );

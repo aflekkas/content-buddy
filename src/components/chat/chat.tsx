@@ -22,6 +22,10 @@ import {
   UserDraftCard,
   extractDraftIds,
 } from "@/components/drafts/user-draft-card";
+import {
+  EmbeddedDraftCard,
+  type EmbeddedDraftData,
+} from "@/components/drafts/draft-card";
 import { citeSignal } from "@/lib/cite-signal";
 import { Loader } from "@/components/ui/loader";
 import { Markdown } from "@/components/ui/markdown";
@@ -826,6 +830,28 @@ function MessageRender({
         }
 
         if (part.type === "tool-news_scan") return null;
+
+        if (part.type === "tool-read_draft") {
+          const p = part as {
+            state?: string;
+            output?: {
+              ok?: boolean;
+              error?: string;
+              draft?: EmbeddedDraftData;
+            };
+          };
+          if (p.state !== "output-available") {
+            return <ToolChip key={index} label="Opening draft…" />;
+          }
+          if (!p.output?.ok || !p.output.draft) {
+            return <ToolChip key={index} label="Draft unavailable" />;
+          }
+          return (
+            <div key={index} className="w-full max-w-2xl">
+              <EmbeddedDraftCard draft={p.output.draft} />
+            </div>
+          );
+        }
 
         if (
           part.type === "tool-save_as_draft" ||
