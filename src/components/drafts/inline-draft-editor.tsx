@@ -288,11 +288,11 @@ export function InlineDraftEditor({ draftId }: Props) {
         }
         right={
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon-sm"
             onClick={() => closeDraft(draftId)}
             aria-label="Close draft tab"
-            className="text-muted-foreground"
+            className="text-muted-foreground hover:text-foreground"
           >
             <X className="size-3.5" />
           </Button>
