@@ -65,7 +65,7 @@ export default async function DashboardShellLayout({
           />
         }
         settingsSlot={<SettingsRail initialProfile={profile} />}
-        chatSwitcherSlot={<ChatSwitcherMount chats={chats} />}
+        chatSwitcherSlot={<ChatSwitcherMount key="chat-switcher" chats={chats} />}
       >
         {children}
       </CockpitShell>
