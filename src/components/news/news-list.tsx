@@ -716,11 +716,11 @@ export function NewsList({
               </div>
             </section>
 
-            <section>
+            <section className="relative isolate">
               <button
                 type="button"
                 onClick={toggleSignalsCollapsed}
-                className="flex w-full select-none items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                className="relative z-0 flex w-full select-none items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
                 aria-expanded={!signalsCollapsed}
               >
                 <motion.span
@@ -736,7 +736,7 @@ export function NewsList({
                 </span>
               </button>
               <div
-                className="grid"
+                className="relative z-10 grid"
                 style={{
                   gridTemplateRows: signalsCollapsed ? "0fr" : "1fr",
                   opacity: signalsCollapsed ? 0 : 1,
@@ -752,7 +752,7 @@ export function NewsList({
                       </p>
                     ) : (
                       <>
-                        <MotionList className="flex flex-col gap-1.5">
+                        <MotionList className="relative z-10 flex flex-col gap-1.5">
                           {signals.map((signal) => {
                             const text =
                               signal.summary ||
@@ -760,7 +760,10 @@ export function NewsList({
                                 ? (signal.raw.text as string).trim()
                                 : signal.url);
                             return (
-                              <MotionListItem key={signal.id}>
+                              <MotionListItem
+                                key={signal.id}
+                                className="relative z-10"
+                              >
                                 <NewsSignalCard
                                   variant="rail"
                                   signal={{
