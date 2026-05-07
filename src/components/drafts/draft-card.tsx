@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ExternalLink, FileText, Quote, X } from "lucide-react";
+import { useActiveDrafts } from "@/components/cockpit/active-drafts-context";
 import { formatRelativeTime } from "@/lib/system-prompt";
 import { cn } from "@/lib/utils";
 import type { PostType } from "@/lib/db/types";
@@ -21,12 +22,17 @@ type Props = {
 };
 
 export function DraftCard({ draft, variant = "chat", onCite, onDismiss }: Props) {
+  const { openDraft } = useActiveDrafts();
   const href = `/dashboard/drafts/${draft.id}`;
   const body = draft.body.trim();
   const preview = body.length > 0 ? body : "(empty draft)";
   return (
     <Link
       href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        openDraft(draft.id);
+      }}
       className={cn(
         "block rounded-md border bg-background p-2 text-foreground transition-colors",
         "cursor-pointer hover:border-primary/40 hover:bg-muted/40",

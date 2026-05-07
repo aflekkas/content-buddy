@@ -1,14 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  CheckCircle2,
-  FileText,
-  ListChecks,
-  RefreshCw,
-  Search,
-} from "lucide-react";
+import { FileText, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ColumnHeader } from "@/components/cockpit/column-header";
 import { useActiveDrafts } from "@/components/cockpit/active-drafts-context";
@@ -17,7 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import type { DraftRow } from "@/lib/db/types";
 
-type Filter = "all" | "draft" | "copied";
+type Filter = "all" | "draft" | "copied" | "posted";
 
 type Props = {
   initialDrafts: DraftRow[];
@@ -28,6 +21,7 @@ const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: "all", label: "All" },
   { id: "draft", label: "Queue" },
   { id: "copied", label: "Copied" },
+  { id: "posted", label: "Posted" },
 ];
 
 type StreamingDetail = {
@@ -47,37 +41,39 @@ function getDraftStatusMeta(draft: DraftRow, streaming: boolean) {
   if (streaming) {
     return {
       label: "Rewriting",
-      Icon: RefreshCw,
       time: formatRelativeTime(draft.updated_at),
-      cardClass: "border-primary/40 border-l-primary bg-primary/[0.04]",
-      badgeClass: "border-primary/25 bg-primary/10 text-primary",
+      cardClass: "border-primary/40 bg-primary/[0.03]",
+      statusClass: "text-primary",
+    };
+  }
+
+  if (draft.status === "posted") {
+    return {
+      label: "Posted",
+      time: formatRelativeTime(draft.posted_at ?? draft.updated_at),
+      cardClass: "",
+      statusClass: "text-foreground",
     };
   }
 
   if (draft.status === "copied") {
     return {
       label: "Copied",
-      Icon: CheckCircle2,
       time: formatRelativeTime(draft.copied_at ?? draft.updated_at),
-      cardClass:
-        "border-emerald-300/70 border-l-emerald-500 bg-emerald-50/70 hover:bg-emerald-50 dark:border-emerald-900 dark:border-l-emerald-500 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30",
-      badgeClass:
-        "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
+      cardClass: "",
+      statusClass: "text-muted-foreground",
     };
   }
 
   return {
-    label: "Queued",
-    Icon: ListChecks,
+    label: "Queue",
     time: formatRelativeTime(draft.created_at),
-    cardClass:
-      "border-primary/25 border-l-primary/70 bg-primary/[0.03] hover:bg-primary/[0.06]",
-    badgeClass: "border-primary/25 bg-primary/10 text-primary",
+    cardClass: "",
+    statusClass: "text-muted-foreground",
   };
 }
 
 export function DraftsList({ initialDrafts, userId }: Props) {
-  const router = useRouter();
   const [drafts, setDrafts] = useState<DraftRow[]>(initialDrafts);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
@@ -87,7 +83,11 @@ export function DraftsList({ initialDrafts, userId }: Props) {
   const [liveUpdateBodies, setLiveUpdateBodies] = useState<Map<string, string>>(
     () => new Map(),
   );
-  const { activeDraftIds, openDraft } = useActiveDrafts();
+  const { activeDraftIds, openDraft, primeCache } = useActiveDrafts();
+
+  useEffect(() => {
+    primeCache(drafts);
+  }, [drafts, primeCache]);
 
   // Realtime subscribe to drafts inserts/updates/deletes for this user.
   useEffect(() => {
@@ -235,9 +235,6 @@ export function DraftsList({ initialDrafts, userId }: Props) {
 
   function handleClick(draft: DraftRow) {
     openDraft(draft.id);
-    if (draft.chat_id) {
-      router.push(`/dashboard/chat/${draft.chat_id}`);
-    }
   }
 
   const totalActive = drafts.filter((d) => d.status !== "dismissed").length;
@@ -322,34 +319,27 @@ export function DraftsList({ initialDrafts, userId }: Props) {
               const preview = renderBody.slice(0, 140);
               const streaming = live !== undefined;
               const status = getDraftStatusMeta(draft, streaming);
-              const StatusIcon = status.Icon;
               return (
                 <li key={draft.id}>
                   <button
                     type="button"
                     onClick={() => handleClick(draft)}
                     className={cn(
-                      "block w-full rounded-md border border-l-4 bg-background p-2 text-left transition-colors hover:bg-muted/40",
+                      "block w-full rounded-md border bg-background p-2 text-left transition-colors hover:bg-muted/40",
                       status.cardClass,
                       active && "border-primary/40 bg-primary/5",
                     )}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
                       <span
                         className={cn(
-                          "inline-flex h-5 items-center gap-1 rounded-md border px-1.5 text-[10px] font-semibold uppercase tracking-wide",
-                          status.badgeClass,
+                          "font-medium uppercase tracking-wide",
+                          status.statusClass,
                         )}
                       >
-                        <StatusIcon
-                          className={cn(
-                            "size-3",
-                            streaming && "animate-spin",
-                          )}
-                        />
                         {status.label}
                       </span>
-                      <span className="text-[10px] font-medium text-muted-foreground">
+                      <span className="text-muted-foreground">
                         {status.time}
                       </span>
                     </div>

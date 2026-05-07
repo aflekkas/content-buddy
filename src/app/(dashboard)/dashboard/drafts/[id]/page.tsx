@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { createChat, getDraft, updateDraft } from "@/lib/db/queries";
+import { getDraft } from "@/lib/db/queries";
+import { ACTIVE_DRAFTS_PARAM } from "@/lib/active-drafts";
 
 export default async function DraftDeepLinkPage({
   params,
@@ -14,12 +15,5 @@ export default async function DraftDeepLinkPage({
   const draft = await getDraft(user.id, id);
   if (!draft || draft.status === "dismissed") notFound();
 
-  let chatId = draft.chat_id;
-  if (!chatId) {
-    const chat = await createChat(user.id);
-    chatId = chat.id;
-    await updateDraft(user.id, draft.id, { chat_id: chatId });
-  }
-
-  redirect(`/dashboard/chat/${chatId}?drafts=${draft.id}`);
+  redirect(`/dashboard?${ACTIVE_DRAFTS_PARAM}=${draft.id}`);
 }
