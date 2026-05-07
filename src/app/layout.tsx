@@ -34,13 +34,13 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://api.fontshare.com/v2/css?f[]=open-sauce-sans@300,400,500,600,700&f[]=sentient@300,301,400,401,500,501,700,701&display=swap"
         />
+      </head>
+      <body className="h-svh overflow-hidden flex flex-col font-sans">
         <Script
           id="theme-init"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
-      </head>
-      <body className="h-svh overflow-hidden flex flex-col font-sans">
         <ThemeProvider>
           <NextTopLoader
             color="#0A66C2"

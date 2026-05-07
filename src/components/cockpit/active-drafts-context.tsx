@@ -35,11 +35,6 @@ type ContextValue = {
 
 const ActiveDraftsContext = createContext<ContextValue | null>(null);
 
-function readInitialIds(): string[] {
-  if (typeof window === "undefined") return [];
-  return parseActiveDraftIds(window.location.search);
-}
-
 function mirrorIdsToUrl(ids: string[]) {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
@@ -51,7 +46,7 @@ function mirrorIdsToUrl(ids: string[]) {
 }
 
 export function ActiveDraftsProvider({ children }: { children: ReactNode }) {
-  const [activeDraftIds, setActiveDraftIds] = useState<string[]>(readInitialIds);
+  const [activeDraftIds, setActiveDraftIds] = useState<string[]>([]);
   const cacheRef = useRef<Map<string, DraftRow>>(new Map());
   const hydratedRef = useRef(false);
 

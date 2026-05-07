@@ -725,12 +725,7 @@ const EMPTY_CANVAS_MESSAGES = [
 ] as const;
 
 function EmptyCanvas({ onExpandAll }: { onExpandAll: () => void }) {
-  const [message] = useState(
-    () =>
-      EMPTY_CANVAS_MESSAGES[
-        Math.floor(Math.random() * EMPTY_CANVAS_MESSAGES.length)
-      ],
-  );
+  const message = EMPTY_CANVAS_MESSAGES[0];
   return (
     <div className="flex max-w-sm flex-col items-center gap-3 px-6 text-center">
       <p className="text-base font-medium text-foreground">{message.title}</p>

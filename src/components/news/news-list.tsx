@@ -85,14 +85,8 @@ export function NewsList({
   const [scanning, setScanning] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [exhausted, setExhausted] = useState(false);
-  const [sourcesCollapsed, setSourcesCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(SOURCES_COLLAPSED_KEY) === "1";
-  });
-  const [signalsCollapsed, setSignalsCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem(SIGNALS_COLLAPSED_KEY) === "1";
-  });
+  const [sourcesCollapsed, setSourcesCollapsed] = useState(false);
+  const [signalsCollapsed, setSignalsCollapsed] = useState(false);
   const [consoleVisible, setConsoleVisible] = useState(false);
   const [pendingDelete, setPendingDelete] =
     useState<MonitoredSourceRow | null>(null);
@@ -104,6 +98,18 @@ export function NewsList({
   const consoleLineIdRef = useRef(0);
   const railScrollRef = useRef<HTMLDivElement | null>(null);
   const wasConsoleVisibleRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      const nextSourcesCollapsed =
+        window.localStorage.getItem(SOURCES_COLLAPSED_KEY) === "1";
+      const nextSignalsCollapsed =
+        window.localStorage.getItem(SIGNALS_COLLAPSED_KEY) === "1";
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydration sync from localStorage
+      setSourcesCollapsed(nextSourcesCollapsed);
+      setSignalsCollapsed(nextSignalsCollapsed);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (consoleVisible && !wasConsoleVisibleRef.current) {
