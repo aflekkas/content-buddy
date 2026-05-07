@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Search } from "lucide-react";
+import {
+  CheckCircle2,
+  FileText,
+  ListChecks,
+  RefreshCw,
+  Search,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { ColumnHeader } from "@/components/cockpit/column-header";
 import { useActiveDrafts } from "@/components/cockpit/active-drafts-context";
@@ -20,7 +26,7 @@ type Props = {
 
 const FILTERS: Array<{ id: Filter; label: string }> = [
   { id: "all", label: "All" },
-  { id: "draft", label: "Draft" },
+  { id: "draft", label: "Queue" },
   { id: "copied", label: "Copied" },
 ];
 
@@ -36,6 +42,39 @@ type StreamingEndDetail = {
   id?: string;
   toolCallId: string;
 };
+
+function getDraftStatusMeta(draft: DraftRow, streaming: boolean) {
+  if (streaming) {
+    return {
+      label: "Rewriting",
+      Icon: RefreshCw,
+      time: formatRelativeTime(draft.updated_at),
+      cardClass: "border-primary/40 border-l-primary bg-primary/[0.04]",
+      badgeClass: "border-primary/25 bg-primary/10 text-primary",
+    };
+  }
+
+  if (draft.status === "copied") {
+    return {
+      label: "Copied",
+      Icon: CheckCircle2,
+      time: formatRelativeTime(draft.copied_at ?? draft.updated_at),
+      cardClass:
+        "border-emerald-300/70 border-l-emerald-500 bg-emerald-50/70 hover:bg-emerald-50 dark:border-emerald-900 dark:border-l-emerald-500 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/30",
+      badgeClass:
+        "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
+    };
+  }
+
+  return {
+    label: "Queued",
+    Icon: ListChecks,
+    time: formatRelativeTime(draft.created_at),
+    cardClass:
+      "border-primary/25 border-l-primary/70 bg-primary/[0.03] hover:bg-primary/[0.06]",
+    badgeClass: "border-primary/25 bg-primary/10 text-primary",
+  };
+}
 
 export function DraftsList({ initialDrafts, userId }: Props) {
   const router = useRouter();
@@ -282,27 +321,37 @@ export function DraftsList({ initialDrafts, userId }: Props) {
               const renderBody = live ?? draft.body;
               const preview = renderBody.slice(0, 140);
               const streaming = live !== undefined;
+              const status = getDraftStatusMeta(draft, streaming);
+              const StatusIcon = status.Icon;
               return (
                 <li key={draft.id}>
                   <button
                     type="button"
                     onClick={() => handleClick(draft)}
                     className={cn(
-                      "block w-full rounded-md border bg-background p-2 text-left transition-colors hover:bg-muted/40",
+                      "block w-full rounded-md border border-l-4 bg-background p-2 text-left transition-colors hover:bg-muted/40",
+                      status.cardClass,
                       active && "border-primary/40 bg-primary/5",
-                      streaming && "border-primary/40",
                     )}
                   >
-                    <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
                       <span
                         className={cn(
-                          "font-medium uppercase tracking-wide",
-                          streaming && "text-primary",
+                          "inline-flex h-5 items-center gap-1 rounded-md border px-1.5 text-[10px] font-semibold uppercase tracking-wide",
+                          status.badgeClass,
                         )}
                       >
-                        {streaming ? "Rewriting" : draft.status}
+                        <StatusIcon
+                          className={cn(
+                            "size-3",
+                            streaming && "animate-spin",
+                          )}
+                        />
+                        {status.label}
                       </span>
-                      <span>{formatRelativeTime(draft.created_at)}</span>
+                      <span className="text-[10px] font-medium text-muted-foreground">
+                        {status.time}
+                      </span>
                     </div>
                     <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-foreground">
                       {preview || <em className="text-muted-foreground">empty</em>}
