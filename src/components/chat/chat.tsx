@@ -1108,42 +1108,22 @@ function readUsdHeader(headers: Headers, name: string): number | null {
 function DailyBudgetMeter({ budget }: { budget: DailyAiTokenBudget }) {
   const limit = Math.max(0.01, budget.limitUsd);
   const used = Math.min(limit, Math.max(0, budget.usedUsd));
-  const remaining = Math.max(0, budget.remainingUsd);
   const percentage = Math.min(100, Math.max(0, (used / limit) * 100));
   const isNearLimit = percentage >= 80;
-  const resetAt = new Date(budget.resetAt);
-  const resetLabel = Number.isNaN(resetAt.getTime())
-    ? "Next daily reset"
-    : resetAt.toLocaleString();
   const budgetLabel = `${formatBudgetUsd(used)} of ${formatBudgetUsd(
     budget.limitUsd,
   )} daily AI budget used`;
 
   return (
-    <div className="group relative mx-auto mt-2 flex w-28 justify-center pt-10">
-      <div className="pointer-events-none absolute top-0 left-1/2 z-20 w-64 -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-2 text-[10px] text-popover-foreground opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-        <div className="mb-1.5 flex items-center justify-between gap-3">
-          <span className="font-medium text-foreground">Daily AI budget</span>
-          <span className="tabular-nums text-muted-foreground">
-            {formatBudgetUsd(used)} / {formatBudgetUsd(budget.limitUsd)}
-          </span>
-        </div>
-        <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-muted-foreground">
-          <span>Remaining</span>
-          <span className="tabular-nums">{formatBudgetUsd(remaining)}</span>
-          <span>Resets</span>
-          <span className="tabular-nums">{resetLabel}</span>
-        </div>
-      </div>
+    <div className="mx-auto mt-2 flex w-28 justify-center">
       <div className="w-28 rounded-full px-0 py-1">
         <div
           role="meter"
-          tabIndex={0}
           aria-label={budgetLabel}
           aria-valuemin={0}
           aria-valuemax={budget.limitUsd}
           aria-valuenow={used}
-          className="h-1.5 overflow-hidden rounded-full bg-muted outline-none ring-offset-background transition-[height,box-shadow] duration-200 ease-out group-hover:h-2 focus-visible:h-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2"
+          className="h-1.5 overflow-hidden rounded-full bg-muted"
         >
           <div
             className={cn(
