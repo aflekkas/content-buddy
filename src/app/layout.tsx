@@ -5,7 +5,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { BRAND_NAME } from "@/lib/brand";
-import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { THEME_INIT_SCRIPT } from "@/lib/theme-constants";
 
 export const metadata: Metadata = {
   title: BRAND_NAME,
@@ -34,13 +34,13 @@ export default function RootLayout({
           rel="stylesheet"
           href="https://api.fontshare.com/v2/css?f[]=open-sauce-sans@300,400,500,600,700&f[]=sentient@300,301,400,401,500,501,700,701&display=swap"
         />
-      </head>
-      <body className="h-svh overflow-hidden flex flex-col font-sans">
         <Script
           id="theme-init"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
+      </head>
+      <body className="h-svh overflow-hidden flex flex-col font-sans">
         <ThemeProvider>
           <NextTopLoader
             color="#0A66C2"
