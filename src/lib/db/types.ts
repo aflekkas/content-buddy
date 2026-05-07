@@ -14,6 +14,14 @@ export type ChatRow = {
   cache_creation_tokens: number;
 };
 
+export type AiDailyUsageRow = {
+  user_id: string;
+  usage_date: string;
+  tokens: number;
+  cost_micro_usd: number;
+  updated_at: string;
+};
+
 export type MessagePart =
   | { type: "text"; text: string }
   | { type: "reasoning"; text: string }

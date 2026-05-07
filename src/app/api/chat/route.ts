@@ -662,9 +662,10 @@ export async function POST(req: Request) {
       }
       try {
         const total = await result.totalUsage;
-        await recordDailyAiTokenUsage(user.id, total).catch((err) =>
-          console.error("[chat] record daily usage failed", err),
-        );
+        await recordDailyAiTokenUsage(user.id, total, {
+          provider,
+          model,
+        }).catch((err) => console.error("[chat] record daily usage failed", err));
         await addChatUsage(chatId, tokenUsageFromLanguageModelUsage(total));
       } catch (err) {
         console.error("[chat] addChatUsage failed", err);
@@ -709,8 +710,8 @@ async function generateChatTitle(
     if (title) {
       await setChatTitleIfEmpty(chatId, title);
     }
-    await recordDailyAiTokenUsage(userId, usage).catch((err) =>
-      console.error("[chat] record title usage failed", err),
+    await recordDailyAiTokenUsage(userId, usage, { provider, model }).catch(
+      (err) => console.error("[chat] record title usage failed", err),
     );
   } catch {
     const fallback = firstUserMessage.slice(0, 40).trim();

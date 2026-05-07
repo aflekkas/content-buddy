@@ -7,6 +7,7 @@ import {
 } from "@/lib/db/queries";
 import { toUIMessages } from "@/lib/chat-messages";
 import { Chat } from "@/components/chat/chat";
+import { checkDailyAiTokenBudget } from "@/lib/ai-usage";
 import {
   defaultModel,
   isModelForProvider,
@@ -23,9 +24,10 @@ export default async function ChatThreadPage({ params }: Props) {
 
   const { id } = await params;
 
-  const [chat, profile] = await Promise.all([
+  const [chat, profile, dailyBudget] = await Promise.all([
     getChat(id, user.id),
     getUserProfile(user.id),
+    checkDailyAiTokenBudget(user.id),
   ]);
   if (!chat) notFound();
 
@@ -53,6 +55,7 @@ export default async function ChatThreadPage({ params }: Props) {
         cacheReadTokens: chat.cache_read_tokens,
         cacheCreationTokens: chat.cache_creation_tokens,
       }}
+      initialDailyBudget={dailyBudget}
       hasActiveKey={hasActiveKey}
       activeProviderId={providerId}
       activeModelId={modelId}

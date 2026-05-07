@@ -4,7 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDown, Brain, DollarSign, Sparkles, X } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  Brain,
+  DollarSign,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { LogoMark } from "@/components/logo";
 import { AnimatePresence, motion } from "motion/react";
 import { Button } from "@/components/ui/button";
@@ -33,7 +40,12 @@ import { Message } from "@/components/ui/message";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { EASE_OUT } from "@/lib/motion";
 import { estimateCostUsd, type TokenUsage } from "@/lib/pricing";
-import { PROVIDERS, providerSupportsImages, type ProviderId } from "@/lib/providers";
+import {
+  PROVIDERS,
+  providerSupportsImages,
+  type ProviderId,
+} from "@/lib/providers";
+import type { DailyAiTokenBudget } from "@/lib/ai-usage";
 import {
   decodeProviderError,
   type ProviderErrorPayload,
@@ -54,6 +66,7 @@ type Props = {
   initialMessages: UIMessage[];
   initialHasMore?: boolean;
   initialUsage: TokenUsage;
+  initialDailyBudget?: DailyAiTokenBudget;
   hasActiveKey: boolean;
   activeProviderId: ProviderId;
   activeModelId: string;
@@ -77,12 +90,25 @@ const CHAT_ROW_TRANSITION = {
   layout: { duration: 0.24, ease: EASE_OUT },
 } as const;
 
+const DAILY_BUDGET_FALLBACK_LIMIT_USD = 1;
+
+function defaultDailyBudget(): DailyAiTokenBudget {
+  return {
+    allowed: true,
+    limitUsd: DAILY_BUDGET_FALLBACK_LIMIT_USD,
+    usedUsd: 0,
+    remainingUsd: DAILY_BUDGET_FALLBACK_LIMIT_USD,
+    resetAt: "",
+  };
+}
+
 export function Chat({
   chatId,
   draftId,
   initialMessages,
   initialHasMore = false,
   initialUsage,
+  initialDailyBudget,
   hasActiveKey,
   activeProviderId,
   activeModelId,
@@ -94,6 +120,9 @@ export function Chat({
   const [keyErrorFrom402, setKeyErrorFrom402] = useState(false);
   const [providerError, setProviderError] =
     useState<ProviderErrorPayload | null>(null);
+  const [dailyBudget, setDailyBudget] = useState<DailyAiTokenBudget>(
+    () => initialDailyBudget ?? defaultDailyBudget(),
+  );
   const [baseMessageIds] = useState(
     () => new Set(initialMessages.map((m) => m.id)),
   );
@@ -139,6 +168,8 @@ export function Chat({
       }),
       fetch: async (input, init) => {
         const res = await fetch(input, init);
+        const nextBudget = readDailyBudgetHeaders(res.headers);
+        if (nextBudget) setDailyBudget(nextBudget);
         if (res.status === 402) {
           setKeyErrorFrom402(true);
         } else if (res.ok) {
@@ -265,8 +296,13 @@ export function Chat({
     }
   }, [messages, draftId]);
 
-  const totalUsage: TokenUsage = useMemo(() => {
-    const total: TokenUsage = { ...initialUsage };
+  const liveUsage: TokenUsage = useMemo(() => {
+    const total: TokenUsage = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+    };
     for (const raw of messages) {
       if (raw.role !== "assistant") continue;
       if (baseMessageIds.has(raw.id)) continue;
@@ -278,7 +314,18 @@ export function Chat({
       total.cacheCreationTokens += u.cacheCreationTokens ?? 0;
     }
     return total;
-  }, [messages, initialUsage, baseMessageIds]);
+  }, [messages, baseMessageIds]);
+
+  const totalUsage: TokenUsage = useMemo(
+    () => ({
+      inputTokens: initialUsage.inputTokens + liveUsage.inputTokens,
+      outputTokens: initialUsage.outputTokens + liveUsage.outputTokens,
+      cacheReadTokens: initialUsage.cacheReadTokens + liveUsage.cacheReadTokens,
+      cacheCreationTokens:
+        initialUsage.cacheCreationTokens + liveUsage.cacheCreationTokens,
+    }),
+    [initialUsage, liveUsage],
+  );
 
   const totalTokens =
     totalUsage.inputTokens +
@@ -290,6 +337,19 @@ export function Chat({
     selectedModelId,
     totalUsage,
   );
+  const liveEstimatedCost =
+    estimateCostUsd(activeProviderId, selectedModelId, liveUsage) ?? 0;
+  const displayedDailyBudget: DailyAiTokenBudget = {
+    ...dailyBudget,
+    usedUsd: Math.min(
+      dailyBudget.limitUsd,
+      dailyBudget.usedUsd + liveEstimatedCost,
+    ),
+    remainingUsd: Math.max(
+      0,
+      dailyBudget.remainingUsd - liveEstimatedCost,
+    ),
+  };
   const providerModels = PROVIDERS[activeProviderId].models;
   const activeModelLabel =
     providerModels.find((m) => m.id === selectedModelId)?.label ??
@@ -492,10 +552,11 @@ export function Chat({
             attachmentsDisabled={!providerSupportsImages(activeProviderId)}
             attachmentsDisabledReason={`${PROVIDERS[activeProviderId].label} does not support image input.`}
           />
+          <DailyBudgetMeter budget={displayedDailyBudget} />
           <div
-            className="mt-1.5 flex items-center justify-center gap-1 text-[10px] tracking-wide text-muted-foreground/70"
-            title={buildUsageTitle(totalUsage, estimatedCost)}
+            className="group relative mt-1.5 flex items-center justify-center gap-1 text-[10px] tracking-wide text-muted-foreground/70"
           >
+            <UsageHoverCard usage={totalUsage} cost={estimatedCost} />
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Change model"
@@ -1009,6 +1070,10 @@ function formatUsd(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
+function formatBudgetUsd(value: number): string {
+  return `$${Math.max(0, value).toFixed(2)}`;
+}
+
 function buildUsageTitle(usage: TokenUsage, cost: number | null): string {
   const parts = [
     `Input: ${usage.inputTokens}`,
@@ -1018,4 +1083,75 @@ function buildUsageTitle(usage: TokenUsage, cost: number | null): string {
   ];
   if (cost !== null) parts.push(`Estimated cost: ${formatUsd(cost)}`);
   return parts.join("\n");
+}
+
+function readDailyBudgetHeaders(headers: Headers): DailyAiTokenBudget | null {
+  const limitUsd = readUsdHeader(headers, "X-AI-Daily-Budget-Limit-Usd");
+  const usedUsd = readUsdHeader(headers, "X-AI-Daily-Budget-Used-Usd");
+  const remainingUsd = readUsdHeader(
+    headers,
+    "X-AI-Daily-Budget-Remaining-Usd",
+  );
+  if (limitUsd === null || usedUsd === null || remainingUsd === null) {
+    return null;
+  }
+
+  return {
+    allowed: usedUsd < limitUsd,
+    limitUsd,
+    usedUsd,
+    remainingUsd,
+    resetAt:
+      headers.get("X-AI-Daily-Budget-Reset") ??
+      new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
+
+function readUsdHeader(headers: Headers, name: string): number | null {
+  const raw = headers.get(name);
+  if (raw === null) return null;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return null;
+  return Math.max(0, value);
+}
+
+function DailyBudgetMeter({ budget }: { budget: DailyAiTokenBudget }) {
+  const limit = Math.max(0.01, budget.limitUsd);
+  const used = Math.min(limit, Math.max(0, budget.usedUsd));
+  const percentage = Math.min(100, Math.max(0, (used / limit) * 100));
+  const isNearLimit = percentage >= 80;
+  const resetAt = new Date(budget.resetAt);
+  const resetLabel = Number.isNaN(resetAt.getTime())
+    ? "the next daily reset"
+    : resetAt.toLocaleString();
+
+  return (
+    <div
+      className="mt-2"
+      title={`Daily AI spend resets at ${resetLabel}`}
+    >
+      <div className="mb-1 flex items-center justify-between gap-3 text-[10px] text-muted-foreground">
+        <span>Daily AI budget</span>
+        <span className="tabular-nums">
+          {formatBudgetUsd(used)} / {formatBudgetUsd(budget.limitUsd)}
+        </span>
+      </div>
+      <div
+        className="h-1.5 overflow-hidden rounded-full bg-muted"
+        role="meter"
+        aria-label="Daily AI budget used"
+        aria-valuemin={0}
+        aria-valuemax={budget.limitUsd}
+        aria-valuenow={used}
+      >
+        <div
+          className={cn(
+            "h-full rounded-full transition-[width,background-color] duration-300 ease-out",
+            isNearLimit ? "bg-amber-500" : "bg-primary",
+          )}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+    </div>
+  );
 }

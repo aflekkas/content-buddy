@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isMissingAiDailyUsageTableError,
   tokenUsageFromLanguageModelUsage,
   totalTokensFromUsage,
 } from "./ai-usage";
@@ -38,5 +39,50 @@ describe("ai usage helpers", () => {
         },
       }),
     ).toBe(140);
+  });
+
+  it("handles usage without input token details", () => {
+    expect(
+      tokenUsageFromLanguageModelUsage({
+        inputTokens: 12,
+        outputTokens: 8,
+        totalTokens: 20,
+        inputTokenDetails: undefined,
+      }),
+    ).toEqual({
+      inputTokens: 12,
+      outputTokens: 8,
+      cacheReadTokens: 0,
+      cacheCreationTokens: 0,
+    });
+  });
+
+  it("recognizes missing ai daily usage table errors", () => {
+    expect(
+      isMissingAiDailyUsageTableError({
+        code: "PGRST205",
+        message:
+          "Could not find the table 'public.ai_daily_usage' in the schema cache",
+      }),
+    ).toBe(true);
+    expect(
+      isMissingAiDailyUsageTableError({
+        code: "42P01",
+        message: 'relation "public.ai_daily_usage" does not exist',
+      }),
+    ).toBe(true);
+    expect(
+      isMissingAiDailyUsageTableError({
+        code: "PGRST204",
+        message:
+          "Could not find the 'cost_micro_usd' column of 'ai_daily_usage' in the schema cache",
+      }),
+    ).toBe(true);
+    expect(
+      isMissingAiDailyUsageTableError({
+        code: "PGRST116",
+        message: "JSON object requested, multiple rows returned",
+      }),
+    ).toBe(false);
   });
 });
