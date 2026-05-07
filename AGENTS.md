@@ -1,6 +1,6 @@
 # Repository Guidelines
 
-Contributor reference for any agent (Claude, Codex, Cursor, human) working in this repo.
+Contributor reference for Codex working in this repo.
 
 ## Next.js 16
 

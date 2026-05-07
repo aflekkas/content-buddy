@@ -34,10 +34,6 @@ yarn-error.log*
 .env*
 !.env.example
 
-# MCP configs hold secrets (Supabase PAT, etc.) — keep local
-.mcp.json
-.codex/config.toml
-
 # vercel
 .vercel
 
@@ -45,7 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# lockfiles (npm is canonical per CLAUDE.md)
+# lockfiles (npm is canonical per AGENTS.md)
 bun.lock
 
 # dead prototype scratchpad
@@ -57,8 +53,4 @@ bun.lock
 # supabase cli cache
 supabase/.temp/
 
-# Claude Code: keep .claude/agents and AGENTS.md / CLAUDE.md tracked for transparency.
-# Only per-machine state is ignored.
-.claude/scheduled_tasks.lock
-.claude/settings.local.json
-.claude/.session*
+# Codex project-local MCP/config state lives in .codex/.
