@@ -1074,17 +1074,6 @@ function formatBudgetUsd(value: number): string {
   return `$${Math.max(0, value).toFixed(2)}`;
 }
 
-function buildUsageTitle(usage: TokenUsage, cost: number | null): string {
-  const parts = [
-    `Input: ${usage.inputTokens}`,
-    `Output: ${usage.outputTokens}`,
-    `Cache read: ${usage.cacheReadTokens}`,
-    `Cache write: ${usage.cacheCreationTokens}`,
-  ];
-  if (cost !== null) parts.push(`Estimated cost: ${formatUsd(cost)}`);
-  return parts.join("\n");
-}
-
 function readDailyBudgetHeaders(headers: Headers): DailyAiTokenBudget | null {
   const limitUsd = readUsdHeader(headers, "X-AI-Daily-Budget-Limit-Usd");
   const usedUsd = readUsdHeader(headers, "X-AI-Daily-Budget-Used-Usd");
@@ -1116,41 +1105,116 @@ function readUsdHeader(headers: Headers, name: string): number | null {
 }
 
 function DailyBudgetMeter({ budget }: { budget: DailyAiTokenBudget }) {
+  const [isPinnedOpen, setIsPinnedOpen] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const limit = Math.max(0.01, budget.limitUsd);
   const used = Math.min(limit, Math.max(0, budget.usedUsd));
   const percentage = Math.min(100, Math.max(0, (used / limit) * 100));
   const isNearLimit = percentage >= 80;
+  const isExpanded = isPinnedOpen || isPreviewOpen;
   const resetAt = new Date(budget.resetAt);
   const resetLabel = Number.isNaN(resetAt.getTime())
-    ? "the next daily reset"
-    : resetAt.toLocaleString();
+    ? "at the next daily reset"
+    : `at ${resetAt.toLocaleString()}`;
+  const budgetLabel = `${formatBudgetUsd(used)} of ${formatBudgetUsd(
+    budget.limitUsd,
+  )} daily AI budget used`;
 
   return (
-    <div
-      className="mt-2"
-      title={`Daily AI spend resets at ${resetLabel}`}
-    >
-      <div className="mb-1 flex items-center justify-between gap-3 text-[10px] text-muted-foreground">
-        <span>Daily AI budget</span>
-        <span className="tabular-nums">
-          {formatBudgetUsd(used)} / {formatBudgetUsd(budget.limitUsd)}
-        </span>
-      </div>
-      <div
-        className="h-1.5 overflow-hidden rounded-full bg-muted"
-        role="meter"
-        aria-label="Daily AI budget used"
-        aria-valuemin={0}
-        aria-valuemax={budget.limitUsd}
-        aria-valuenow={used}
+    <div className="mt-2 flex justify-center">
+      <button
+        type="button"
+        aria-expanded={isExpanded}
+        aria-label={`${budgetLabel}. Press to ${
+          isPinnedOpen ? "collapse" : "expand"
+        } details.`}
+        onBlur={() => setIsPreviewOpen(false)}
+        onClick={() => setIsPinnedOpen((open) => !open)}
+        onFocus={() => setIsPreviewOpen(true)}
+        onMouseEnter={() => setIsPreviewOpen(true)}
+        onMouseLeave={() => setIsPreviewOpen(false)}
+        className={cn(
+          "rounded-full text-left outline-none transition-[width,border-color,background-color,box-shadow,padding] duration-200 ease-out focus-visible:ring-1 focus-visible:ring-ring/60",
+          isExpanded
+            ? "w-full max-w-sm border border-border/70 bg-muted/25 px-2.5 py-2 shadow-sm"
+            : "w-24 border border-transparent px-0 py-1 hover:border-border/60 hover:bg-muted/20",
+        )}
       >
         <div
           className={cn(
-            "h-full rounded-full transition-[width,background-color] duration-300 ease-out",
-            isNearLimit ? "bg-amber-500" : "bg-primary",
+            "grid transition-[grid-template-rows] duration-200 ease-out",
+            isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
           )}
-          style={{ width: `${percentage}%` }}
-        />
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] text-muted-foreground">
+              <span>Daily AI budget</span>
+              <span className="tabular-nums">
+                {formatBudgetUsd(used)} / {formatBudgetUsd(budget.limitUsd)}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div
+          role="meter"
+          aria-label={budgetLabel}
+          aria-valuemin={0}
+          aria-valuemax={budget.limitUsd}
+          aria-valuenow={used}
+          className={cn(
+            "overflow-hidden rounded-full bg-muted transition-[height] duration-200 ease-out",
+            isExpanded ? "h-1.5" : "h-1",
+          )}
+        >
+          <div
+            className={cn(
+              "h-full rounded-full transition-[width,background-color] duration-300 ease-out",
+              isNearLimit ? "bg-amber-500" : "bg-primary",
+            )}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+        <div
+          className={cn(
+            "grid transition-[grid-template-rows] duration-200 ease-out",
+            isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="min-h-0 overflow-hidden">
+            <div className="mt-1.5 text-[9px] text-muted-foreground/70">
+              Resets {resetLabel}
+            </div>
+          </div>
+        </div>
+      </button>
+    </div>
+  );
+}
+
+function UsageHoverCard({
+  usage,
+  cost,
+}: {
+  usage: TokenUsage;
+  cost: number | null;
+}) {
+  return (
+    <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 w-48 -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-2 text-left text-[10px] normal-case tracking-normal text-popover-foreground opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+      <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
+        <span className="text-muted-foreground">Input</span>
+        <span className="tabular-nums">{usage.inputTokens}</span>
+        <span className="text-muted-foreground">Output</span>
+        <span className="tabular-nums">{usage.outputTokens}</span>
+        <span className="text-muted-foreground">Cache read</span>
+        <span className="tabular-nums">{usage.cacheReadTokens}</span>
+        <span className="text-muted-foreground">Cache write</span>
+        <span className="tabular-nums">{usage.cacheCreationTokens}</span>
+        {cost !== null && (
+          <>
+            <span className="text-muted-foreground">Estimated cost</span>
+            <span className="tabular-nums">{formatUsd(cost)}</span>
+          </>
+        )}
       </div>
     </div>
   );
