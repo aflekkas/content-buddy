@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { FileText, Search } from "lucide-react";
+import { motion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import { ColumnHeader } from "@/components/cockpit/column-header";
 import { useActiveDrafts } from "@/components/cockpit/active-drafts-context";
@@ -261,19 +262,32 @@ export function DraftsList({ initialDrafts, userId }: Props) {
         </div>
         <div className="flex items-center gap-1 text-xs">
           {FILTERS.map((f) => (
-            <button
+            <motion.button
               key={f.id}
               type="button"
               onClick={() => setFilter(f.id)}
+              aria-pressed={filter === f.id}
               className={cn(
-                "rounded-md px-2 py-0.5 transition-colors",
+                "relative overflow-hidden rounded-md px-2 py-0.5 transition-colors",
                 filter === f.id
-                  ? "bg-muted text-foreground"
+                  ? "text-foreground"
                   : "text-muted-foreground hover:bg-muted/60",
               )}
             >
-              {f.label}
-            </button>
+              {filter === f.id ? (
+                <motion.span
+                  layoutId="draft-filter-active"
+                  className="absolute inset-0 rounded-md bg-muted"
+                  transition={{
+                    type: "spring",
+                    stiffness: 420,
+                    damping: 34,
+                    mass: 0.7,
+                  }}
+                />
+              ) : null}
+              <span className="relative z-10">{f.label}</span>
+            </motion.button>
           ))}
         </div>
       </div>
