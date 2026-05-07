@@ -1,10 +1,14 @@
 [mcp_servers.shadcn]
 command = "npx"
 args = ["-y", "shadcn@latest", "mcp"]
+cwd = "/Users/aflekkas/Documents/Projects/linkedin-studio"
+startup_timeout_sec = 30
 
 [mcp_servers.magicui]
 command = "npx"
 args = ["-y", "@magicuidesign/mcp@latest"]
+cwd = "/Users/aflekkas/Documents/Projects/linkedin-studio"
+startup_timeout_sec = 30
 
 [mcp_servers.supabase]
 url = "https://mcp.supabase.com/mcp?project_ref=jcytbcvnyouhulfzbkep&read_only=false"
