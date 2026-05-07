@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { Input } from "@/components/ui/input";
 import { ColumnHeader } from "@/components/cockpit/column-header";
 import { useActiveDrafts } from "@/components/cockpit/active-drafts-context";
+import { MotionList, MotionListItem } from "@/components/ui/motion";
 import { formatRelativeTime } from "@/lib/system-prompt";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -299,11 +300,11 @@ export function DraftsList({ initialDrafts, userId }: Props) {
               : "No matches for that filter."}
           </p>
         ) : (
-          <ul className="flex flex-col gap-1.5">
+          <MotionList className="flex flex-col gap-1.5">
             {pendingArr.map(([toolCallId, { body }]) => {
               const preview = body.slice(0, 140);
               return (
-                <li key={`pending:${toolCallId}`}>
+                <MotionListItem key={`pending:${toolCallId}`}>
                   <div className="block w-full rounded-md border border-primary/40 bg-primary/5 p-2 text-left">
                     <div className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
                       <span className="flex items-center gap-1 font-medium uppercase tracking-wide text-primary">
@@ -324,7 +325,7 @@ export function DraftsList({ initialDrafts, userId }: Props) {
                       {body.length > preview.length && "..."}
                     </p>
                   </div>
-                </li>
+                </MotionListItem>
               );
             })}
             {visible.map((draft) => {
@@ -335,7 +336,7 @@ export function DraftsList({ initialDrafts, userId }: Props) {
               const streaming = live !== undefined;
               const status = getDraftStatusMeta(draft, streaming);
               return (
-                <li key={draft.id}>
+                <MotionListItem key={draft.id}>
                   <button
                     type="button"
                     onClick={() => handleClick(draft)}
@@ -363,10 +364,10 @@ export function DraftsList({ initialDrafts, userId }: Props) {
                       {renderBody.length > preview.length && "..."}
                     </p>
                   </button>
-                </li>
+                </MotionListItem>
               );
             })}
-          </ul>
+          </MotionList>
         )}
       </div>
     </div>

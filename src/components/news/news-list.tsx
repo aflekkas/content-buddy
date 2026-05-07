@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
+import { MotionList, MotionListItem } from "@/components/ui/motion";
 import {
   Tooltip,
   TooltipContent,
@@ -682,9 +683,9 @@ export function NewsList({
                 aria-hidden={sourcesCollapsed}
               >
                 <div className="overflow-hidden">
-                  <ul className="flex flex-col gap-1 px-2 pb-2">
+                  <MotionList className="flex flex-col gap-1 px-2 pb-2">
                     {sources.map((source) => (
-                      <li
+                      <MotionListItem
                         key={source.id}
                         className="group flex items-center gap-2 rounded-md border bg-background px-2 py-1.5"
                       >
@@ -708,9 +709,9 @@ export function NewsList({
                         >
                           <Trash2 className="size-3" />
                         </Button>
-                      </li>
+                      </MotionListItem>
                     ))}
-                  </ul>
+                  </MotionList>
                 </div>
               </div>
             </section>
@@ -751,7 +752,7 @@ export function NewsList({
                       </p>
                     ) : (
                       <>
-                        <ul className="flex flex-col gap-1.5">
+                        <MotionList className="flex flex-col gap-1.5">
                           {signals.map((signal) => {
                             const text =
                               signal.summary ||
@@ -759,7 +760,7 @@ export function NewsList({
                                 ? (signal.raw.text as string).trim()
                                 : signal.url);
                             return (
-                              <li key={signal.id}>
+                              <MotionListItem key={signal.id}>
                                 <NewsSignalCard
                                   variant="rail"
                                   signal={{
@@ -773,10 +774,10 @@ export function NewsList({
                                   onDismiss={(id) => void dismissSignal(id)}
                                   onCite={citeSignal}
                                 />
-                              </li>
+                              </MotionListItem>
                             );
                           })}
-                        </ul>
+                        </MotionList>
                         {hasMore && (
                           <div
                             ref={sentinelRef}

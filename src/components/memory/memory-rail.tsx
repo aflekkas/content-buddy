@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Brain, Trash2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ColumnHeader } from "@/components/cockpit/column-header";
+import { MotionList, MotionListItem } from "@/components/ui/motion";
 import { cn } from "@/lib/utils";
 import type { UserMemoryRow } from "@/lib/db/types";
 
@@ -70,9 +71,9 @@ export function MemoryRail({ initialMemories }: Props) {
             worth remembering here.
           </p>
         ) : (
-          <ul className="flex flex-col gap-1.5">
+          <MotionList className="flex flex-col gap-1.5">
             {memories.map((memory) => (
-              <li
+              <MotionListItem
                 key={memory.id}
                 className={cn(
                   "group flex items-start gap-1.5 rounded-md border bg-background p-2",
@@ -93,9 +94,9 @@ export function MemoryRail({ initialMemories }: Props) {
                     <Trash2 className="size-3" />
                   </Button>
                 </div>
-              </li>
+              </MotionListItem>
             ))}
-          </ul>
+          </MotionList>
         )}
       </div>
     </div>

@@ -1,7 +1,14 @@
 "use client";
 
-import { motion } from "motion/react";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import {
+  forwardRef,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { DUR_NORMAL, EASE_OUT, useReducedMotionSafe } from "@/lib/motion";
 
 type FadeInProps = {
@@ -12,6 +19,11 @@ type FadeInProps = {
 };
 
 type StaggerProps = {
+  className?: string;
+  children: ReactNode;
+};
+
+type MotionListProps = {
   className?: string;
   children: ReactNode;
 };
@@ -39,6 +51,16 @@ const STAGGER_ITEM_VARIANTS = {
     y: 0,
     transition: { duration: DUR_NORMAL, ease: EASE_OUT },
   },
+} as const;
+
+const DISMISS_TRANSITION = {
+  duration: 0.32,
+  ease: [0.32, 0.72, 0, 1],
+} as const;
+
+const DISMISS_LAYOUT_TRANSITION = {
+  duration: 0.34,
+  ease: [0.32, 0.72, 0, 1],
 } as const;
 
 const BURST_TICK_MS = 120;
@@ -102,6 +124,54 @@ export function StaggerItem({ className, children }: StaggerProps) {
     </motion.div>
   );
 }
+
+export function MotionList({ className, children }: MotionListProps) {
+  const reducedMotion = useReducedMotionSafe();
+
+  if (reducedMotion) {
+    return <ul className={className}>{children}</ul>;
+  }
+
+  return (
+    <motion.ul className={className} layout>
+      <AnimatePresence initial={false} mode="popLayout">
+        {children}
+      </AnimatePresence>
+    </motion.ul>
+  );
+}
+
+export const MotionListItem = forwardRef<HTMLLIElement, MotionListProps>(
+  function MotionListItem({ className, children }, ref) {
+    const reducedMotion = useReducedMotionSafe();
+
+    if (reducedMotion) {
+      return (
+        <li ref={ref} className={className}>
+          {children}
+        </li>
+      );
+    }
+
+    return (
+      <motion.li
+        ref={ref}
+        className={className}
+        layout
+        initial={{ opacity: 0, scale: 0.985, y: 6, filter: "blur(3px)" }}
+        animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
+        exit={{ opacity: 0, scale: 0.965, y: -8, filter: "blur(5px)" }}
+        style={{ originY: 0.5 }}
+        transition={{
+          ...DISMISS_TRANSITION,
+          layout: DISMISS_LAYOUT_TRANSITION,
+        }}
+      >
+        {children}
+      </motion.li>
+    );
+  },
+);
 
 const TOKEN_RE = /(\s+)/;
 
