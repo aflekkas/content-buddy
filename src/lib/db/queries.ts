@@ -405,6 +405,24 @@ export async function updateSource(
     >
   >,
 ): Promise<MonitoredSourceRow> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("monitored_sources")
+    .update(patch)
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateSourceForSystem(
+  userId: string,
+  id: string,
+  patch: Parameters<typeof updateSource>[2],
+): Promise<MonitoredSourceRow> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("monitored_sources")
@@ -452,7 +470,7 @@ export async function listSignals(
   },
 ): Promise<SignalRow[]> {
   const limit = Math.min(Math.max(opts?.limit ?? 100, 1), 500);
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   let query = supabase
     .from("signals")
     .select("*")
@@ -509,7 +527,7 @@ export async function listSignalsByIds(
 ): Promise<SignalRow[]> {
   if (ids.length === 0) return [];
 
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("signals")
     .select("*")
@@ -562,6 +580,24 @@ export async function updateSignal(
   userId: string,
   id: string,
   patch: Partial<Pick<SignalRow, "summary" | "relevance_score" | "status">>,
+): Promise<SignalRow> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("signals")
+    .update(patch)
+    .eq("user_id", userId)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function updateSignalForSystem(
+  userId: string,
+  id: string,
+  patch: Parameters<typeof updateSignal>[2],
 ): Promise<SignalRow> {
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -635,7 +671,7 @@ export async function createDraft(
     post_type?: DraftRow["post_type"];
   },
 ): Promise<DraftRow> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("drafts")
     .insert({
@@ -662,7 +698,7 @@ export async function updateDraft(
     >
   >,
 ): Promise<DraftRow> {
-  const supabase = createAdminClient();
+  const supabase = await createClient();
   const { data, error } = await supabase
     .from("drafts")
     .update({ ...patch, updated_at: new Date().toISOString() })

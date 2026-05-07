@@ -4,7 +4,6 @@ import {
   stepCountIs,
   streamText,
   tool,
-  type UIMessage,
 } from "ai";
 import { revalidateTag } from "next/cache";
 import { z } from "zod";
@@ -48,14 +47,18 @@ import { encodeProviderError, mapProviderError } from "@/lib/provider-errors";
 import { buildRateLimitHeaders, checkChatRateLimit } from "@/lib/rate-limit";
 import { synthesizeFromSignals } from "@/lib/synthesis";
 import { POST_TYPES, type PostType, type SignalRow } from "@/lib/db/types";
+import {
+  checkDailyAiTokenBudget,
+  dailyBudgetHeaders,
+  recordDailyAiTokenUsage,
+  tokenUsageFromLanguageModelUsage,
+} from "@/lib/ai-usage";
+import {
+  parseChatRequestBody,
+  refreshUserAttachmentUrls,
+} from "@/lib/chat-request";
 
 export const maxDuration = 60;
-
-type ChatRequestBody = {
-  id: string;
-  messages: UIMessage[];
-  activeDraftId?: string;
-};
 
 const NEWS_SCAN_LOOKBACK_DAYS = 14;
 
@@ -75,8 +78,26 @@ export async function POST(req: Request) {
     );
   }
 
-  const { id: chatId, messages, activeDraftId }: ChatRequestBody =
-    await req.json();
+  const parsedBody = await parseChatRequestBody(req);
+  if (!parsedBody.ok) {
+    return errorResponse(parsedBody.error, parsedBody.status, {
+      details: parsedBody.details,
+    });
+  }
+
+  const { id: chatId, activeDraftId } = parsedBody.data;
+  let { messages } = parsedBody.data;
+
+  const budget = await checkDailyAiTokenBudget(user.id);
+  const budgetHeaders = dailyBudgetHeaders(budget);
+  if (!budget.allowed) {
+    return errorResponse(
+      "token_budget_exceeded",
+      429,
+      { resetAt: budget.resetAt },
+      { headers: { ...rateLimitHeaders, ...budgetHeaders } },
+    );
+  }
 
   const chat = await getChat(chatId, user.id);
   if (!chat) return notFound();
@@ -119,6 +140,17 @@ export async function POST(req: Request) {
   if (hasFileParts && !providerSupportsImages(provider)) {
     return errorResponse("image_not_supported", 415, { provider });
   }
+  if (hasFileParts) {
+    const refreshed = await refreshUserAttachmentUrls({
+      messages,
+      userId: user.id,
+      supabase: auth.supabase,
+    });
+    if (!refreshed.ok) {
+      return errorResponse(refreshed.error, 400);
+    }
+    messages = refreshed.messages;
+  }
   const sourceHandles = new Map(
     sources.map((source) => [source.id, source.handle]),
   );
@@ -131,8 +163,8 @@ export async function POST(req: Request) {
       revalidateTag(`chat:${chatId}:messages`, "max");
       const text = extractText(lastMessage);
       if (text && !chat.title) {
-        generateChatTitle(chatId, text, provider, model, apiKey).catch((err) =>
-          console.error("[chat] title generation failed", err),
+        generateChatTitle(chatId, text, provider, model, apiKey, user.id).catch(
+          (err) => console.error("[chat] title generation failed", err),
         );
       }
     }
@@ -142,6 +174,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: getModel(provider, model, apiKey),
+    maxOutputTokens: 2000,
     messages: [
       ...buildSystemMessages({
         creatorProfile: profile
@@ -258,7 +291,7 @@ export async function POST(req: Request) {
         inputSchema: z.object({
           limit: z.number().int().min(1).max(20).default(5),
           status: z
-            .enum(["any", "draft", "copied", "dismissed"])
+            .enum(["any", "draft", "copied", "posted", "dismissed"])
             .default("any"),
         }),
         execute: async ({ limit, status }) => {
@@ -359,13 +392,22 @@ export async function POST(req: Request) {
             return { ok: false, error: "no_signals_found" };
           }
           try {
-            const { body, post_type: chosenType } = await synthesizeFromSignals(
-              {
-                mode: "news",
-                signals,
-                profile,
-                postType: post_type as PostType | undefined,
-              },
+            const budget = await checkDailyAiTokenBudget(user.id);
+            if (!budget.allowed) {
+              return { ok: false, error: "token_budget_exceeded" };
+            }
+            const {
+              body,
+              post_type: chosenType,
+              usage,
+            } = await synthesizeFromSignals({
+              mode: "news",
+              signals,
+              profile,
+              postType: post_type as PostType | undefined,
+            });
+            await recordDailyAiTokenUsage(user.id, usage).catch((err) =>
+              console.error("[chat] record synthesize usage failed", err),
             );
             return { ok: true, body, signal_ids, post_type: chosenType };
           } catch (error) {
@@ -589,7 +631,7 @@ export async function POST(req: Request) {
   });
 
   return result.toUIMessageStreamResponse({
-    headers: rateLimitHeaders,
+    headers: { ...rateLimitHeaders, ...budgetHeaders },
     originalMessages: messages,
     onError: (error) => {
       console.error("[chat] streamText error", error);
@@ -620,13 +662,10 @@ export async function POST(req: Request) {
       }
       try {
         const total = await result.totalUsage;
-        const nonCacheInput = total.inputTokenDetails?.noCacheTokens;
-        await addChatUsage(chatId, {
-          inputTokens: nonCacheInput ?? Math.max(0, total.inputTokens ?? 0),
-          outputTokens: total.outputTokens ?? 0,
-          cacheReadTokens: total.inputTokenDetails?.cacheReadTokens ?? 0,
-          cacheCreationTokens: total.inputTokenDetails?.cacheWriteTokens ?? 0,
-        });
+        await recordDailyAiTokenUsage(user.id, total).catch((err) =>
+          console.error("[chat] record daily usage failed", err),
+        );
+        await addChatUsage(chatId, tokenUsageFromLanguageModelUsage(total));
       } catch (err) {
         console.error("[chat] addChatUsage failed", err);
       }
@@ -651,10 +690,12 @@ async function generateChatTitle(
   provider: Parameters<typeof getModel>[0],
   model: string,
   apiKey: string,
+  userId: string,
 ) {
   try {
-    const { text } = await generateText({
+    const { text, usage } = await generateText({
       model: getModel(provider, model, apiKey),
+      maxOutputTokens: 40,
       messages: [
         {
           role: "system",
@@ -668,6 +709,9 @@ async function generateChatTitle(
     if (title) {
       await setChatTitleIfEmpty(chatId, title);
     }
+    await recordDailyAiTokenUsage(userId, usage).catch((err) =>
+      console.error("[chat] record title usage failed", err),
+    );
   } catch {
     const fallback = firstUserMessage.slice(0, 40).trim();
     if (fallback) {

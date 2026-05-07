@@ -26,6 +26,18 @@ const CHAT_RATE_LIMIT_RULES: RateLimitRule[] = [
   { scope: "chat:hour", limit: 200, windowSeconds: 60 * 60 },
 ];
 
+const AI_GENERATION_RATE_LIMIT_RULES: RateLimitRule[] = [
+  { scope: "ai_generation:hour", limit: 10, windowSeconds: 60 * 60 },
+];
+
+const VOICE_DISTILL_RATE_LIMIT_RULES: RateLimitRule[] = [
+  { scope: "voice_distill:hour", limit: 5, windowSeconds: 60 * 60 },
+];
+
+const SOURCE_POLL_RATE_LIMIT_RULES: RateLimitRule[] = [
+  { scope: "source_poll:hour", limit: 5, windowSeconds: 60 * 60 },
+];
+
 const SEARCH_RATE_LIMIT_RULES: RateLimitRule[] = [
   { scope: "search:minute", limit: 30, windowSeconds: 60 },
 ];
@@ -72,6 +84,18 @@ export async function checkRateLimit(
 
 export function checkChatRateLimit(): Promise<RateLimitDecision> {
   return checkRateLimit(CHAT_RATE_LIMIT_RULES);
+}
+
+export function checkAiGenerationRateLimit(): Promise<RateLimitDecision> {
+  return checkRateLimit(AI_GENERATION_RATE_LIMIT_RULES);
+}
+
+export function checkVoiceDistillRateLimit(): Promise<RateLimitDecision> {
+  return checkRateLimit(VOICE_DISTILL_RATE_LIMIT_RULES);
+}
+
+export function checkSourcePollRateLimit(): Promise<RateLimitDecision> {
+  return checkRateLimit(SOURCE_POLL_RATE_LIMIT_RULES);
 }
 
 export function checkSearchRateLimit(): Promise<RateLimitDecision> {

@@ -1,4 +1,4 @@
-import { generateText } from "ai";
+import { generateText, type LanguageModelUsage } from "ai";
 import { listRecentDrafts } from "@/lib/db/queries";
 import { getModel } from "@/lib/model-dispatch";
 import type { UserProfileRow } from "@/lib/db/types";
@@ -40,7 +40,7 @@ export async function distillVoiceProfile(args: {
   voiceNotes: string | null;
   recentDraftBodies: string[];
   apiKey: string;
-}): Promise<string | null> {
+}): Promise<{ voiceDna: string; usage: LanguageModelUsage } | null> {
   const samples = args.voiceSamples?.trim() ?? "";
   const drafts = args.recentDraftBodies
     .map((b, i) => `--- recent draft ${i + 1} ---\n${b}`)
@@ -61,8 +61,9 @@ export async function distillVoiceProfile(args: {
   }
 
   const model = getModel("openai", "gpt-4o-mini", args.apiKey);
-  const { text } = await generateText({
+  const { text, usage } = await generateText({
     model,
+    maxOutputTokens: 1200,
     messages: [
       { role: "system", content: DISTILL_PROMPT },
       { role: "user", content: corpusBlocks.join("\n\n") },
@@ -70,13 +71,14 @@ export async function distillVoiceProfile(args: {
     temperature: 0.3,
   });
 
-  return text.trim() || null;
+  const voiceDna = text.trim();
+  return voiceDna ? { voiceDna, usage } : null;
 }
 
 export async function distillVoiceForUser(
   userId: string,
   profile: UserProfileRow,
-): Promise<string | null> {
+): Promise<{ voiceDna: string; usage: LanguageModelUsage } | null> {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("missing_openai_key_env");
 

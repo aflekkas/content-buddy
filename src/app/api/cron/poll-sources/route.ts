@@ -3,13 +3,21 @@ import {
   getUserProfileForCron,
   insertSignals,
   listAllSourcesForCron,
-  updateSignal,
-  updateSource,
+  updateSignalForSystem,
+  updateSourceForSystem,
 } from "@/lib/db/queries";
 import type { MonitoredSourceRow } from "@/lib/db/types";
 import { FETCHERS } from "@/lib/sources";
 import type { FetchedPost } from "@/lib/sources/types";
 import { scoreRelevance } from "@/lib/synthesis";
+import {
+  checkDailyAiTokenBudget,
+  recordDailyAiTokenUsage,
+} from "@/lib/ai-usage";
+import {
+  buildRateLimitHeaders,
+  checkSourcePollRateLimit,
+} from "@/lib/rate-limit";
 
 export const maxDuration = 300;
 
@@ -149,6 +157,16 @@ async function* runPoll(
         };
 
         for (const signal of inserted) {
+          const budget = await checkDailyAiTokenBudget(userId);
+          if (!budget.allowed) {
+            summary.errors.push(`${userId}: ai token budget exceeded`);
+            yield {
+              type: "user_error",
+              userId,
+              message: "ai token budget exceeded",
+            };
+            break;
+          }
           const rawText = signal.raw.text;
           const signalText =
             typeof rawText === "string" ? rawText : signal.url;
@@ -157,7 +175,8 @@ async function* runPoll(
             niche: profile?.niche ?? null,
             voiceNotes: profile?.voice_notes ?? null,
           });
-          await updateSignal(userId, signal.id, {
+          await recordDailyAiTokenUsage(userId, scored.usage);
+          await updateSignalForSystem(userId, signal.id, {
             summary: scored.summary,
             relevance_score: scored.score,
           });
@@ -169,7 +188,7 @@ async function* runPoll(
           };
         }
 
-        await updateSource(userId, source.id, {
+        await updateSourceForSystem(userId, source.id, {
           last_polled_at: now.toISOString(),
         });
         yield { type: "source_done", handle: source.handle };
@@ -213,6 +232,16 @@ async function handlePollSources(req: Request) {
     if (!auth.ok) return auth.response;
     if (auth.user.id !== targetUserId) {
       return errorResponse("unauthorized", 401);
+    }
+    const rateLimit = await checkSourcePollRateLimit();
+    const rateLimitHeaders = buildRateLimitHeaders(rateLimit);
+    if (!rateLimit.allowed) {
+      return errorResponse(
+        "rate_limited",
+        429,
+        { retryAfter: rateLimit.retryAfter },
+        { headers: rateLimitHeaders },
+      );
     }
   } else {
     if (stream) return errorResponse("stream_requires_user", 400);

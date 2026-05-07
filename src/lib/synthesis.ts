@@ -1,4 +1,4 @@
-import { generateText } from "ai";
+import { generateText, type LanguageModelUsage } from "ai";
 import { z } from "zod";
 import {
   POST_TYPES,
@@ -147,10 +147,11 @@ export async function scoreRelevance(args: {
   signalText: string;
   niche: string | null;
   voiceNotes: string | null;
-}): Promise<{ score: number; summary: string }> {
+}): Promise<{ score: number; summary: string; usage: LanguageModelUsage }> {
   const model = getOpenAIModel();
-  const { text } = await generateText({
+  const { text, usage } = await generateText({
     model,
+    maxOutputTokens: 200,
     messages: [
       {
         role: "system",
@@ -161,7 +162,7 @@ export async function scoreRelevance(args: {
   });
 
   const parsed = RelevanceSchema.parse(extractJson(text));
-  return { score: parsed.score, summary: parsed.summary };
+  return { score: parsed.score, summary: parsed.summary, usage };
 }
 
 export const BEST_PRACTICES = `LinkedIn craft, 2025-2026, distilled from algorithm reverse-engineers (van der Blom, AuthoredUp, Originality.AI) and top operator-voice ghostwriters (Welsh, Acosta, Alic, Sordell, Reed). Treat every rule as load-bearing.
@@ -526,7 +527,11 @@ export async function synthesizeFromSignals(args: {
   signals: SignalRow[];
   profile: UserProfileRow | null;
   postType?: PostType;
-}): Promise<{ body: string; post_type: PostType }> {
+}): Promise<{
+  body: string;
+  post_type: PostType;
+  usage: LanguageModelUsage;
+}> {
   if (args.signals.length === 0) {
     throw new Error("signals required");
   }
@@ -554,12 +559,13 @@ export async function synthesizeFromSignals(args: {
   // Sampling tuned for creative copy per Buildmvpfast / Promptingguide
   // consensus: temp 0.8 + top_p 0.95 reduces median-LLM mush without
   // breaking voice. Default 1.0/1.0 makes the model regress to the mean.
-  const { text } = await generateText({
+  const { text, usage } = await generateText({
     model,
     messages,
+    maxOutputTokens: 2500,
     temperature: 0.8,
     topP: 0.95,
   });
 
-  return parseSynthesisOutput(text, args.postType ?? "hot_take");
+  return { ...parseSynthesisOutput(text, args.postType ?? "hot_take"), usage };
 }

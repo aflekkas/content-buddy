@@ -327,6 +327,7 @@ export function Chat({
     const fileParts = attachments.map((a) => ({
       type: "file" as const,
       url: a.url,
+      path: a.path,
       mediaType: a.mediaType,
       filename: a.filename,
     }));

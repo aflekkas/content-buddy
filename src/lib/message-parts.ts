@@ -9,12 +9,18 @@ export function filterPersistableParts(
     if (p.type === "text" || p.type === "reasoning") {
       out.push({ type: p.type, text: p.text } as MessagePart);
     } else if (p.type === "file") {
-      const f = p as { url: string; mediaType: string; filename?: string };
+      const f = p as {
+        url: string;
+        mediaType: string;
+        filename?: string;
+        path?: string;
+      };
       out.push({
         type: "file",
         url: f.url,
         mediaType: f.mediaType,
         filename: f.filename,
+        path: f.path,
       });
     } else if (p.type.startsWith("tool-")) {
       const t = p as Record<string, unknown>;

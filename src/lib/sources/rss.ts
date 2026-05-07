@@ -1,5 +1,6 @@
 import { parseFeed } from "feedsmith";
 import type { FetchedPost, SourceFetcher } from "./types";
+import { safeFetch } from "./url-safety";
 
 const FETCH_TIMEOUT_MS = 20_000;
 const MAX_ITEMS = 50;
@@ -82,7 +83,7 @@ function normaliseItem(
 }
 
 async function fetchFeed(url: string): Promise<string> {
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     headers: {
       "user-agent": "LinkedInStudio/1.0 (+https://github.com/aflekkas/linkedin-studio)",
       accept:

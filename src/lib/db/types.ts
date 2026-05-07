@@ -17,7 +17,13 @@ export type ChatRow = {
 export type MessagePart =
   | { type: "text"; text: string }
   | { type: "reasoning"; text: string }
-  | { type: "file"; url: string; mediaType: string; filename?: string }
+  | {
+      type: "file";
+      url: string;
+      mediaType: string;
+      filename?: string;
+      path?: string;
+    }
   | {
       type: `tool-${string}`;
       toolCallId?: string;
