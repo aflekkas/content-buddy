@@ -34,7 +34,7 @@ export function DraftCard({
   return (
     <div
       className={cn(
-        "rounded-md border bg-background text-foreground transition-colors",
+        "rounded-md border bg-background text-foreground transition-colors duration-200 ease-out",
         "hover:border-primary/40 hover:bg-muted/40",
       )}
     >
@@ -70,7 +70,7 @@ export function DraftCard({
           <button
             type="button"
             onClick={() => onCite(draft)}
-            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
             aria-label="Reference draft in chat"
           >
             <Quote className="size-3" />
@@ -80,7 +80,7 @@ export function DraftCard({
         <button
           type="button"
           onClick={handleOpen}
-          className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
         >
           <ExternalLink className="size-3" />
           Open
@@ -99,7 +99,7 @@ export function EmbeddedDraftCard({ draft }: { draft: EmbeddedDraftData }) {
   return (
     <div
       className={cn(
-        "rounded-md border bg-background text-foreground transition-colors",
+        "rounded-md border bg-background text-foreground transition-colors duration-200 ease-out",
         "hover:border-primary/40 hover:bg-muted/40",
       )}
     >
@@ -140,7 +140,7 @@ export function EmbeddedDraftCard({ draft }: { draft: EmbeddedDraftData }) {
         <button
           type="button"
           onClick={handleOpen}
-          className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
         >
           <ExternalLink className="size-3" />
           Open

@@ -66,7 +66,7 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
                 key={link.href}
                 href={link.href}
                 onMouseEnter={() => setHoverIdx(i)}
-                className="relative px-3.5 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                className="relative px-3.5 py-1.5 text-sm text-muted-foreground transition-colors duration-200 ease-out hover:text-foreground"
               >
                 {hoverIdx === i && (
                   <motion.span
@@ -97,7 +97,7 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
               <>
                 <Link
                   href="/login"
-                  className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-flex sm:px-3 sm:py-2"
+                  className="hidden text-sm text-muted-foreground transition-colors duration-200 ease-out hover:text-foreground sm:inline-flex sm:px-3 sm:py-2"
                 >
                   Sign in
                 </Link>
@@ -144,7 +144,7 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
-                  className="rounded-lg px-3 py-2.5 text-sm text-foreground/80 transition-colors hover:bg-muted hover:text-foreground"
+                  className="rounded-lg px-3 py-2.5 text-sm text-foreground/80 transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
                 >
                   {link.label}
                 </Link>
@@ -153,7 +153,7 @@ export function LandingNav({ isAuthed = false }: { isAuthed?: boolean }) {
                 <Link
                   href={isAuthed ? "/dashboard" : "/login"}
                   onClick={() => setMobileOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 text-sm text-foreground/80 transition-colors hover:bg-muted"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-foreground/80 transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
                 >
                   {isAuthed ? "Open studio" : "Sign in"}
                 </Link>

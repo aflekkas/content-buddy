@@ -87,7 +87,7 @@ function FeedToDraftMockup() {
         <CardFooter className="justify-end bg-muted/30">
           <button
             type="button"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2.5 text-xs font-medium text-muted-foreground"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
           >
             <FileText className="size-3.5" />
             Draft
@@ -128,14 +128,14 @@ function FeedToDraftMockup() {
         <CardFooter className="justify-end gap-1.5 bg-muted/30">
           <button
             type="button"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2.5 text-xs font-medium text-muted-foreground"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
           >
             <Copy className="size-3.5" />
             Copy
           </button>
           <button
             type="button"
-            className="inline-flex h-7 items-center gap-1.5 rounded-md bg-[#0A66C2] px-2.5 text-xs font-medium text-white"
+            className="inline-flex h-7 items-center gap-1.5 rounded-md bg-[#0A66C2] px-2.5 text-xs font-medium text-white transition-colors duration-200 ease-out hover:bg-[#0859aa]"
           >
             <LinkedInGlyph className="size-3.5" />
             Publish

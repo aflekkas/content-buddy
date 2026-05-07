@@ -68,7 +68,7 @@ const NEWS_ICON_BUTTON_CLASS =
 const SETTINGS_ICON_BUTTON_CLASS =
   "text-rose-600 hover:text-rose-700 dark:text-rose-300";
 const HEADER_ICON_BUTTON_CLASS =
-  "inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
+  "inline-flex size-7 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50";
 
 const PANEL_TRANSITION = { duration: 0.28, ease: EASE_OUT } as const;
 const RAIL_TRANSITION = { duration: 0.22, ease: EASE_OUT } as const;
@@ -288,9 +288,9 @@ export function CockpitShell({
                 if (panel.id === "chat") expandChatPanel();
               }}
               className={cn(
-                "inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors",
+                "inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground transition-colors duration-200 ease-out",
                 active
-                  ? "bg-muted/70 text-foreground"
+                  ? "bg-muted/70 text-foreground hover:bg-muted"
                   : "hover:bg-muted/50 hover:text-foreground",
               )}
             >
@@ -809,7 +809,7 @@ function EmptyCanvas({ onExpandAll }: { onExpandAll: () => void }) {
       <button
         type="button"
         onClick={onExpandAll}
-        className="mt-1 text-xs font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+        className="mt-1 text-xs font-medium text-muted-foreground underline-offset-4 transition-colors duration-200 ease-out hover:text-foreground hover:underline"
       >
         Bring it all back
       </button>

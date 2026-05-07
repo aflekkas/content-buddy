@@ -83,7 +83,7 @@ export function MemoryRail({ initialMemories }: Props) {
                 <p className="min-w-0 flex-1 break-words text-xs leading-relaxed">
                   {memory.memory}
                 </p>
-                <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-200 ease-out group-hover:opacity-100">
                   <Button
                     size="icon-xs"
                     variant="ghost"

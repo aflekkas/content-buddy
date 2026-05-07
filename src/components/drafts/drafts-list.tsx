@@ -269,9 +269,9 @@ export function DraftsList({ initialDrafts, userId }: Props) {
               onClick={() => setFilter(f.id)}
               aria-pressed={filter === f.id}
               className={cn(
-                "relative overflow-hidden rounded-md px-2 py-0.5 transition-colors",
+                "relative overflow-hidden rounded-md px-2 py-0.5 transition-colors duration-200 ease-out",
                 filter === f.id
-                  ? "text-foreground"
+                  ? "text-foreground hover:bg-muted/60"
                   : "text-muted-foreground hover:bg-muted/60",
               )}
             >
@@ -341,7 +341,7 @@ export function DraftsList({ initialDrafts, userId }: Props) {
                     type="button"
                     onClick={() => handleClick(draft)}
                     className={cn(
-                      "block w-full rounded-md border bg-background p-2 text-left transition-colors hover:bg-muted/40",
+                      "block w-full rounded-md border bg-background p-2 text-left transition-colors duration-200 ease-out hover:bg-muted/40",
                       status.cardClass,
                       active && "border-primary/40 bg-primary/5",
                     )}

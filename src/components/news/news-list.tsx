@@ -566,7 +566,7 @@ export function NewsList({
                       <button
                         type="button"
                         onClick={sendConsoleToChat}
-                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        className="rounded p-1 text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground disabled:opacity-50"
                         aria-label="Send console to chat"
                         disabled={consoleLines.length === 0}
                       >
@@ -582,7 +582,7 @@ export function NewsList({
                       <button
                         type="button"
                         onClick={() => void copyConsole()}
-                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
+                        className="rounded p-1 text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground disabled:opacity-50"
                         aria-label="Copy console output"
                         disabled={consoleLines.length === 0}
                       >
@@ -604,7 +604,7 @@ export function NewsList({
                       <button
                         type="button"
                         onClick={() => setConsoleVisible(false)}
-                        className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        className="rounded p-1 text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
                         aria-label="Hide scan console"
                       >
                         <X className="size-3" />
@@ -658,7 +658,7 @@ export function NewsList({
               <button
                 type="button"
                 onClick={toggleSourcesCollapsed}
-                className="flex w-full select-none items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                className="flex w-full select-none items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-wide text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted/40 hover:text-foreground"
                 aria-expanded={!sourcesCollapsed}
               >
                 <motion.span
@@ -705,7 +705,7 @@ export function NewsList({
                           variant="ghost"
                           onClick={() => setPendingDelete(source)}
                           aria-label={`Remove ${source.handle}`}
-                          className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
+                          className="text-muted-foreground opacity-0 transition-[opacity,color,background-color] duration-200 ease-out group-hover:opacity-100 hover:text-destructive"
                         >
                           <Trash2 className="size-3" />
                         </Button>
@@ -720,7 +720,7 @@ export function NewsList({
               <button
                 type="button"
                 onClick={toggleSignalsCollapsed}
-                className="relative z-0 flex w-full select-none items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                className="relative z-0 flex w-full select-none items-center gap-1.5 px-3 py-2 text-[10px] uppercase tracking-wide text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted/40 hover:text-foreground"
                 aria-expanded={!signalsCollapsed}
               >
                 <motion.span

@@ -26,7 +26,7 @@ export function ChatImage({ url, alt, className, thumbClassName }: Props) {
         onClick={() => setOpen(true)}
         aria-label={`Preview ${alt}`}
         className={cn(
-          "group relative overflow-hidden rounded-md border border-border bg-muted transition hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+          "group relative overflow-hidden rounded-md border border-border bg-muted transition-opacity duration-200 ease-out hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary",
           className,
         )}
       >

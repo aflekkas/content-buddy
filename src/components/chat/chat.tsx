@@ -463,7 +463,7 @@ export function Chat({
               exit={{ opacity: 0, y: 6, scale: 0.9 }}
               transition={{ duration: 0.18, ease: EASE_OUT }}
               aria-label="Scroll to latest"
-              className="absolute left-1/2 top-[-2.5rem] z-20 inline-flex size-8 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-md transition-colors hover:bg-muted hover:text-foreground"
+              className="absolute left-1/2 top-[-2.5rem] z-20 inline-flex size-8 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-md transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
             >
               <ArrowDown className="size-4" />
             </motion.button>
@@ -499,7 +499,7 @@ export function Chat({
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Change model"
-                className="rounded transition-colors outline-none hover:text-foreground focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
+                className="rounded transition-colors duration-200 ease-out outline-none hover:bg-muted/40 hover:text-foreground focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
               >
                 {activeModelLabel}
               </DropdownMenuTrigger>
@@ -636,7 +636,7 @@ function EmptyState({
             key={prompt}
             type="button"
             onClick={() => onPick(prompt)}
-            className="rounded-lg border bg-background px-3 py-2 text-left text-sm transition-colors hover:bg-muted/60"
+            className="rounded-lg border bg-background px-3 py-2 text-left text-sm transition-colors duration-200 ease-out hover:bg-muted/60"
           >
             {prompt}
           </button>
@@ -972,7 +972,7 @@ function ChatNotice({
           type="button"
           aria-label="Dismiss"
           onClick={onDismiss}
-          className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="rounded-md p-1 text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
         >
           <X className="size-4" />
         </button>

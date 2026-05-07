@@ -42,7 +42,7 @@ export function NewsSignalCard({
           : undefined
       }
       className={cn(
-        "rounded-md border bg-background p-2 transition-colors",
+        "rounded-md border bg-background p-2 transition-colors duration-200 ease-out",
         clickable && "cursor-pointer hover:border-primary/40 hover:bg-muted/40",
       )}
     >
@@ -72,7 +72,7 @@ export function NewsSignalCard({
               e.stopPropagation();
               onCite(signal);
             }}
-            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
             aria-label="Reference in chat"
           >
             <Quote className="size-3" />
@@ -84,7 +84,7 @@ export function NewsSignalCard({
           target="_blank"
           rel="noreferrer"
           onClick={(e) => e.stopPropagation()}
-          className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
         >
           <ExternalLink className="size-3" />
           Open
@@ -96,7 +96,7 @@ export function NewsSignalCard({
               e.stopPropagation();
               onDismiss(signal.id);
             }}
-            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors duration-200 ease-out hover:bg-destructive/10 hover:text-destructive"
             aria-label="Dismiss signal"
           >
             <X className="size-3" />

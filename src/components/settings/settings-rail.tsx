@@ -269,8 +269,8 @@ export function SettingsRail({ initialProfile }: Props) {
                 type="button"
                 onClick={() => patch("include_links", !settings.include_links)}
                 className={cn(
-                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                  settings.include_links ? "bg-primary" : "bg-input",
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  settings.include_links ? "bg-primary hover:bg-primary/90" : "bg-input hover:bg-muted",
                 )}
                 role="switch"
                 aria-checked={settings.include_links}
@@ -278,7 +278,7 @@ export function SettingsRail({ initialProfile }: Props) {
               >
                 <span
                   className={cn(
-                    "pointer-events-none inline-block size-4 rounded-full bg-background shadow-sm ring-0 transition-transform",
+                    "pointer-events-none inline-block size-4 rounded-full bg-background shadow-sm ring-0 transition-transform duration-200 ease-out",
                     settings.include_links ? "translate-x-[18px]" : "translate-x-0.5",
                   )}
                 />
@@ -368,10 +368,10 @@ function Segmented({
             onClick={() => onChange(v)}
             title={labels[idx]}
             className={cn(
-              "rounded-sm px-3 py-1 text-xs font-medium transition-colors",
+              "rounded-sm px-3 py-1 text-xs font-medium transition-colors duration-200 ease-out",
               active
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
+                ? "bg-background text-foreground shadow-sm hover:bg-background"
+                : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
             )}
           >
             {v}

@@ -186,7 +186,7 @@ export function ChatSwitcher({ chats, activeChatId, activeTitle }: Props) {
             <button
               type="button"
               onClick={() => setSearch("")}
-              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
               aria-label="Clear search"
             >
               <X className="size-3" />

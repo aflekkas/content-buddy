@@ -274,7 +274,7 @@ export function ChatInput({
                 <button
                   type="button"
                   onClick={() => removeAttachment(a.path)}
-                  className="absolute right-0.5 top-0.5 z-10 rounded-full bg-background/80 p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+                  className="absolute right-0.5 top-0.5 z-10 rounded-full bg-background/80 p-0.5 opacity-0 transition-[opacity,color,background-color] duration-200 ease-out hover:bg-muted hover:text-foreground group-hover:opacity-100"
                   aria-label="Remove attachment"
                 >
                   <X className="size-3" />
@@ -391,7 +391,7 @@ function DraftCitationChip({
         type="button"
         onClick={onRemove}
         aria-label="Remove draft citation"
-        className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
       >
         <X className="size-3" />
       </button>
@@ -424,7 +424,7 @@ function CitationChip({
         type="button"
         onClick={onRemove}
         aria-label="Remove citation"
-        className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="shrink-0 rounded p-0.5 text-muted-foreground transition-colors duration-200 ease-out hover:bg-muted hover:text-foreground"
       >
         <X className="size-3" />
       </button>

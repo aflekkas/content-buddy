@@ -19,7 +19,7 @@ export function LandingFooter() {
             href="https://www.linkedin.com/in/alexandros-lekkas/"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline underline-offset-4 decoration-foreground/30 transition-colors hover:text-foreground hover:decoration-foreground"
+            className="underline underline-offset-4 decoration-foreground/30 transition-colors duration-200 ease-out hover:text-foreground hover:decoration-foreground"
           >
             Powering Alexandros&apos; LinkedIn posts since 2026
           </a>
