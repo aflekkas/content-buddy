@@ -11,7 +11,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import type { ReactNode, WheelEvent } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ColumnHeader } from "@/components/cockpit/column-header";
 import {
   CockpitFrame,
@@ -102,6 +102,8 @@ export function CockpitShell({
   children,
 }: Props) {
   const { activeDraftIds, reorderDrafts } = useActiveDrafts();
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const chatPanelRef = useRef<HTMLDivElement | null>(null);
   const [activePanel, setActivePanel] = useState<MobilePanel>("chat");
   const [memoryCollapsed, setMemoryCollapsed] = useState<boolean>(
     DEFAULT_PANEL_STATE.memoryCollapsed,
@@ -122,6 +124,7 @@ export function CockpitShell({
   const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(
     null,
   );
+  const [chatFullyVisible, setChatFullyVisible] = useState(true);
 
   useEffect(() => {
     const stored = getStoredPanelState();
@@ -134,12 +137,13 @@ export function CockpitShell({
   }, []);
 
   const hasActiveDrafts = activeDraftIds.length > 0;
+  const showChatRailButton = chatCollapsed || !chatFullyVisible;
   const hasCollapsedRail =
     memoryCollapsed ||
     draftsCollapsed ||
     newsCollapsed ||
     settingsCollapsed ||
-    chatCollapsed;
+    showChatRailButton;
   const showEmptyCanvas =
     memoryCollapsed &&
     draftsCollapsed &&
@@ -173,6 +177,76 @@ export function CockpitShell({
     settingsCollapsed,
   ]);
 
+  const measureChatVisibility = useCallback(() => {
+    const workspace = workspaceRef.current;
+    const chatPanel = chatPanelRef.current;
+    if (!workspace || !chatPanel || chatCollapsed) {
+      setChatFullyVisible(true);
+      return;
+    }
+
+    const workspaceRect = workspace.getBoundingClientRect();
+    const chatRect = chatPanel.getBoundingClientRect();
+    const tolerance = 1;
+    setChatFullyVisible(
+      chatRect.left >= workspaceRect.left - tolerance &&
+        chatRect.right <= workspaceRect.right + tolerance,
+    );
+  }, [chatCollapsed]);
+
+  useEffect(() => {
+    measureChatVisibility();
+  }, [
+    activeDraftIds,
+    chatCollapsed,
+    draftsCollapsed,
+    measureChatVisibility,
+    memoryCollapsed,
+    newsCollapsed,
+    settingsCollapsed,
+  ]);
+
+  useEffect(() => {
+    const workspace = workspaceRef.current;
+    if (!workspace) return;
+
+    let frame = 0;
+    const scheduleMeasure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(measureChatVisibility);
+    };
+
+    const observer = new ResizeObserver(scheduleMeasure);
+    observer.observe(workspace);
+    if (chatPanelRef.current) observer.observe(chatPanelRef.current);
+    workspace.addEventListener("scroll", scheduleMeasure, { passive: true });
+    window.addEventListener("resize", scheduleMeasure);
+    scheduleMeasure();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      workspace.removeEventListener("scroll", scheduleMeasure);
+      window.removeEventListener("resize", scheduleMeasure);
+    };
+  }, [measureChatVisibility]);
+
+  const revealChatPanel = useCallback(() => {
+    setChatCollapsed(false);
+
+    const scrollChatIntoView = () => {
+      chatPanelRef.current?.scrollIntoView({
+        behavior: reducedMotion ? "auto" : "smooth",
+        block: "nearest",
+        inline: "end",
+      });
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(scrollChatIntoView);
+    });
+  }, [reducedMotion]);
+
   function expandMemoryPanel() {
     setMemoryCollapsed(false);
   }
@@ -186,7 +260,7 @@ export function CockpitShell({
     setSettingsCollapsed(false);
   }
   function expandChatPanel() {
-    setChatCollapsed(false);
+    revealChatPanel();
   }
 
   return (
@@ -229,6 +303,7 @@ export function CockpitShell({
 
       <TooltipProvider>
         <div
+          ref={workspaceRef}
           onWheelCapture={handleWorkspaceWheel}
           className="min-h-0 flex-1 lg:flex lg:min-w-0 lg:flex-row lg:overflow-x-auto lg:overflow-y-hidden"
         >
@@ -313,7 +388,7 @@ export function CockpitShell({
                     />
                   </motion.div>
                 ) : null}
-                {chatCollapsed ? (
+                {showChatRailButton ? (
                   <motion.div
                     key="chat"
                     layout
@@ -323,7 +398,7 @@ export function CockpitShell({
                     transition={railTransition}
                   >
                     <RailButton
-                      label="Expand chat"
+                      label={chatCollapsed ? "Expand chat" : "Show chat"}
                       icon={Sparkles}
                       className="text-violet-600 hover:text-violet-700 dark:text-violet-300"
                       onClick={expandChatPanel}
@@ -566,6 +641,7 @@ export function CockpitShell({
           </AnimatePresence>
 
           <motion.div
+            ref={chatPanelRef}
             initial={false}
             animate={{
               flexGrow: chatCollapsed ? 0 : 1,
