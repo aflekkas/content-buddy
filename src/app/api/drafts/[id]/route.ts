@@ -13,6 +13,21 @@ const PatchBody = z.object({
   status: z.enum(["draft", "copied", "posted", "dismissed"]).optional(),
 });
 
+type PostgrestError = {
+  code?: string;
+  message?: string;
+};
+
+function isMissingPostedAtColumn(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const { code, message } = error as PostgrestError;
+  return (
+    code === "PGRST204" &&
+    typeof message === "string" &&
+    message.includes("'posted_at' column")
+  );
+}
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -51,7 +66,14 @@ export async function PATCH(
   try {
     const draft = await updateDraft(auth.user.id, id, patch);
     return jsonResponse(draft);
-  } catch {
+  } catch (error) {
+    if (patch.posted_at !== undefined && isMissingPostedAtColumn(error)) {
+      const fallbackPatch = { ...patch };
+      delete fallbackPatch.posted_at;
+      const draft = await updateDraft(auth.user.id, id, fallbackPatch);
+      return jsonResponse(draft);
+    }
+
     return errorResponse("update_failed", 500, {
       message: "Could not update draft.",
     });
