@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, FileText, Quote, X } from "lucide-react";
+import { ExternalLink, FileText, Quote } from "lucide-react";
 import { useActiveDrafts } from "@/components/cockpit/active-drafts-context";
 import { formatRelativeTime } from "@/lib/system-prompt";
 import { cn } from "@/lib/utils";
@@ -18,17 +18,13 @@ export type EmbeddedDraftData = DraftRow;
 type Props = {
   draft: DraftCardData;
   cacheDraft?: DraftRow;
-  variant?: "rail" | "chat";
   onCite?: (draft: DraftCardData) => void;
-  onDismiss?: (id: string) => void;
 };
 
 export function DraftCard({
   draft,
   cacheDraft,
-  variant = "chat",
   onCite,
-  onDismiss,
 }: Props) {
   const { openDraft } = useActiveDrafts();
   const body = draft.body.trim();
@@ -89,17 +85,6 @@ export function DraftCard({
           <ExternalLink className="size-3" />
           Open
         </button>
-        {variant === "rail" && onDismiss ? (
-          <button
-            type="button"
-            onClick={() => onDismiss(draft.id)}
-            className="inline-flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-            aria-label="Dismiss draft"
-          >
-            <X className="size-3" />
-            Dismiss
-          </button>
-        ) : null}
       </div>
     </div>
   );

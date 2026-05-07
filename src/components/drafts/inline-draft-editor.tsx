@@ -255,11 +255,6 @@ export function InlineDraftEditor({ draftId }: Props) {
     await updateDraftStatus(nextStatus, "posted");
   }
 
-  async function handleDismiss() {
-    const row = await updateDraftStatus("dismissed", "dismiss");
-    if (row) closeDraft(draftId);
-  }
-
   function acceptConflict() {
     if (conflictBody === null) return;
     setBody(conflictBody);
@@ -367,19 +362,6 @@ export function InlineDraftEditor({ draftId }: Props) {
               {charCount.toLocaleString()} chars
             </span>
             <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => void handleDismiss()}
-                disabled={statusActionPending}
-                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-              >
-                {statusAction === "dismiss" ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : null}
-                Dismiss
-              </Button>
               <Button
                 type="button"
                 size="sm"
