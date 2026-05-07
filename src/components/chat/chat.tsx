@@ -8,6 +8,7 @@ import {
   AlertTriangle,
   ArrowDown,
   Brain,
+  ChevronDown,
   DollarSign,
   Sparkles,
   X,
@@ -554,15 +555,15 @@ export function Chat({
           />
           <DailyBudgetMeter budget={displayedDailyBudget} />
           <div
-            className="group relative mt-1.5 flex items-center justify-center gap-1 text-[10px] tracking-wide text-muted-foreground/70"
+            className="mt-1.5 flex items-center justify-center gap-1.5 text-[10px] tracking-wide text-muted-foreground/70"
           >
-            <UsageHoverCard usage={totalUsage} cost={estimatedCost} />
             <DropdownMenu>
               <DropdownMenuTrigger
                 aria-label="Change model"
-                className="rounded transition-colors duration-200 ease-out outline-none hover:bg-muted/40 hover:text-foreground focus-visible:text-foreground focus-visible:ring-1 focus-visible:ring-ring/50"
+                className="inline-flex h-7 items-center gap-1 rounded-full border border-border/80 bg-background px-2.5 text-[11px] font-medium text-foreground shadow-sm transition-[background-color,border-color,box-shadow] duration-200 ease-out outline-none hover:border-ring/50 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring/50"
               >
-                {activeModelLabel}
+                <span>{activeModelLabel}</span>
+                <ChevronDown className="size-3 text-muted-foreground" />
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 align="center"
@@ -1105,66 +1106,44 @@ function readUsdHeader(headers: Headers, name: string): number | null {
 }
 
 function DailyBudgetMeter({ budget }: { budget: DailyAiTokenBudget }) {
-  const [isPinnedOpen, setIsPinnedOpen] = useState(false);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const limit = Math.max(0.01, budget.limitUsd);
   const used = Math.min(limit, Math.max(0, budget.usedUsd));
+  const remaining = Math.max(0, budget.remainingUsd);
   const percentage = Math.min(100, Math.max(0, (used / limit) * 100));
   const isNearLimit = percentage >= 80;
-  const isExpanded = isPinnedOpen || isPreviewOpen;
   const resetAt = new Date(budget.resetAt);
   const resetLabel = Number.isNaN(resetAt.getTime())
-    ? "at the next daily reset"
-    : `at ${resetAt.toLocaleString()}`;
+    ? "Next daily reset"
+    : resetAt.toLocaleString();
   const budgetLabel = `${formatBudgetUsd(used)} of ${formatBudgetUsd(
     budget.limitUsd,
   )} daily AI budget used`;
 
   return (
-    <div className="mt-2 flex justify-center">
-      <button
-        type="button"
-        aria-expanded={isExpanded}
-        aria-label={`${budgetLabel}. Press to ${
-          isPinnedOpen ? "collapse" : "expand"
-        } details.`}
-        onBlur={() => setIsPreviewOpen(false)}
-        onClick={() => setIsPinnedOpen((open) => !open)}
-        onFocus={() => setIsPreviewOpen(true)}
-        onMouseEnter={() => setIsPreviewOpen(true)}
-        onMouseLeave={() => setIsPreviewOpen(false)}
-        className={cn(
-          "rounded-full text-left outline-none transition-[width,border-color,background-color,box-shadow,padding] duration-200 ease-out focus-visible:ring-1 focus-visible:ring-ring/60",
-          isExpanded
-            ? "w-full max-w-sm border border-border/70 bg-muted/25 px-2.5 py-2 shadow-sm"
-            : "w-24 border border-transparent px-0 py-1 hover:border-border/60 hover:bg-muted/20",
-        )}
-      >
-        <div
-          className={cn(
-            "grid transition-[grid-template-rows] duration-200 ease-out",
-            isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-          )}
-        >
-          <div className="min-h-0 overflow-hidden">
-            <div className="mb-1.5 flex items-center justify-between gap-3 text-[10px] text-muted-foreground">
-              <span>Daily AI budget</span>
-              <span className="tabular-nums">
-                {formatBudgetUsd(used)} / {formatBudgetUsd(budget.limitUsd)}
-              </span>
-            </div>
-          </div>
+    <div className="group relative mx-auto mt-2 flex w-28 justify-center pt-10">
+      <div className="pointer-events-none absolute top-0 left-1/2 z-20 w-64 -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-2 text-[10px] text-popover-foreground opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
+        <div className="mb-1.5 flex items-center justify-between gap-3">
+          <span className="font-medium text-foreground">Daily AI budget</span>
+          <span className="tabular-nums text-muted-foreground">
+            {formatBudgetUsd(used)} / {formatBudgetUsd(budget.limitUsd)}
+          </span>
         </div>
+        <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 text-muted-foreground">
+          <span>Remaining</span>
+          <span className="tabular-nums">{formatBudgetUsd(remaining)}</span>
+          <span>Resets</span>
+          <span className="tabular-nums">{resetLabel}</span>
+        </div>
+      </div>
+      <div className="w-28 rounded-full px-0 py-1">
         <div
           role="meter"
+          tabIndex={0}
           aria-label={budgetLabel}
           aria-valuemin={0}
           aria-valuemax={budget.limitUsd}
           aria-valuenow={used}
-          className={cn(
-            "overflow-hidden rounded-full bg-muted transition-[height] duration-200 ease-out",
-            isExpanded ? "h-1.5" : "h-1",
-          )}
+          className="h-1.5 overflow-hidden rounded-full bg-muted outline-none ring-offset-background transition-[height,box-shadow] duration-200 ease-out group-hover:h-2 focus-visible:h-2 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2"
         >
           <div
             className={cn(
@@ -1174,47 +1153,6 @@ function DailyBudgetMeter({ budget }: { budget: DailyAiTokenBudget }) {
             style={{ width: `${percentage}%` }}
           />
         </div>
-        <div
-          className={cn(
-            "grid transition-[grid-template-rows] duration-200 ease-out",
-            isExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-          )}
-        >
-          <div className="min-h-0 overflow-hidden">
-            <div className="mt-1.5 text-[9px] text-muted-foreground/70">
-              Resets {resetLabel}
-            </div>
-          </div>
-        </div>
-      </button>
-    </div>
-  );
-}
-
-function UsageHoverCard({
-  usage,
-  cost,
-}: {
-  usage: TokenUsage;
-  cost: number | null;
-}) {
-  return (
-    <div className="pointer-events-none absolute bottom-full left-1/2 z-30 mb-2 w-48 -translate-x-1/2 rounded-md border border-border bg-popover px-3 py-2 text-left text-[10px] normal-case tracking-normal text-popover-foreground opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100">
-      <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1">
-        <span className="text-muted-foreground">Input</span>
-        <span className="tabular-nums">{usage.inputTokens}</span>
-        <span className="text-muted-foreground">Output</span>
-        <span className="tabular-nums">{usage.outputTokens}</span>
-        <span className="text-muted-foreground">Cache read</span>
-        <span className="tabular-nums">{usage.cacheReadTokens}</span>
-        <span className="text-muted-foreground">Cache write</span>
-        <span className="tabular-nums">{usage.cacheCreationTokens}</span>
-        {cost !== null && (
-          <>
-            <span className="text-muted-foreground">Estimated cost</span>
-            <span className="tabular-nums">{formatUsd(cost)}</span>
-          </>
-        )}
       </div>
     </div>
   );
