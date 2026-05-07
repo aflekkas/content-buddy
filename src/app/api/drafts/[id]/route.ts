@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { jsonResponse, notFound, parseBody, requireAuth } from "@/lib/api";
+import {
+  errorResponse,
+  jsonResponse,
+  notFound,
+  parseBody,
+  requireAuth,
+} from "@/lib/api";
 import { deleteDraft, getDraft, updateDraft } from "@/lib/db/queries";
 
 const PatchBody = z.object({
@@ -42,8 +48,14 @@ export async function PATCH(
           ? null
           : undefined,
   };
-  const draft = await updateDraft(auth.user.id, id, patch);
-  return jsonResponse(draft);
+  try {
+    const draft = await updateDraft(auth.user.id, id, patch);
+    return jsonResponse(draft);
+  } catch {
+    return errorResponse("update_failed", 500, {
+      message: "Could not update draft.",
+    });
+  }
 }
 
 export async function DELETE(

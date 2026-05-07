@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Check, CheckCircle2, Clipboard, Loader2, X } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ColumnHeader } from "@/components/cockpit/column-header";
@@ -28,6 +29,22 @@ type StreamingEndDetail = {
   toolCallId: string;
 };
 
+type DraftEvent = { type: "updated"; draft: DraftRow };
+type StatusAction = "copy" | "posted" | "dismiss";
+
+function publishDraftUpdate(draft: DraftRow) {
+  window.dispatchEvent(
+    new CustomEvent<DraftEvent>("linkedin-studio:draft", {
+      detail: { type: "updated", draft },
+    }),
+  );
+  window.dispatchEvent(
+    new CustomEvent("linkedin-studio:drafts:changed", {
+      detail: { id: draft.id },
+    }),
+  );
+}
+
 export function InlineDraftEditor({ draftId }: Props) {
   const { closeDraft, getCached } = useActiveDrafts();
   const [draft, setDraft] = useState<DraftRow | null>(
@@ -45,6 +62,7 @@ export function InlineDraftEditor({ draftId }: Props) {
   const [loadFailed, setLoadFailed] = useState(false);
   const [streamingBody, setStreamingBody] = useState<string | null>(null);
   const [conflictBody, setConflictBody] = useState<string | null>(null);
+  const [statusAction, setStatusAction] = useState<StatusAction | null>(null);
 
   useEffect(() => {
     if (draft) return;
@@ -190,43 +208,56 @@ export function InlineDraftEditor({ draftId }: Props) {
   const renderedBody = streamingBody ?? body;
   const charCount = useMemo(() => renderedBody.length, [renderedBody]);
   const isAgentWriting = streamingBody !== null;
+  const statusActionPending = statusAction !== null;
 
-  async function handleCopy() {
-    await navigator.clipboard.writeText(body);
-    if (status === "posted") return;
-    const res = await fetch(`/api/drafts/${draftId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: "copied" }),
-    });
-    if (res.ok) {
+  async function updateDraftStatus(
+    nextStatus: DraftRow["status"],
+    action: StatusAction,
+  ): Promise<DraftRow | null> {
+    setStatusAction(action);
+    try {
+      const res = await fetch(`/api/drafts/${draftId}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      if (!res.ok) {
+        toast.error("Could not update draft status.");
+        return null;
+      }
       const row = (await res.json()) as DraftRow;
       setDraft(row);
       setStatus(row.status);
+      publishDraftUpdate(row);
+      return row;
+    } catch {
+      toast.error("Could not update draft status.");
+      return null;
+    } finally {
+      setStatusAction(null);
     }
+  }
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(body);
+    } catch {
+      toast.error("Could not copy draft.");
+      return;
+    }
+    if (status === "posted") return;
+    await updateDraftStatus("copied", "copy");
   }
 
   async function handlePostedToggle() {
     const nextStatus: DraftRow["status"] =
       status === "posted" ? "copied" : "posted";
-    const res = await fetch(`/api/drafts/${draftId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: nextStatus }),
-    });
-    if (!res.ok) return;
-    const row = (await res.json()) as DraftRow;
-    setDraft(row);
-    setStatus(row.status);
+    await updateDraftStatus(nextStatus, "posted");
   }
 
   async function handleDismiss() {
-    await fetch(`/api/drafts/${draftId}`, {
-      method: "PATCH",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ status: "dismissed" }),
-    });
-    closeDraft(draftId);
+    const row = await updateDraftStatus("dismissed", "dismiss");
+    if (row) closeDraft(draftId);
   }
 
   function acceptConflict() {
@@ -341,17 +372,23 @@ export function InlineDraftEditor({ draftId }: Props) {
                 variant="ghost"
                 size="sm"
                 onClick={() => void handleDismiss()}
+                disabled={statusActionPending}
                 className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
               >
+                {statusAction === "dismiss" ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : null}
                 Dismiss
               </Button>
               <Button
                 type="button"
                 size="sm"
                 onClick={() => void handleCopy()}
-                disabled={!body.trim() || isAgentWriting}
+                disabled={!body.trim() || isAgentWriting || statusActionPending}
               >
-                {copied ? (
+                {statusAction === "copy" ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : copied ? (
                   <Check className={cn("size-3.5")} />
                 ) : (
                   <Clipboard className="size-3.5" />
@@ -363,13 +400,17 @@ export function InlineDraftEditor({ draftId }: Props) {
                 variant={posted ? "secondary" : "ghost"}
                 size="sm"
                 onClick={() => void handlePostedToggle()}
-                disabled={!body.trim() || isAgentWriting}
+                disabled={!body.trim() || isAgentWriting || statusActionPending}
                 className={cn(
                   !posted && "text-muted-foreground",
                   posted && "text-foreground",
                 )}
               >
-                <CheckCircle2 className="size-3.5" />
+                {statusAction === "posted" ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="size-3.5" />
+                )}
                 Posted
               </Button>
             </div>
